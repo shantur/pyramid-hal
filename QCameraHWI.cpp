@@ -160,6 +160,7 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mPreviewSizeCount(13),
                     mVideoSizeCount(0),
                     mAutoFocusRunning(false),
+                    mNeedToUnlockCaf(false),
                     mHasAutoFocusSupport(false),
                     mInitialized(false),
     mDisEnabled(0),
@@ -1420,9 +1421,11 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status, app
 
     /* If autofocus call has been made during CAF, CAF will be locked.
      * We specifically need to call cancelAutoFocus to unlock CAF.
-     * In that sense, AF is still running.*/
+     */
     isp3a_af_mode_t afMode = getAutoFocusMode(mParameters);
-    mAutoFocusRunning = (afMode == AF_MODE_CAF) ? true : false;
+    if (afMode == AF_MODE_CAF)
+       mNeedToUnlockCaf = true;
+    mAutoFocusRunning = false;
     mAutofocusLock.unlock();
 
 /************************************************************
@@ -1875,9 +1878,10 @@ status_t QCameraHardwareInterface::cancelAutoFocus()
 *************************************************************/
 
     mAutofocusLock.lock();
-    if(mAutoFocusRunning) {
+    if(mAutoFocusRunning || mNeedToUnlockCaf) {
 
       mAutoFocusRunning = false;
+      mNeedToUnlockCaf = false;
       mAutofocusLock.unlock();
 
     }else/*(!mAutoFocusRunning)*/{
