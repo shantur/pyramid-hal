@@ -1473,7 +1473,7 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     if ((rc = setZSLBurstLookBack(params))) final_rc = rc;
     if ((rc = setZSLBurstInterval(params))) final_rc = rc;
     if ((rc = setNoDisplayMode(params))) final_rc = rc;
-    
+
     //Update Exiftag values.
     setExifTags();
 
@@ -2510,7 +2510,7 @@ status_t QCameraHardwareInterface::setVideoSize(const QCameraParameters& params)
         if(!parse_size(str, videoWidth, videoHeight)) {
             parse_size(str_t, old_vid_w, old_vid_h);
             if(old_vid_w != videoWidth || old_vid_h != videoHeight) {
-                mRestartPreview = true; 
+                mRestartPreview = true;
                 ALOGE("%s: Video sizes changes to %s, Restart preview...", __func__, str);
             }
             mParameters.set(QCameraParameters::KEY_VIDEO_SIZE, str);
@@ -3088,7 +3088,7 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
         ALOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
 
         if (myMode & CAMERA_ZSL_MODE) {
-            ALOGE("In ZSL mode, reset AEBBracket to HDR_OFF mode");
+            ALOGI("In ZSL mode, reset AEBBracket to HDR_OFF mode");
             exp_bracketing_t temp;
             memset(&temp, 0, sizeof(temp));
             mHdrMode = HDR_BRACKETING_OFF;
@@ -3105,16 +3105,15 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
                                     sizeof(hdr_bracket) / sizeof(str_map), str);
         exp_bracketing_t temp;
         memset(&temp, 0, sizeof(temp));
+        ALOGI("%s: value=%d", __func__, value);
         switch (value) {
             case HDR_MODE:
                 {
+                    /*Don't send the param to driver for now
+                      when taking picture, query the backend, and then set it.
+                      Some algorithm may have dependency on 3A result
+                      */
                     mHdrMode = HDR_MODE;
-                    temp.hdr_enable= TRUE;
-                    temp.mode = HDR_MODE;
-                    temp.total_frames = 3;
-                    temp.total_hal_frames = getNumOfSnapshots();
-                    ALOGI("%s: setting HDR frames (%d)", __FUNCTION__, temp.total_hal_frames);
-                    native_set_parms(MM_CAMERA_PARM_HDR, sizeof(exp_bracketing_t), (void *)&temp);
                 }
                 break;
             case EXP_BRACKETING_MODE:
