@@ -2353,6 +2353,8 @@ status_t QCameraStream_Snapshot::start(void) {
         if (mHdrInfo.hdr_on) {
             ret = initJPEGSnapshot(mHdrInfo.num_frame);
         } else {
+            /* do not support non zsl burst now. */
+            mNumOfSnapshot = 1;
             ret = initJPEGSnapshot(mNumOfSnapshot);
         }
     }
