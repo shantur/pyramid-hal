@@ -562,6 +562,8 @@ static int mm_camera_channel_skip_frames(mm_camera_obj_t *my_obj,
          count, frame_attr->look_back, mq->match_cnt, sq->match_cnt);
 
     count -= frame_attr->look_back;
+    if(count < 0)
+      count = 0;
     CDBG("count=%d, frame_attr->look_back=%d,mq->match_cnt=%d, sq->match_cnt=%d",
                count, frame_attr->look_back, mq->match_cnt,sq->match_cnt);
     for(i=0; i < count; i++) {
