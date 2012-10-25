@@ -667,7 +667,7 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
         return mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_FACIAL_FEATURE_INFO,
                      sizeof(int), (void *)parm->p_value);
     case MM_CAMERA_PARM_HDR:
-        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+        return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_GET_PARM_HDR, sizeof(exp_bracketing_t), (void *)parm->p_value);
         break;
     case MM_CAMERA_PARM_MOBICAT:

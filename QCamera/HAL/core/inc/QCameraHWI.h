@@ -680,6 +680,7 @@ private:
     int getJpegRotation(void);
     int getISOSpeedValue();
     float getExposureTime();
+    int getAutoFlickerMode();
     status_t setAntibanding(const QCameraParameters& params);
     status_t setEffect(const QCameraParameters& params);
     status_t setExposureCompensation(const QCameraParameters &params);

@@ -1255,6 +1255,21 @@ status_t QCameraStream_Snapshot::initZSLSnapshot(void)
         ALOGE("%s: Failure allocating memory for Snapshot buffers", __func__);
         goto end;
     }
+    {
+        /*register main and thumbnail buffers at back-end for frameproc*/
+        for (int i = 0; i < mHalCamCtrl->getZSLQueueDepth() + 3; i++) {
+            if (NO_ERROR != mHalCamCtrl->sendMappingBuf(MSM_V4L2_EXT_CAPTURE_MODE_MAIN, i,
+                mSnapshotStreamBuf.frame[i].fd, mHalCamCtrl->mSnapshotMemory.size, mCameraId,
+                CAM_SOCK_MSG_TYPE_FD_MAPPING)) {
+                ALOGE("%s: sending mapping data Msg Failed", __func__);
+            }
+            if (NO_ERROR != mHalCamCtrl->sendMappingBuf(MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL, i,
+                mPostviewStreamBuf.frame[i].fd, mHalCamCtrl->mThumbnailMemory.size, mCameraId,
+                CAM_SOCK_MSG_TYPE_FD_MAPPING)) {
+                ALOGE("%s: sending mapping data Msg Failed", __func__);
+            }
+        }
+    }
 
 end:
     /* Based on what state we are in, we'll need to handle error -
