@@ -625,6 +625,31 @@ static int32_t mm_camera_intf_request_super_buf(
     return rc;
 }
 
+static int32_t mm_camera_intf_request_super_buf_by_frameId(
+                                    uint32_t camera_handler,
+                                    uint32_t ch_id,
+                                    mm_camera_req_buf_t* req_buf)
+{
+    int32_t rc = -1;
+    CDBG("%s E: num_bufs_requested %d frame Id %d, camera_handler %d,ch_id %d",
+        __func__, req_buf->num_buf_requested, req_buf->yuv_frame_id,
+        camera_handler,ch_id);
+    mm_camera_obj_t * my_obj = NULL;
+
+    pthread_mutex_lock(&g_intf_lock);
+    my_obj = mm_camera_util_get_camera_by_handler(camera_handler);
+
+    if(my_obj) {
+        pthread_mutex_lock(&my_obj->cam_lock);
+        pthread_mutex_unlock(&g_intf_lock);
+        rc = mm_camera_request_super_buf_by_frameId(my_obj, ch_id, req_buf);
+    } else {
+        pthread_mutex_unlock(&g_intf_lock);
+    }
+    CDBG("%s :X rc = %d",__func__,rc);
+    return rc;
+}
+
 static int32_t mm_camera_intf_cancel_super_buf_request(
                                     uint32_t camera_handler,
                                     uint32_t ch_id)
@@ -1237,6 +1262,7 @@ static mm_camera_ops_t mm_camera_ops = {
     .stop_streams = mm_camera_intf_stop_streams,
     .async_teardown_streams = mm_camera_intf_async_teardown_streams,
     .request_super_buf = mm_camera_intf_request_super_buf,
+    .request_super_buf_by_frameId = mm_camera_intf_request_super_buf_by_frameId,
     .cancel_super_buf_request = mm_camera_intf_cancel_super_buf_request,
     .start_focus = mm_camera_intf_start_focus,
     .abort_focus = mm_camera_intf_abort_focus,
@@ -1316,4 +1342,57 @@ mm_camera_vtbl_t * camera_open(uint8_t camera_idx,
         pthread_mutex_unlock(&g_oem_lock);
         return &cam_obj->vtbl;
     }
+}
+
+/* ioctl_native_cmd is defined in kernel msm_camera.h */
+int32_t mm_camera_native_control (struct ioctl_native_cmd* info)
+{
+  int rc = 0;
+  int server_fd = 0;
+  struct ioctl_native_cmd cam_info;
+  struct msm_camera_v4l2_ioctl_t v4l2_ioctl; //v4l2_ioctl
+  char device[MAX_DEV_NAME_LEN]; //v4l2_ioctl
+
+  cam_info.mode = info[0].mode;
+  cam_info.address = info[0].address;
+  cam_info.value_1 = info[0].value_1;
+  cam_info.value_2 = info[0].value_2;
+  cam_info.value_3 = info[0].value_3;
+
+  v4l2_ioctl.ioctl_ptr = &cam_info; //v4l2_ioctl
+
+  ALOGE("mm_camera_native_control : mode(%d), value1(%d), value2(%d), value3(%d)",
+      cam_info.mode, cam_info.value_1, cam_info.value_2, cam_info.value_3);
+
+  server_fd = open(MSM_CAMERA_SERVER, O_RDWR); //v4l2_ioctl
+  if (server_fd <= 0) {
+      CDBG_HIGH("%s: open '%s' failed. err='%s'",
+          __func__, device, strerror(errno));//v4l2_ioctl
+      goto end;
+  }
+
+  if (info[0].value_3 == 0) {
+      rc = ioctl(server_fd, MSM_CAM_IOCTL_V4L2_EVT_NATIVE_CMD, &v4l2_ioctl);
+      if(rc < 0) {
+          CDBG_HIGH("%s: MSM_CAM_IOCTL_V4L2_EVT_NATIVE_CMD err=(%s)",
+              __func__, strerror(errno));
+          goto end;
+      }
+  } else if (info[0].value_3 == 1) {
+      rc = ioctl(server_fd, MSM_CAM_IOCTL_V4L2_EVT_NATIVE_FRONT_CMD,
+            &v4l2_ioctl);
+      if(rc < 0) {
+          CDBG_HIGH("%s: MSM_CAM_IOCTL_V4L2_EVT_NATIVE_FRONT_CMD err=(%s)",
+              __func__, strerror(errno));
+          goto end;
+      }
+  }
+  info[0].mode = cam_info.mode;
+  info[0].address = cam_info.address;
+  info[0].value_1 = cam_info.value_1;
+
+  end:
+  if (server_fd > 0)
+      close(server_fd);
+  return rc;
 }
