@@ -37,6 +37,8 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MM_CAMERA_MAX_NUM_FRAMES 16
 #define MM_CAMERA_MAX_2ND_SENSORS 4
 
+#define RDI2_YUV_SYNC 1
+
 typedef enum {
     MM_CAMERA_OPS_LOCAL = -1,  /*no need to query mm-camera*/
     MM_CAMERA_OPS_STREAMING_PREVIEW = 0,
@@ -221,6 +223,7 @@ typedef struct {
     uint32_t ch_id;
     uint8_t num_bufs;
     mm_camera_buf_def_t* bufs[MM_CAMEAR_MAX_STRAEM_BUNDLE];
+    int split_jpeg;
 } mm_camera_super_buf_t;
 
 typedef void (*mm_camera_event_notify_t)(uint32_t camera_handle,

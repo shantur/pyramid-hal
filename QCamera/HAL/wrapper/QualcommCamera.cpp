@@ -46,6 +46,8 @@ extern "C" {
 #include <sys/time.h>
 }
 
+int HAL_currentCameraId;
+
 /* HAL function implementation goes here*/
 
 /**

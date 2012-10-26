@@ -37,17 +37,42 @@
 /* following code implement the still image capture & encoding logic of this class*/
 namespace android {
 
+QCameraStream* QCameraStream_SnapshotMain::createInstance(
+                        uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode)
+{
+    ALOGE("%s : E", __func__);
+    QCameraStream* pme = new QCameraStream_SnapshotMain(
+                       CameraHandle,
+                       ChannelId,
+                       Width,
+                       Height,
+                       Format,
+                       NumBuffers,
+                       mm_ops,
+                       imgmode,
+                       mode);
+    return pme;
+    ALOGE("%s : X", __func__);
+}
+
 QCameraStream_SnapshotMain::
 QCameraStream_SnapshotMain(uint32_t CameraHandle,
-                           uint32_t ChannelId,
-                           uint32_t Width,
-                           uint32_t Height,
-                           uint32_t Format,
-                           uint8_t NumBuffers,
-                           mm_camera_vtbl_t *mm_ops,
-                           mm_camera_img_mode imgmode,
-                           camera_mode_t mode,
-                           QCameraHardwareInterface* camCtrl)
+                       uint32_t ChannelId,
+                       uint32_t Width,
+                       uint32_t Height,
+                       uint32_t Format,
+                       uint8_t NumBuffers,
+                       mm_camera_vtbl_t *mm_ops,
+                       mm_camera_img_mode imgmode,
+                       camera_mode_t mode)
   :QCameraStream(CameraHandle,
                  ChannelId,
                  Width,
@@ -56,14 +81,24 @@ QCameraStream_SnapshotMain(uint32_t CameraHandle,
                  NumBuffers,
                  mm_ops,
                  imgmode,
-                 mode,
-                 camCtrl)
+                 mode)
 {
+    ALOGE("%s: E", __func__);
+    ALOGE("%s : X", __func__);
 }
 
 QCameraStream_SnapshotMain::~QCameraStream_SnapshotMain()
 {
     release();
+}
+
+void QCameraStream_SnapshotMain::deleteInstance(QCameraStream *p)
+{
+  if (p){
+    p->release();
+    delete p;
+    p = NULL;
+  }
 }
 
 void QCameraStream_SnapshotMain::release()
@@ -73,84 +108,97 @@ void QCameraStream_SnapshotMain::release()
 
 }
 
+bool QCameraStream_SnapshotMain::isZSLMode()
+{
+   return (myMode & CAMERA_ZSL_MODE);
+}
+
 status_t QCameraStream_SnapshotMain::initStream(uint8_t no_cb_needed, uint8_t stream_on)
 {
     status_t ret = NO_ERROR;
 
-    if(mHalCamCtrl->isZSLMode()) {
+    if(isZSLMode()) {
         mNumBuffers = mHalCamCtrl->getZSLQueueDepth() + 3;
-    } else if (mHalCamCtrl->mHdrInfo.hdr_on) {
-        mNumBuffers = mHalCamCtrl->mHdrInfo.num_frame;
-    } else {
-        mNumBuffers = mHalCamCtrl->getNumOfSnapshots();
+    } else if (!mHalCamCtrl->mHdrInfo.hdr_on) {
+        mNumBuffers = 1;
     }
     ret = QCameraStream::initStream(no_cb_needed, stream_on);
     return ret;;
 }
 
-int QCameraStream_SnapshotMain::getBuf(mm_camera_frame_len_offset *frame_offset_info,
-                                       uint8_t num_bufs,
-                                       uint8_t *initial_reg_flag,
-                                       mm_camera_buf_def_t  *bufs)
-{
-    int ret = MM_CAMERA_OK;
-    ALOGE("%s : E", __func__);
 
-    if (mNumBuffers < num_bufs) {
-        mNumBuffers = num_bufs;
-    }
-    if ((mNumBuffers == 0) || (mNumBuffers > MM_CAMERA_MAX_NUM_FRAMES)) {
+status_t QCameraStream_SnapshotMain::initMainBuffers()
+{
+    ALOGE("%s : E", __func__);
+    status_t ret = NO_ERROR;
+    uint32_t frame_len, y_off, cbcr_off;
+    uint8_t num_planes=mFrameOffsetInfo.num_planes;
+    int num_of_buf=mNumBuffers;
+    uint32_t planes[VIDEO_MAX_PLANES];
+    int rotation = 0;
+
+    memset(mSnapshotStreamBuf, 0, MM_CAMERA_MAX_NUM_FRAMES *sizeof(mm_camera_buf_def_t));
+
+    if ((num_of_buf == 0) || (num_of_buf > MM_CAMERA_MAX_NUM_FRAMES)) {
         ALOGE("%s: Invalid number of buffers (=%d) requested!",
-             __func__, mNumBuffers);
+             __func__, num_of_buf);
         return BAD_VALUE;
     }
 
-    memset(mSnapshotStreamBuf, 0, sizeof(mSnapshotStreamBuf));
-    memcpy(&mFrameOffsetInfo, frame_offset_info, sizeof(mFrameOffsetInfo));
-    ret = mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory,
-                                   mNumBuffers,
-                                   mFrameOffsetInfo.frame_len,
-                                   MSM_PMEM_MAINIMG,
-                                   &mFrameOffsetInfo,
-                                   mSnapshotStreamBuf);
+    ALOGD("%s: Mode: %d Num_of_buf: %d ImageSizes: main: %dx%d",
+         __func__, myMode, num_of_buf,
+         mWidth, mHeight);
 
-    if(MM_CAMERA_OK == ret) {
-        for(int i = 0; i < num_bufs; i++) {
-            bufs[i] = mSnapshotStreamBuf[i];
-            initial_reg_flag[i] = true;
-        }
+    /* Number of buffers to be set*/
+    /* Set the JPEG Rotation here since get_buffer_offset needs
+     * the value of rotation.*/
+    num_planes = 2;
+    planes[0] = mFrameOffsetInfo.mp[0].len;
+    planes[1] = mFrameOffsetInfo.mp[1].len;
+    frame_len = mFrameOffsetInfo.frame_len;
+    y_off = mFrameOffsetInfo.mp[0].offset;
+    cbcr_off = mFrameOffsetInfo.mp[1].offset;
+    if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory,
+        num_of_buf,frame_len, y_off, cbcr_off,
+        MSM_PMEM_MAINIMG, mSnapshotStreamBuf,
+        num_planes, planes) < 0) {
+        ret = NO_MEMORY;
+    	return ret;
+    };
+    for(int i=0;i<num_of_buf;i++) {
+       this->mSnapshotStreamBuf[i].stream_id=mStreamId;
     }
 
     /* If we have reached here successfully, we have allocated buffer.
        Set state machine.*/
     ALOGD("%s: X", __func__);
-    return ret;
+    return NO_ERROR;
 
 }
 
-int QCameraStream_SnapshotMain::putBuf(uint8_t num_bufs, mm_camera_buf_def_t *bufs)
+void QCameraStream_SnapshotMain::deInitMainBuffers()
 {
     ALOGE("%s: Release Snapshot main Memory",__func__);
-    return mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mSnapshotMemory);
+
+    mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mSnapshotMemory);
 }
 
-int QCameraStream_SnapshotThumbnail::putBuf(uint8_t num_bufs, mm_camera_buf_def_t *bufs)
+void QCameraStream_SnapshotThumbnail::deInitThumbnailBuffers()
 {
      ALOGE("%s: Release Snapshot thumbnail Memory",__func__);
-     return mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mThumbnailMemory);
+     mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mThumbnailMemory);
 }
 
 QCameraStream_SnapshotThumbnail::
 QCameraStream_SnapshotThumbnail(uint32_t CameraHandle,
-                                uint32_t ChannelId,
-                                uint32_t Width,
-                                uint32_t Height,
-                                uint32_t Format,
-                                uint8_t NumBuffers,
-                                mm_camera_vtbl_t *mm_ops,
-                                mm_camera_img_mode imgmode,
-                                camera_mode_t mode,
-                                QCameraHardwareInterface* camCtrl)
+                       uint32_t ChannelId,
+                       uint32_t Width,
+                       uint32_t Height,
+                       uint32_t Format,
+                       uint8_t NumBuffers,
+                       mm_camera_vtbl_t *mm_ops,
+                       mm_camera_img_mode imgmode,
+                       camera_mode_t mode)
   :QCameraStream(CameraHandle,
                  ChannelId,
                  Width,
@@ -159,73 +207,89 @@ QCameraStream_SnapshotThumbnail(uint32_t CameraHandle,
                  NumBuffers,
                  mm_ops,
                  imgmode,
-                 mode,
-                 camCtrl)
+                 mode)
 {
 
 }
+QCameraStream* QCameraStream_SnapshotThumbnail::createInstance(
+                        uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode)
+{
+    QCameraStream* pme = new QCameraStream_SnapshotThumbnail(
+                       CameraHandle,
+                       ChannelId,
+                       Width,
+                       Height,
+                       Format,
+                       NumBuffers,
+                       mm_ops,
+                       imgmode,
+                       mode);
+    return pme;
+}
+
 
 QCameraStream_SnapshotThumbnail::~QCameraStream_SnapshotThumbnail()
 {
      release();
 }
 
+void QCameraStream_SnapshotThumbnail::deleteInstance(QCameraStream *p)
+{
+  if (p){
+    p->release();
+    delete p;
+    p = NULL;
+  }
+}
+
 void QCameraStream_SnapshotThumbnail::release()
 {
     streamOff(0);
     deinitStream();
+
 }
 
-status_t QCameraStream_SnapshotThumbnail::initStream(uint8_t no_cb_needed, uint8_t stream_on)
+status_t QCameraStream_SnapshotThumbnail::initThumbnailBuffers()
 {
     status_t ret = NO_ERROR;
+    uint32_t frame_len, y_off, cbcr_off;
+    uint8_t num_planes=mFrameOffsetInfo.num_planes;
+    int num_of_buf=mNumBuffers;
+    uint32_t planes[VIDEO_MAX_PLANES];
+    int rotation = 0;
 
-    if(mHalCamCtrl->isZSLMode()) {
-        mNumBuffers = mHalCamCtrl->getZSLQueueDepth() + 3;
-    } else if (mHalCamCtrl->mHdrInfo.hdr_on) {
-        mNumBuffers = mHalCamCtrl->mHdrInfo.num_frame;
-    } else {
-        mNumBuffers = mHalCamCtrl->getNumOfSnapshots();
-    }
-    ret = QCameraStream::initStream(no_cb_needed, stream_on);
-    return ret;;
-}
 
-status_t QCameraStream_SnapshotThumbnail::getBuf(mm_camera_frame_len_offset *frame_offset_info,
-                                                 uint8_t num_bufs,
-                                                 uint8_t *initial_reg_flag,
-                                                 mm_camera_buf_def_t  *bufs)
-{
-    int ret = MM_CAMERA_OK;
+    num_planes = mFrameOffsetInfo.num_planes;
+    planes[0] = mFrameOffsetInfo.mp[0].len;
+    planes[1] = mFrameOffsetInfo.mp[1].len;
+    frame_len = mFrameOffsetInfo.frame_len;
+    y_off = mFrameOffsetInfo.mp[0].offset;
+    cbcr_off = mFrameOffsetInfo.mp[1].offset;
 
-    if (mNumBuffers < num_bufs) {
-        mNumBuffers = num_bufs;
-    }
-    if ((mNumBuffers == 0) || (mNumBuffers > MM_CAMERA_MAX_NUM_FRAMES)) {
-        ALOGE("%s: Invalid number of buffers (=%d) requested!",
-             __func__, mNumBuffers);
-        return BAD_VALUE;
-    }
-
-    memset(mPostviewStreamBuf, 0, sizeof(mPostviewStreamBuf));
-    memcpy(&mFrameOffsetInfo, frame_offset_info, sizeof(mFrameOffsetInfo));
-    ret = mHalCamCtrl->initHeapMem(
+    if (mHalCamCtrl->initHeapMem(
                          &mHalCamCtrl->mThumbnailMemory,
-                         mNumBuffers,
-                         mFrameOffsetInfo.frame_len,
+                         num_of_buf,
+                         frame_len,
+                         y_off,
+                         cbcr_off,
                          MSM_PMEM_THUMBNAIL,
-                         &mFrameOffsetInfo,
-                         mPostviewStreamBuf);
-    if(MM_CAMERA_OK == ret) {
-        for(int i = 0; i < num_bufs; i++) {
-            bufs[i] = mPostviewStreamBuf[i];
-            initial_reg_flag[i] = true;
-        }
+                         mPostviewStreamBuf,
+    		         num_planes,
+                         planes) < 0) {
+    	return NO_MEMORY;
     }
 
-    return ret;
+
+    return NO_ERROR;
 }
 
 
 }; // namespace android
-
