@@ -497,13 +497,15 @@ int32_t mm_jpeg_omx_config_main(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job)
     }
 
     /* config crop */
-    CDBG("%s: config main crop", __func__);
-    rc = mm_jpeg_omx_config_main_crop(my_obj, src_buf);
-    if (0 != rc) {
-        CDBG_ERROR("%s: config crop failed", __func__);
-        return rc;
+    CDBG("%s: color format %d", __func__, src_buf->color_format);
+    if(src_buf->color_format != MM_JPEG_COLOR_FORMAT_BITSTREAM){
+        CDBG("%s: config main crop", __func__);
+        rc = mm_jpeg_omx_config_main_crop(my_obj, src_buf);
+        if (0 != rc) {
+            CDBG_ERROR("%s: config crop failed", __func__);
+            return rc;
+        }
     }
-
     /* set quality */
     memset(&q_factor, 0, sizeof(q_factor));
     q_factor.nPortIndex = INPUT_PORT_MAIN;
