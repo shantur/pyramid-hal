@@ -77,6 +77,11 @@ typedef enum {
 }mm_camera_stream_parm_t;
 
 typedef struct {
+    uint32_t num_buf_requested;
+    uint32_t yuv_frame_id;
+} mm_camera_req_buf_t;
+
+typedef struct {
    int32_t width;
    int32_t height;
 } mm_camera_dimension_t;
@@ -335,6 +340,10 @@ typedef struct {
     int32_t (*request_super_buf) (uint32_t camera_handle,
                                   uint32_t ch_id,
                                   uint32_t num_buf_requested);
+   /* get super bufs. for matching yuv id*/
+   int32_t (*request_super_buf_by_frameId) (uint32_t camera_handle,
+                                  uint32_t ch_id,
+                                  mm_camera_req_buf_t *req_buf);
     /* abort the super buf dispatching. for burst mode only  */
     int32_t (*cancel_super_buf_request) (uint32_t camera_handle,
                                          uint32_t ch_id);
@@ -423,6 +432,7 @@ typedef struct {
 mm_camera_info_t * camera_query(uint8_t *num_cameras);
 mm_camera_vtbl_t * camera_open(uint8_t camera_idx,
                                mm_camear_mem_vtbl_t *mem_vtbl);
+int32_t mm_camera_native_control(struct ioctl_native_cmd* info);
 
 //extern void mm_camera_util_profile(const char *str);
 

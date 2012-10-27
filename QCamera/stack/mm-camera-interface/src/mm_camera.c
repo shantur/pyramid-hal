@@ -820,6 +820,11 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
                                             sizeof(cam_sensor_fps_range_t),
                                             p_value);
         break;
+    case MM_CAMERA_PARM_ISYUV:
+        rc = 0;
+        *((uint8_t *)p_value) =  my_obj->properties.yuv_output;
+        CDBG("%s: isYUVSensor: %d\n", __func__, my_obj->properties.yuv_output);
+        break;
     default:
         /* needs to add more implementation */
         rc = -1;
@@ -1132,6 +1137,32 @@ int32_t mm_camera_request_super_buf(mm_camera_obj_t *my_obj,
         rc = mm_channel_fsm_fn(ch_obj,
                                MM_CHANNEL_EVT_REQUEST_SUPER_BUF,
                                (void*)num_buf_requested,
+                               NULL);
+    } else {
+        pthread_mutex_unlock(&my_obj->cam_lock);
+    }
+
+    return rc;
+}
+
+int32_t mm_camera_request_super_buf_by_frameId(mm_camera_obj_t *my_obj,
+                                    uint32_t ch_id,
+                                    mm_camera_req_buf_t *req_buf)
+{
+    int32_t rc = -1;
+    CDBG("%s: num_bufs_requested %d frame Id %d",
+        __func__, req_buf->num_buf_requested, req_buf->yuv_frame_id);
+
+    mm_channel_t * ch_obj =
+        mm_camera_util_get_channel_by_handler(my_obj, ch_id);
+
+    if (NULL != ch_obj) {
+        pthread_mutex_lock(&ch_obj->ch_lock);
+        pthread_mutex_unlock(&my_obj->cam_lock);
+
+        rc = mm_channel_fsm_fn(ch_obj,
+                               MM_CHANNEL_EVT_REQUEST_SUPER_BUF_BY_FRAMEID,
+                               (void*)req_buf,
                                NULL);
     } else {
         pthread_mutex_unlock(&my_obj->cam_lock);

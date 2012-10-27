@@ -94,6 +94,7 @@ typedef enum
     MM_CAMERA_CMD_TYPE_EXIT,       /* EXIT */
     MM_CAMERA_CMD_TYPE_REQ_DATA_CB,/* request data */
     MM_CAMERA_CMD_TYPE_SUPER_BUF_DATA_CB,    /* superbuf dataB CMD */
+    MM_CAMERA_CMD_TYPE_REQ_DATA_CB_BY_FRAMEID, /*request data by frame Id*/
     MM_CAMERA_CMD_TYPE_MAX
 } mm_camera_cmdcb_type_t;
 
@@ -102,10 +103,6 @@ typedef struct {
     uint32_t frame_idx;
     mm_camera_buf_def_t *buf; /* ref to buf */
 } mm_camera_buf_info_t;
-
-typedef struct {
-    uint32_t num_buf_requested;
-} mm_camera_req_buf_t;
 
 typedef struct {
     mm_camera_cmdcb_type_t cmd_type;
@@ -290,6 +287,7 @@ typedef enum {
     MM_CHANNEL_EVT_STOP_REPRO_ISP,
     MM_CHANNEL_EVT_DETACH_STREAM_FROM_REPRO_ISP,
     MM_CHANNEL_EVT_CLOSE_REPRO_ISP,
+    MM_CHANNEL_EVT_REQUEST_SUPER_BUF_BY_FRAMEID,
     MM_CHANNEL_EVT_MAX
 } mm_channel_evt_type_t;
 
@@ -546,6 +544,9 @@ extern int32_t mm_camera_async_teardown_streams(mm_camera_obj_t *my_obj,
 extern int32_t mm_camera_request_super_buf(mm_camera_obj_t *my_obj,
                                            uint32_t ch_id,
                                            uint32_t num_buf_requested);
+extern int32_t mm_camera_request_super_buf_by_frameId(mm_camera_obj_t *my_obj,
+                                    uint32_t ch_id,
+                                    mm_camera_req_buf_t *req_buf);
 extern int32_t mm_camera_cancel_super_buf_request(mm_camera_obj_t *my_obj,
                                                   uint32_t ch_id);
 extern int32_t mm_camera_start_focus(mm_camera_obj_t *my_obj,
