@@ -114,6 +114,19 @@ typedef struct {
 
     /* jpeg quality: range 0~100 */
     uint32_t quality;
+
+    /*restart interval for bitstream*/
+    uint16_t restart_interval;
+
+    /*luma quantization table for bitstream*/
+    uint8_t *luma_qtable;
+
+    /*chroma quantization table for bitstream*/
+    uint8_t *chroma_qtable;
+
+    /*flag if want to use user defined q tables*/
+    int user_defined_tables;
+
 } src_image_buffer_info;
 
 typedef struct {
