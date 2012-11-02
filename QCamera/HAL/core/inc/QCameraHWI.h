@@ -73,7 +73,7 @@ extern "C" {
 #define NUM_HISTOGRAM_BUFFERS 3
 #if 1 // QCT 10162012 RDI2 changes 
 #define JPEG_DATA_OFFSET 0x2800 //(2048+4096+4096)
-
+#define RAW_DATA_OFFSET 0x1800 //(2048+4096)
 #define RDI2_THUMB  1
 #define RDI2_SPLIT  1
 #endif

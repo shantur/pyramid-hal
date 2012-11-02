@@ -767,7 +767,7 @@ void QCameraHardwareInterface::initDefaultParameters()
         String8 str;
         for(int i=0; i<HFR_VALUES_COUNT; i++){
             if(hfr[i].val <= maxHFR){
-                if(i>0)	str.append(",");
+                if(i>0) str.append(",");
                 str.append(hfr[i].desc);
             }
         }
@@ -876,8 +876,8 @@ void QCameraHardwareInterface::initDefaultParameters()
     mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_DEFAULT_PREVIEW_HEIGHT,
             &default_preview_height);
 #if 1 // QCT 10092012 - Rear Camera Recording through C2D
-	default_preview_width = 640;
-	default_preview_height = 480;
+    default_preview_width = 640;
+    default_preview_height = 480;
 #endif
     mParameters.setPreviewSize(default_preview_width, default_preview_height);
     mParameters.set(QCameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
@@ -1339,10 +1339,10 @@ int QCameraHardwareInterface::setParameters(const char *parms)
     String8 str = String8(parms);
     param.unflatten(str);
     status_t ret = setParameters(param);
-	if(ret == NO_ERROR)
-		return 0;
-	else
-		return -1;
+    if(ret == NO_ERROR)
+        return 0;
+    else
+        return -1;
 }
 
 /**
@@ -1441,8 +1441,8 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
 }
 
 /** Retrieve the camera parameters.  The buffer returned by the camera HAL
-	must be returned back to it with put_parameters, if put_parameters
-	is not NULL.
+    must be returned back to it with put_parameters, if put_parameters
+    is not NULL.
  */
 int QCameraHardwareInterface::getParameters(char **parms)
 {
@@ -1455,16 +1455,16 @@ int QCameraHardwareInterface::getParameters(char **parms)
     if(rc != NULL){
         memset(rc, 0, sizeof(char)*(str.length()+1));
         strncpy(rc, str.string(), str.length());
-	rc[str.length()] = 0;
-	*parms = rc;
+    rc[str.length()] = 0;
+    *parms = rc;
     }
     return 0;
 }
 
 /** The camera HAL uses its own memory to pass us the parameters when we
-	call get_parameters.  Use this function to return the memory back to
-	the camera HAL, if put_parameters is not NULL.  If put_parameters
-	is NULL, then you have to use free() to release the memory.
+    call get_parameters.  Use this function to return the memory back to
+    the camera HAL, if put_parameters is not NULL.  If put_parameters
+    is NULL, then you have to use free() to release the memory.
 */
 void QCameraHardwareInterface::putParameters(char *rc)
 {
@@ -2442,8 +2442,8 @@ status_t QCameraHardwareInterface::setVideoSize(const QCameraParameters& params)
     ALOGE("%s: preview dimensions: %dx%d", __func__, mPreviewWidth, mPreviewHeight);
     ALOGE("%s: video dimensions: %dx%d", __func__, videoWidth, videoHeight);
 #if 1 // QCT 10092012 - Rear Camera Recording through C2D
-	mPreviewWidth = videoWidth = 640;
-	mPreviewHeight = videoHeight = 480;
+    mPreviewWidth = videoWidth = 640;
+    mPreviewHeight = videoHeight = 480;
 #endif
     mDimension.orig_video_width = videoWidth;
     mDimension.orig_video_height = videoHeight;
@@ -2878,7 +2878,7 @@ status_t QCameraHardwareInterface::setHighFrameRate(const QCameraParameters& par
             const char *oldHfr = mParameters.get(QCameraParameters::KEY_QC_VIDEO_HIGH_FRAME_RATE);
             if(strcmp(oldHfr, str)){
                 mParameters.set(QCameraParameters::KEY_QC_VIDEO_HIGH_FRAME_RATE, str);
-		mCameraRunning=isPreviewRunning();
+        mCameraRunning=isPreviewRunning();
                 if(mCameraRunning == true) {
                     stopPreviewInternal();
                     mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
@@ -2983,7 +2983,7 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
     if(!supported || (myMode & CAMERA_ZSL_MODE)) {
         ALOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
 
-        if (myMode & CAMERA_ZSL_MODE) {
+        if (myMode & CAMERA_ZSL_MODE && !mIsYUVSensor) {
             ALOGE("In ZSL mode, reset AEBBracket to HDR_OFF mode");
             exp_bracketing_t temp;
             memset(&temp, 0, sizeof(temp));
@@ -4053,15 +4053,16 @@ status_t QCameraHardwareInterface::setDimension()
 
     //RDI Format
     #if 1 // QCT 10092012 - Rear Camera Recording through C2D
-	dim.rdi0_format = CAMERA_YUV_420_NV12;
-	dim.rdi1_format = CAMERA_YUV_420_NV12;
+    dim.rdi0_format = CAMERA_YUV_420_NV12;
+    dim.rdi1_format = CAMERA_YUV_420_NV12;
     #else
     dim.rdi0_format = CAMERA_BAYER_SBGGR10;
-	#endif
+    #endif
 #if 1 // QCT 10162012 RDI2 changes
-	dim.rdi2_format= CAMERA_YUV_422_YUYV;
-	dim.rdi2_width= 2048;
-	dim.rdi2_height= 4101;
+    ALOGE("%s: mRdiWidth %d mRdiHeight %d", __func__, mRdiWidth, mRdiHeight);
+    dim.rdi2_format= CAMERA_RDI;//CAMERA_YUV_422_YUYV;
+    dim.rdi2_width= mRdiWidth;
+    dim.rdi2_height= mRdiHeight;
 #endif
 
     /*Code to handle different limitations*/
@@ -4084,8 +4085,8 @@ status_t QCameraHardwareInterface::setDimension()
     }
 
     //VFE output1 shouldn't be greater than VFE output2.
-    if( (dim.display_width > dim.video_width) ||
-        (dim.display_height > dim.video_height)) {
+    if( ((dim.display_width > dim.video_width) ||
+        (dim.display_height > dim.video_height))&& !mIsYUVSensor) {
         //Set preview sizes as record sizes.
         dim.display_width = dim.video_width;
         dim.display_height = dim.video_height;
