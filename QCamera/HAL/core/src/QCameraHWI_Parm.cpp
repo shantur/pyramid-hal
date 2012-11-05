@@ -2833,8 +2833,6 @@ status_t QCameraHardwareInterface::setPreviewFormat(const QCameraParameters& par
           mPreviewFormatInfo.padding = CAMERA_PAD_TO_WORD;
           return BAD_VALUE;
         }
-        bool ret = native_set_parms(MM_CAMERA_PARM_PREVIEW_FORMAT, sizeof(cam_format_t),
-                                   (void *)&mPreviewFormatInfo.mm_cam_format);
         mParameters.set(QCameraParameters::KEY_PREVIEW_FORMAT, str);
         mPreviewFormat = mPreviewFormatInfo.mm_cam_format;
         ALOGI("Setting preview format to %d, i =%d, num=%d, hal_format=%d",
@@ -4174,9 +4172,6 @@ status_t QCameraHardwareInterface::setDimension()
     if(value != NOT_FOUND && value != dim.prev_format ) {
         //Setting to Parameter requested by the Upper layer
         dim.prev_format = value;
-    }else{
-        //Setting to default Format.
-        dim.prev_format = CAMERA_YUV_420_NV21;
     }
     dim.prev_padding_format =  getPreviewPadding( );
 
