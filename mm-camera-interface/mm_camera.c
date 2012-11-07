@@ -648,10 +648,10 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
     case MM_CAMERA_PARM_HDR:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_GET_PARM_HDR, sizeof(exp_bracketing_t), (void *)parm->p_value);
+        break;
     case MM_CAMERA_PARM_MOBICAT:
         return mm_camera_send_native_ctrl_cmd(my_obj, CAMERA_GET_PARM_MOBICAT,
                      sizeof(cam_exif_tags_t), (void *)parm->p_value);
-        break;
     default:
         /* needs to add more implementation */
         rc = -1;
