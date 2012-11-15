@@ -95,6 +95,8 @@ extern "C" {
 #define DEFAULT_PICTURE_WIDTH  640
 #define DEFAULT_PICTURE_HEIGHT 480
 
+
+
 //Default Video Width
 #define DEFAULT_VIDEO_WIDTH 1920
 #define DEFAULT_VIDEO_HEIGHT 1088
@@ -107,23 +109,12 @@ extern "C" {
 
 #define DONT_CARE_COORDINATE -1
 
-// All fps ranges which can be supported. This list will be filtered according
-// to the min and max fps supported by hardware
-// this list must be sorted first by max_fps and then min_fps
-// fps values are multiplied by 1000
-static android::FPSRange allFpsRanges[] = {
-            android::FPSRange(7500, 7500),
-            android::FPSRange(10000, 10000),
-            android::FPSRange(7500, 15000),
-            android::FPSRange(15000, 15000),
-            android::FPSRange(7500, 20000),
-            android::FPSRange(20000, 20000),
-            android::FPSRange(7500, 30000),
-            android::FPSRange(10000, 30000),
-            android::FPSRange(15000, 30000),
-            android::FPSRange(30000, 30000)
-};
-#define ALL_FPS_RANGES_COUNT (sizeof(allFpsRanges)/sizeof(android::FPSRange))
+//Supported preview fps ranges should be added to this array in the form (minFps,maxFps)
+static  android::FPSRange FpsRangesSupported[] = {
+            android::FPSRange(MINIMUM_FPS*1000,MAXIMUM_FPS*1000)
+        };
+#define FPS_RANGES_SUPPORTED_COUNT (sizeof(FpsRangesSupported)/sizeof(FpsRangesSupported[0]))
+
 
 typedef struct {
     uint32_t aspect_ratio;
@@ -154,7 +145,7 @@ static struct camera_size_type zsl_picture_sizes[] = {
 };
 
 static camera_size_type default_picture_sizes[] = {
-  { 4000, 3000}, // 12MP
+  { 4128, 3096}, // 12MP
   { 3200, 2400}, // 8MP
   { 2592, 1944}, // 5MP
   { 2048, 1536}, // 3MP QXGA
@@ -178,6 +169,7 @@ static int iso_speed_values[] = {
 extern int HAL_numOfCameras;
 extern camera_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
 extern mm_camera_info_t * HAL_camerahandle[MSM_MAX_CAMERA_SENSORS];
+extern int HAL_currentCameraId;
 
 namespace android {
 
@@ -782,68 +774,6 @@ void QCameraHardwareInterface::initDefaultParameters()
         mHfrValues = str;
         mHfrSizeValues = create_sizes_str(
                 default_hfr_sizes, hfr_sizes_count);
-
-        //Query for min and max fps values from lower layer
-        if(MM_CAMERA_OK != mCameraHandle->ops->get_parm(mCameraHandle->camera_handle,
-                                     MM_CAMERA_PARM_FPS_RANGE, (void *)&mSensorFpsRange)){
-            ALOGE("error: failed to get fps range from sensor");
-            return;
-        } else {
-            ALOGD("sensor fps range = (%f, %f)", mSensorFpsRange.min_fps,
-                            mSensorFpsRange.max_fps);
-
-            mSupportedFpsRanges = new android::FPSRange[ALL_FPS_RANGES_COUNT+1];
-
-            //min and max fps in android format
-            int minFps = (int)(mSensorFpsRange.min_fps * 1000);
-            int maxFps = (int)(mSensorFpsRange.max_fps * 1000);
-            int idx=0;
-            //filter supported fps ranges according to sensor fps range
-            for(int i=0; i<(int)ALL_FPS_RANGES_COUNT; i++) {
-                if(allFpsRanges[i].maxFPS <= maxFps && allFpsRanges[i].minFPS >= minFps) {
-                    memcpy(&mSupportedFpsRanges[idx], &allFpsRanges[i], sizeof(android::FPSRange));
-                    idx++;
-                }
-            }
-            mSupportedFpsRangesCount = idx;
-            //insert sensor absolute fps range as one entry, if
-            //its not already there in table
-            //find insertion point
-            int insertIndex = mSupportedFpsRangesCount;
-            for(int i=0; i<mSupportedFpsRangesCount; i++) {
-                if(mSupportedFpsRanges[i].maxFPS < maxFps) {
-                   continue;
-                } else if (mSupportedFpsRanges[i].maxFPS == maxFps) {
-                    if(mSupportedFpsRanges[i].minFPS > minFps) {
-                        insertIndex = i;
-                        break;
-                    } else if (mSupportedFpsRanges[i].minFPS == minFps) {
-                        //entry already exists, no need to insert
-                        insertIndex = -1;
-                        break;
-                    }
-                }
-            }
-            if(insertIndex != -1) {
-                for(int i=mSupportedFpsRangesCount; i>=0; i--) {
-                    if(insertIndex == i) {
-                        mSupportedFpsRanges[i].maxFPS = maxFps;
-                        mSupportedFpsRanges[i].minFPS = minFps;
-                        mSupportedFpsRangesCount++;
-                        break;
-                    }
-                    mSupportedFpsRanges[i].maxFPS = mSupportedFpsRanges[i-1].maxFPS;
-                    mSupportedFpsRanges[i].minFPS = mSupportedFpsRanges[i-1].minFPS;
-                }
-            }
-            mFpsRangesSupportedValues = create_fps_str(mSupportedFpsRanges, mSupportedFpsRangesCount);
-
-            ALOGD("supported fps ranges = %s", mFpsRangesSupportedValues.string());
-            mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE,
-                mFpsRangesSupportedValues);
-            mParameters.setPreviewFpsRange(minFps, maxFps);
-        }
-
         mFlashValues = create_values_str(
             flash, sizeof(flash) / sizeof(str_map));
         mLensShadeValues = create_values_str(
@@ -945,6 +875,10 @@ void QCameraHardwareInterface::initDefaultParameters()
             &default_preview_width);
     mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_DEFAULT_PREVIEW_HEIGHT,
             &default_preview_height);
+#if 1 // QCT 10092012 - Rear Camera Recording through C2D
+	default_preview_width = 640;
+	default_preview_height = 480;
+#endif
     mParameters.setPreviewSize(default_preview_width, default_preview_height);
     mParameters.set(QCameraParameters::KEY_SUPPORTED_PREVIEW_SIZES,
                     mPreviewSizeValues.string());
@@ -966,7 +900,11 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
     //Set Preview Format
     //mParameters.setPreviewFormat("yuv420sp"); // informative
+#if 1 // QCT 10092012 - Rear Camera Recording through C2D
+    mParameters.setPreviewFormat(QCameraParameters::PIXEL_FORMAT_NV12);
+#else
     mParameters.setPreviewFormat(QCameraParameters::PIXEL_FORMAT_YUV420SP);
+#endif
 
     mPreviewFormatValues = create_values_str(
         preview_formats, sizeof(preview_formats) / sizeof(str_map));
@@ -1007,7 +945,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     if(mFps >= MINIMUM_FPS && mFps <= MAXIMUM_FPS) {
         mParameters.setPreviewFrameRate(mFps);
     }else{
-        mParameters.setPreviewFrameRate(DEFAULT_FIXED_FPS);
+        mParameters.setPreviewFrameRate(DEFAULT_FPS);
     }
 
     //Set Picture Format
@@ -1367,6 +1305,29 @@ void QCameraHardwareInterface::initDefaultParameters()
     return;
 }
 
+bool QCameraHardwareInterface::native_control_cam(uint8_t mode, uint32_t address, uint32_t value1, uint32_t value2)
+{
+    ALOGE("native_control_cam : mode(%d), address(%d), value1(%d), value2(%d), id(%d)", mode, address, value1, value2, HAL_currentCameraId);
+
+    struct ioctl_native_cmd info;
+
+    info.mode = mode;
+    info.address = address;
+    info.value_1 = value1;
+    info.value_2 = value2;
+    info.value_3 = HAL_currentCameraId;
+
+    mm_camera_native_control(&info);
+
+    switch(mode) {
+
+    default:
+        break;
+    }
+
+    return true;
+}
+
 /**
  * Set the camera parameters. This returns BAD_VALUE if any parameter is
  * invalid or not supported.
@@ -1474,6 +1435,7 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     //Update Exiftag values.
     setExifTags();
 
+   final_rc = NO_ERROR; //temp code for test
    ALOGI("%s: X", __func__);
    return final_rc;
 }
@@ -2086,15 +2048,6 @@ status_t QCameraHardwareInterface::setSceneMode(const QCameraParameters& params)
         int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
         ALOGE("Setting Scenemode value = %d",value );
         if (value != NOT_FOUND) {
-            if((value != CAMERA_BESTSHOT_OFF ) && (mColorEffects != CAMERA_EFFECT_OFF )) {
-               int result;
-               mColorEffects = CAMERA_EFFECT_OFF;
-               native_set_parms(MM_CAMERA_PARM_EFFECT, sizeof(mColorEffects),
-                                (void *)&mColorEffects,(int *)&result);
-               if(result != MM_CAMERA_OK) {
-                  ALOGI("Camera Effect is not set as the EFFECT_NONE and result is not OK");
-               }
-            }
             mParameters.set(QCameraParameters::KEY_SCENE_MODE, str);
             bool ret = native_set_parms(MM_CAMERA_PARM_BESTSHOT_MODE, sizeof(value),
                                        (void *)&value);
@@ -2153,7 +2106,6 @@ status_t QCameraHardwareInterface::setEffect(const QCameraParameters& params)
     uint8_t supported;
     const char *str = params.get(CameraParameters::KEY_EFFECT);
     int result;
-    mColorEffects = CAMERA_EFFECT_OFF;
     if (str != NULL) {
         ALOGE("Setting effect %s",str);
         int32_t value = attr_lookup(effects, sizeof(effects) / sizeof(str_map), str);
@@ -2166,7 +2118,6 @@ status_t QCameraHardwareInterface::setEffect(const QCameraParameters& params)
            }else {
                mParameters.set(QCameraParameters::KEY_EFFECT, str);
                ALOGE("Setting effect to lower HAL : %d",value);
-               mColorEffects = value;
                bool ret = native_set_parms(MM_CAMERA_PARM_EFFECT, sizeof(value),
                                            (void *)&value,(int *)&result);
                 if(result != 0) {
@@ -2490,6 +2441,10 @@ status_t QCameraHardwareInterface::setVideoSize(const QCameraParameters& params)
     }
     ALOGE("%s: preview dimensions: %dx%d", __func__, mPreviewWidth, mPreviewHeight);
     ALOGE("%s: video dimensions: %dx%d", __func__, videoWidth, videoHeight);
+#if 1 // QCT 10092012 - Rear Camera Recording through C2D
+	mPreviewWidth = videoWidth = 640;
+	mPreviewHeight = videoHeight = 480;
+#endif
     mDimension.orig_video_width = videoWidth;
     mDimension.orig_video_height = videoHeight;
     mDimension.video_width = videoWidth;
@@ -2580,11 +2535,12 @@ status_t QCameraHardwareInterface::setPreviewFpsRange(const QCameraParameters& p
         rc = NO_ERROR;
         goto end;
     }
-    for(int i=0; i<mSupportedFpsRangesCount; i++) {
+    for(size_t i=0; i<FPS_RANGES_SUPPORTED_COUNT; i++) {
         // if the value is in the supported list
-        if(minFps==mSupportedFpsRanges[i].minFPS && maxFps == mSupportedFpsRanges[i].maxFPS) {
+        if(minFps==FpsRangesSupported[i].minFPS && maxFps == FpsRangesSupported[i].maxFPS){
             found = true;
-            ALOGE("FPS: i=%d : minFps = %d, maxFps = %d ", i, minFps, maxFps);
+            ALOGE("FPS: i=%d : minFps = %d, maxFps = %d ",
+                  i,FpsRangesSupported[i].minFPS,FpsRangesSupported[i].maxFPS );
             mParameters.setPreviewFpsRange(minFps,maxFps);
             // validate the values
             bool valid = true;
@@ -3004,7 +2960,9 @@ status_t QCameraHardwareInterface::setFaceDetection(const char *str)
                                     sizeof(facedetection) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             fd_set_parm_t fd_set_parm;
+            mMetaDataWaitLock.lock();
             mFaceDetectOn = value;
+            mMetaDataWaitLock.unlock();
             fd_set_parm.fd_mode = value;
             fd_set_parm.num_fd = requested_faces;
             ALOGE("%s Face detection value = %d, num_fd = %d",__func__, value, requested_faces);
@@ -3667,14 +3625,6 @@ status_t QCameraHardwareInterface::setHistogram(int histogram_en)
         return ret;
     }
 
-    status_t rc = NO_ERROR;
-    mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
-                                          MM_CAMERA_PARM_HISTOGRAM,
-                                          (uint8_t*)&rc,(uint8_t*)&rc);
-    if(!rc) {
-        ALOGE(" Histogram is not supported for this");
-        return NO_ERROR;
-    }
     mSendData = histogram_en;
     mStatsOn = histogram_en;
 
@@ -3889,18 +3839,6 @@ void QCameraHardwareInterface::setExifTags()
     //Set ISO Speed
     mExifValues.isoSpeed = getISOSpeedValue();
 
-    //get time and date from system
-    time_t rawtime;
-    struct tm * timeinfo;
-    time(&rawtime);
-    timeinfo = localtime (&rawtime);
-    //Write datetime according to EXIF Spec
-    //"YYYY:MM:DD HH:MM:SS" (20 chars including \0)
-    snprintf(mExifValues.dateTime, 20, "%04d:%02d:%02d %02d:%02d:%02d",
-                timeinfo->tm_year + 1900, timeinfo->tm_mon + 1,
-                timeinfo->tm_mday, timeinfo->tm_hour,
-                timeinfo->tm_min, timeinfo->tm_sec);
-
     //set gps tags
     setExifTagsGPS();
 }
@@ -4114,7 +4052,17 @@ status_t QCameraHardwareInterface::setDimension()
     dim.thumb_format = CAMERA_YUV_420_NV21;
 
     //RDI Format
+    #if 1 // QCT 10092012 - Rear Camera Recording through C2D
+	dim.rdi0_format = CAMERA_YUV_420_NV12;
+	dim.rdi1_format = CAMERA_YUV_420_NV12;
+    #else
     dim.rdi0_format = CAMERA_BAYER_SBGGR10;
+	#endif
+#if 1 // QCT 10162012 RDI2 changes
+	dim.rdi2_format= CAMERA_YUV_422_YUYV;
+	dim.rdi2_width= 2048;
+	dim.rdi2_height= 4101;
+#endif
 
     /*Code to handle different limitations*/
     if (mRecordingHint && mFullLiveshotEnabled){
@@ -4169,46 +4117,30 @@ status_t QCameraHardwareInterface::setDimension()
       ALOGE("%s X: error - can't config preview parms!", __func__);
       return BAD_VALUE;
     }
-    if(mStreams[MM_CAMERA_PREVIEW]) {
-        mStreams[MM_CAMERA_PREVIEW]->mFormat = dim.prev_format;
-        mStreams[MM_CAMERA_PREVIEW]->mWidth = dim.display_width;
-        mStreams[MM_CAMERA_PREVIEW]->mHeight = dim.display_height;
+    if(mStreamDisplay) {
+        mStreamDisplay->mFormat = dim.prev_format;
+        mStreamDisplay->mWidth = dim.display_width;
+        mStreamDisplay->mHeight = dim.display_height;
     }
-    if(mStreams[MM_CAMERA_VIDEO]) {
-        mStreams[MM_CAMERA_VIDEO]->mFormat = dim.enc_format;
-        mStreams[MM_CAMERA_VIDEO]->mWidth = dim.video_width;
-        mStreams[MM_CAMERA_VIDEO]->mHeight = dim.video_height;
+    if(mStreamRecord) {
+        mStreamRecord->mFormat = dim.enc_format;
+        mStreamRecord->mWidth = dim.video_width;
+        mStreamRecord->mHeight = dim.video_height;
     }
-    if(mStreams[MM_CAMERA_SNAPSHOT_MAIN]) {
-        mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mFormat = dim.main_img_format;
+    if(mStreamSnapMain) {
+        mStreamSnapMain->mFormat = dim.main_img_format;
         if (!isRawSnapshot()) {
-                mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = dim.picture_width;
-                mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mHeight = dim.picture_height;
+                mStreamSnapMain->mWidth = dim.picture_width;
+                mStreamSnapMain->mHeight = dim.picture_height;
         } else {
-            cam_frame_resolution_t raw_res;
-
-            /* the raw_picture_width in dimension is for RDI dump.
-             * here, raw snapshot size is from camif. */
-            memset(&raw_res, 0,  sizeof(raw_res));
-            raw_res.image_mode = MSM_V4L2_EXT_CAPTURE_MODE_RAW;
-            raw_res.padding_format = CAMERA_PAD_TO_WORD;
-            ret = mCameraHandle->ops->get_parm(
-               mCameraHandle->camera_handle,
-               MM_CAMERA_PARM_FRAME_RESOLUTION,&raw_res);
-            if (MM_CAMERA_OK != ret) {
-              ALOGE("%s error - config raw snapshot parms, rc = %d",
-                    __func__, ret);
-              return BAD_VALUE;
-            }
-            mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = raw_res.width;
-            mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mHeight = raw_res.height;
-            mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mFormat = raw_res.format;
+                mStreamSnapMain->mWidth = dim.raw_picture_width;
+                mStreamSnapMain->mHeight = dim.raw_picture_height;
         }
     }
-    if(mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]) {
-        mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]->mFormat = dim.thumb_format;
-        mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]->mWidth = dim.ui_thumbnail_width;
-        mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]->mHeight = dim.ui_thumbnail_height;
+    if(mStreamSnapThumb) {
+        mStreamSnapThumb->mFormat = dim.thumb_format;
+        mStreamSnapThumb->mWidth = dim.ui_thumbnail_width;
+        mStreamSnapThumb->mHeight = dim.ui_thumbnail_height;
     }
 
     memcpy(&mDimension, &dim, sizeof(mDimension));

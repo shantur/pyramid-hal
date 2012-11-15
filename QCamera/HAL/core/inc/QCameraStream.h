@@ -67,8 +67,6 @@ public:
     mm_camera_img_mode mExtImgMode;
     uint8_t m_flag_no_cb;
     uint8_t m_flag_stream_on;
-    image_crop_t mCrop;
-    QCameraHardwareInterface*  mHalCamCtrl;
 
     void setResolution(mm_camera_dimension_t *res);
     bool isResolutionSame(mm_camera_dimension_t *res);
@@ -76,6 +74,9 @@ public:
     virtual void        release();
 
     status_t setFormat();
+    status_t setMode(int enable);
+
+    virtual void        setHALCameraControl(QCameraHardwareInterface* ctrl);
 
     //static status_t     openChannel(mm_camera_t *, mm_camera_channel_type_t ch_type);
     void dataCallback(mm_camera_super_buf_t *bufs);
@@ -87,33 +88,47 @@ public:
     {
       ;
     }
+    virtual void prepareHardware()
+    {
+      ;
+    }
     virtual sp<IMemoryHeap> getHeap() const{return NULL;}
+    virtual status_t    initDisplayBuffers(){return NO_ERROR;}
+    virtual status_t initPreviewOnlyBuffers(){return NO_ERROR;}
     virtual sp<IMemoryHeap> getRawHeap() const {return NULL;}
     virtual void *getLastQueuedFrame(void){return NULL;}
+    virtual status_t takePictureZSL(void){return NO_ERROR;}
+    virtual status_t takeLiveSnapshot(){return NO_ERROR;}
+    virtual void setModeLiveSnapshot(bool){;}
+    virtual status_t initSnapshotBuffers(cam_ctrl_dimension_t *dim,
+                                 int num_of_buf){return NO_ERROR;}
+
+    virtual void setFullSizeLiveshot(bool){};
+    /* Set the ANativeWindow */
+    virtual int setPreviewWindow(preview_stream_ops_t* window) {return NO_ERROR;}
     virtual void notifyROIEvent(fd_roi_t roi) {;}
     virtual void notifyWDenoiseEvent(cam_ctrl_status_t status, void * cookie) {;}
+    virtual void resetSnapshotCounters(void ){};
     virtual void notifyHdrEvent(cam_ctrl_status_t status, void * cookie){};
-    virtual int32_t setCrop();
-    virtual int getBuf(mm_camera_frame_len_offset *frame_offset_info,
-                       uint8_t num_bufs,
-                       uint8_t *initial_reg_flag,
-                       mm_camera_buf_def_t  *bufs) = 0;
-    virtual int putBuf(uint8_t num_bufs,
-                       mm_camera_buf_def_t *bufs) = 0;
-
     QCameraStream();
     QCameraStream(uint32_t CameraHandle,
-                  uint32_t ChannelId,
-                  uint32_t Width,
-                  uint32_t Height,
-                  uint32_t Format,
-                  uint8_t NumBuffers,
-                  mm_camera_vtbl_t *mm_ops,
-                  mm_camera_img_mode imgmode,
-                  camera_mode_t mode,
-                  QCameraHardwareInterface* camCtrl);
-    virtual ~QCameraStream();
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
+    virtual             ~QCameraStream();
+    QCameraHardwareInterface*  mHalCamCtrl;
+    image_crop_t mCrop;
 
+    camera_mode_t myMode;
+
+    mutable Mutex mStopCallbackLock;
+public:
+//     friend void liveshot_callback(mm_camera_ch_data_buf_t *frame,void *user_data);
 };
 /*
 *   Record Class
@@ -122,16 +137,18 @@ class QCameraStream_record : public QCameraStream {
 public:
   void        release() ;
 
-  QCameraStream_record(uint32_t CameraHandle,
-                       uint32_t ChannelId,
-                       uint32_t Width,
-                       uint32_t Height,
-                       uint32_t Format,
-                       uint8_t NumBuffers,
-                       mm_camera_vtbl_t *mm_ops,
-                       mm_camera_img_mode imgmode,
-                       camera_mode_t mode,
-                       QCameraHardwareInterface* camCtrl);
+  static QCameraStream* createInstance(uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
+  static void            deleteInstance(QCameraStream *p);
+
+  QCameraStream_record() {};
   virtual             ~QCameraStream_record();
 
   status_t processRecordFrame(mm_camera_super_buf_t *data);
@@ -141,38 +158,45 @@ public:
   void releaseRecordingFrame(const void *opaque);
   void debugShowVideoFPS() const;
 
+  status_t takeLiveSnapshot();
+  mm_camera_buf_def_t              mRecordBuf[2*VIDEO_BUFFER_COUNT];
   void releaseEncodeBuffer();
-
-  int getBuf(mm_camera_frame_len_offset *frame_offset_info,
-             uint8_t num_bufs,
-             uint8_t *initial_reg_flag,
-             mm_camera_buf_def_t  *bufs);
-  int putBuf(uint8_t num_bufs,
-             mm_camera_buf_def_t *bufs);
-  status_t initStream(uint8_t no_cb_needed, uint8_t stream_on);
-
 private:
+  QCameraStream_record(uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
+
   bool mDebugFps;
   mm_camera_super_buf_t          mRecordedFrames[MM_CAMERA_MAX_NUM_FRAMES];
-  mm_camera_buf_def_t            mRecordBuf[2*VIDEO_BUFFER_COUNT];
   int mJpegMaxSize;
   QCameraStream *mStreamSnap;
+
 };
 
 class QCameraStream_preview : public QCameraStream {
 public:
-    QCameraStream_preview(uint32_t CameraHandle,
-                          uint32_t ChannelId,
-                          uint32_t Width,
-                          uint32_t Height,
-                          uint32_t Format,
-                          uint8_t NumBuffers,
-                          mm_camera_vtbl_t *mm_ops,
-                          mm_camera_img_mode imgmode,
-                          camera_mode_t mode,
-                          QCameraHardwareInterface* camCtrl);
-    virtual             ~QCameraStream_preview();
     void        release() ;
+
+//    static QCameraStream*  createInstance(int, camera_mode_t);
+    static QCameraStream* createInstance(uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
+    static void            deleteInstance(QCameraStream *p);
+
+    QCameraStream_preview() {};
+    virtual             ~QCameraStream_preview();
     void *getLastQueuedFrame(void);
     /*init preview buffers with display case*/
     status_t initDisplayBuffers();
@@ -185,18 +209,20 @@ public:
     /*init preview buffers without display case*/
     status_t processPreviewFrameWithOutDisplay(mm_camera_super_buf_t *frame);
 
+    int setPreviewWindow(preview_stream_ops_t* window);
     void notifyROIEvent(fd_roi_t roi);
-    int32_t setCrop();
-    int getBuf(mm_camera_frame_len_offset *frame_offset_info,
-               uint8_t num_bufs,
-               uint8_t *initial_reg_flag,
-               mm_camera_buf_def_t  *bufs);
-    int putBuf(uint8_t num_bufs,
-               mm_camera_buf_def_t *bufs);
-
     friend class QCameraHardwareInterface;
 
 private:
+    QCameraStream_preview(uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
     /*allocate and free buffers with display case*/
     status_t                 getBufferFromSurface();
     status_t                 putBufferToSurface();
@@ -210,11 +236,14 @@ private:
 
     int8_t                   my_id;
     mm_camera_op_mode_type_t op_mode;
-    mm_camera_buf_def_t    *mLastQueuedFrame;
-    mm_camera_buf_def_t     mDisplayBuf[2*PREVIEW_BUFFER_COUNT];
+    cam_ctrl_dimension_t     dim;
+    mm_camera_buf_def_t      *mLastQueuedFrame;
+    mm_camera_buf_def_t      mDisplayBuf[2*PREVIEW_BUFFER_COUNT];
+    mm_camera_buf_def_t      mRdiBuf;
     Mutex                   mDisplayLock;
     preview_stream_ops_t   *mPreviewWindow;
-    mm_camera_super_buf_t   mNotifyBuffer[2*PREVIEW_BUFFER_COUNT];
+    static const int        kPreviewBufferCount = PREVIEW_BUFFER_COUNT;
+    mm_camera_super_buf_t mNotifyBuffer[16];
     int8_t                  mNumFDRcvd;
     int                     mVFEOutputs;
     int                     mHFRFrameCnt;
@@ -226,25 +255,29 @@ public:
     void        release();
     status_t    initStream(uint8_t no_cb_needed, uint8_t stream_on);
     status_t    initMainBuffers();
+    bool        isZSLMode();
     void        deInitMainBuffers();
+    static void            deleteInstance(QCameraStream *p);
     mm_camera_buf_def_t mSnapshotStreamBuf[MM_CAMERA_MAX_NUM_FRAMES];
+    static QCameraStream* createInstance(uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
     QCameraStream_SnapshotMain(uint32_t CameraHandle,
-                               uint32_t ChannelId,
-                               uint32_t Width,
-                               uint32_t Height,
-                               uint32_t Format,
-                               uint8_t NumBuffers,
-                               mm_camera_vtbl_t *mm_ops,
-                               mm_camera_img_mode imgmode,
-                               camera_mode_t mode,
-                               QCameraHardwareInterface* camCtrl);
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
     ~QCameraStream_SnapshotMain();
-    int getBuf(mm_camera_frame_len_offset *frame_offset_info,
-               uint8_t num_bufs,
-               uint8_t *initial_reg_flag,
-               mm_camera_buf_def_t  *bufs);
-    int putBuf(uint8_t num_bufs,
-               mm_camera_buf_def_t *bufs);
 
 private:
     /*Member variables*/
@@ -254,61 +287,98 @@ private:
 class QCameraStream_SnapshotThumbnail : public QCameraStream {
 public:
     void        release();
+    status_t    initThumbnailBuffers();
+	void        deInitThumbnailBuffers();
+    static QCameraStream* createInstance(uint32_t CameraHandle,
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
     QCameraStream_SnapshotThumbnail(uint32_t CameraHandle,
-                                    uint32_t ChannelId,
-                                    uint32_t Width,
-                                    uint32_t Height,
-                                    uint32_t Format,
-                                    uint8_t NumBuffers,
-                                    mm_camera_vtbl_t *mm_ops,
-                                    mm_camera_img_mode imgmode,
-                                    camera_mode_t mode,
-                                    QCameraHardwareInterface* camCtrl);
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode);
     ~QCameraStream_SnapshotThumbnail();
-    int getBuf(mm_camera_frame_len_offset *frame_offset_info,
-               uint8_t num_bufs,
-               uint8_t *initial_reg_flag,
-               mm_camera_buf_def_t  *bufs);
-    int putBuf(uint8_t num_bufs,
-               mm_camera_buf_def_t *bufs);
-    status_t initStream(uint8_t no_cb_needed, uint8_t stream_on);
-
-private:
+    static void            deleteInstance(QCameraStream *p);
     mm_camera_buf_def_t mPostviewStreamBuf[MM_CAMERA_MAX_NUM_FRAMES];
 };
 
 class QCameraStream_Rdi : public QCameraStream {
 public:
+	typedef struct {
+		uint8_t *jpegInfo;
+		uint8_t *NV12_meta;
+	    uint8_t jpegMode;
+	    uint8_t jpegCount;
+	    uint32_t jpegLength;
+	    uint32_t jpegFrameId;
+    	uint32_t yuvFrameId;
+	}jpeg_info_t;
+    status_t init();
+    status_t start() ;
+    void stop() ;
     void release() ;
 
-    QCameraStream_Rdi(uint32_t CameraHandle,
-                      uint32_t ChannelId,
-                      uint32_t Width,
-                      uint32_t Height,
-                      uint32_t Format,
-                      uint8_t NumBuffers,
-                      mm_camera_vtbl_t *mm_ops,
-                      mm_camera_img_mode imgmode,
-                      camera_mode_t mode,
-                      QCameraHardwareInterface* camCtrl);
-    virtual ~QCameraStream_Rdi();
-    status_t processRdiFrame (mm_camera_super_buf_t *data);
-    int getBuf(mm_camera_frame_len_offset *frame_offset_info,
-               uint8_t num_bufs,
-               uint8_t *initial_reg_flag,
-               mm_camera_buf_def_t  *bufs);
-    int putBuf(uint8_t num_bufs,
-               mm_camera_buf_def_t *bufs);
-    status_t initStream(uint8_t no_cb_needed, uint8_t stream_on);
+    static QCameraStream* createInstance(uint32_t CameraHandle,
+    uint32_t ChannelId,
+    uint32_t Width,
+    uint32_t Height,
+    uint32_t Format,
+    uint8_t NumBuffers,
+    mm_camera_vtbl_t *mm_ops,
+    mm_camera_img_mode imgmode,
+    camera_mode_t mode);
+    static void deleteInstance(QCameraStream *p);
 
+    QCameraStream_Rdi(uint32_t CameraHandle,
+                      uint32_t ChannelId,uint32_t Width,uint32_t Height,
+                      uint32_t Format,uint8_t NumBuffers,mm_camera_vtbl_t *mm_ops,
+                      mm_camera_img_mode imgmode,camera_mode_t mode);
+    virtual ~QCameraStream_Rdi();
+    status_t initRdiBuffers();
+    status_t processRdiFrame (mm_camera_super_buf_t *data);
     friend class QCameraHardwareInterface;
 
 private:
+    /*allocate and free buffers for rdi case*/
+    status_t getBufferRdi();
+    status_t freeBufferRdi();
+#if 1 // QCT 10162012 RDI2 changes 
+    status_t updatePreviewMetadata(const void *yuvMetadata);
+    status_t processJpegData(const void *jpegInfo, const void *jpegData, jpeg_info_t * jpeg_info, mm_camera_super_buf_t *jpeg_buf);
+#endif
+
     void dumpFrameToFile(mm_camera_buf_def_t* newFrame);
+#if 1 // QCT 10162012 RDI2 changes 
+	uint32_t swapByteEndian(uint32_t jpegLength);
+#endif
 
     int8_t my_id;
     mm_camera_op_mode_type_t op_mode;
+    cam_ctrl_dimension_t dim;
+#if 1 // QCT 10162012 RDI2 changes
+    mm_camera_buf_def_t mRdiBuf[MM_CAMERA_MAX_NUM_FRAMES]; 
+#else
     mm_camera_buf_def_t mRdiBuf[PREVIEW_BUFFER_COUNT];
+#endif
+    mm_camera_super_buf_t* mJpegSuperBuf;
+    //mm_cameara_stream_buf_t mRdiStreamBuf;
+    Mutex mDisplayLock;
+    static const int kRdiBufferCount = PREVIEW_BUFFER_COUNT;
+    //mm_camera_ch_data_buf_t mNotifyBuffer[16];
+    int8_t mNumFDRcvd;
+    int mVFEOutputs;
+    int mHFRFrameCnt;
+    int mHFRFrameSkip;
 };
 
 }; // namespace android

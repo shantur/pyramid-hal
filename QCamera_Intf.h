@@ -252,6 +252,8 @@ typedef struct {
   uint16_t rdi0_width;
   uint16_t rdi1_height;
   uint16_t rdi1_width;
+  uint16_t rdi2_height;
+  uint16_t rdi2_width;
   uint32_t hjr_xtra_buff_for_bayer_filtering;
   cam_format_t    prev_format;
   cam_format_t    enc_format;
@@ -259,6 +261,7 @@ typedef struct {
   cam_format_t    main_img_format;
   cam_format_t    rdi0_format;
   cam_format_t    rdi1_format;
+  cam_format_t 	  rdi2_format;
   cam_format_t    raw_img_format;
   cam_pad_format_t prev_padding_format;
   cam_pad_format_t enc_padding_format;
@@ -449,16 +452,19 @@ typedef enum {
     MM_CAMERA_PARM_FRAME_RESOLUTION,
     MM_CAMERA_PARM_RAW_SNAPSHOT_FMT,
     MM_CAMERA_PARM_FACIAL_FEATURE_INFO,
+    MM_CAMERA_PARM_ISYUV,
     MM_CAMERA_PARM_MOBICAT,
     MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
 typedef enum {
-  STREAM_IMAGE,
-  STREAM_RAW,
-  STREAM_IMAGE_AND_RAW,
-  STREAM_RAW_AND_RAW,
-  STREAM_MAX,
+  STREAM_IMAGE = 0X1,
+  STREAM_RAW = 0X2,
+  STREAM_RAW1 = 0x4,
+  STREAM_RAW2 = 0x8,
+  STREAM_IMAGE_AND_RAW = 0x10,
+  STREAM_RAW_AND_RAW = 0x20,
+  STREAM_MAX = 0xFF,
 } mm_camera_channel_stream_info_t;
 
 typedef enum {

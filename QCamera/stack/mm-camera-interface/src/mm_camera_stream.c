@@ -862,7 +862,6 @@ static uint32_t mm_stream_util_get_v4l2_fmt(cam_format_t fmt,
         *num_planes = 2;
         break;
     case CAMERA_BAYER_SBGGR10:
-    case CAMERA_RDI:
         val= V4L2_PIX_FMT_SBGGR10;
         *num_planes = 1;
         break;
@@ -887,6 +886,7 @@ static uint32_t mm_stream_util_get_v4l2_fmt(cam_format_t fmt,
         *num_planes = 1;
         break;
     case CAMERA_YUV_422_YUYV:
+    case CAMERA_RDI:
         val= V4L2_PIX_FMT_YUYV;
         *num_planes = 1;
         break;
@@ -1533,8 +1533,11 @@ int32_t mm_stream_get_offset(mm_stream_t *my_obj)
     case MSM_V4L2_EXT_CAPTURE_MODE_MAIN:
     case MSM_V4L2_EXT_CAPTURE_MODE_RAW:
     case MSM_V4L2_EXT_CAPTURE_MODE_THUMBNAIL:
-    case MSM_V4L2_EXT_CAPTURE_MODE_RDI:
         frame_offset.padding_format = CAMERA_PAD_TO_WORD;
+        break;
+    case MSM_V4L2_EXT_CAPTURE_MODE_RDI:
+    case MSM_V4L2_EXT_CAPTURE_MODE_RDI1:
+    case MSM_V4L2_EXT_CAPTURE_MODE_RDI2:
         break;
     case MSM_V4L2_EXT_CAPTURE_MODE_AEC:
     case MSM_V4L2_EXT_CAPTURE_MODE_AWB:
