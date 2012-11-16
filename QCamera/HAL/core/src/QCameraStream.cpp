@@ -234,7 +234,7 @@ status_t QCameraStream::setFormat()
     {
     case MM_CAMERA_PREVIEW:
             /* Get mFormat */
-	    ALOGE("%s, Before setting Format - %d",__func__, mFormat);
+        ALOGE("%s, Before setting Format - %d",__func__, mFormat);
             rc = p_mm_ops->ops->get_parm(p_mm_ops->camera_handle,
                                 MM_CAMERA_PARM_PREVIEW_FORMAT,
                                 &mFormat);
@@ -260,17 +260,21 @@ status_t QCameraStream::setFormat()
             mWidth = 0;
             mHeight = 0;
             mFormat = CAMERA_BAYER_SBGGR10;
-#if 1 // QCT 10162012 RDI2 changes 
-		case MM_CAMERA_RDI2:
+            break;
+        case MM_CAMERA_RDI2:
+            ALOGD("%s, RDI2,mRdiWidth %d, mRdiHeight %d mFormat %d",__func__,
+                    mHalCamCtrl->mRdiWidth,
+                    mHalCamCtrl->mRdiHeight,
+                    mFormat);
             mFormat = CAMERA_RDI;//CAMERA_YUV_422_YUYV;
-#endif
+            break;
         default:
             break;
     }
 
     stream_config.fmt.fmt = (cam_format_t)mFormat;
     ALOGE("%s, Format - %d",__func__, stream_config.fmt.fmt);
-	ALOGE("%s: mNumBuffers %d",__func__, mNumBuffers);
+    ALOGE("%s: mNumBuffers %d",__func__, mNumBuffers);
     stream_config.fmt.meta_header = MM_CAMEAR_META_DATA_TYPE_DEF;
     stream_config.fmt.width = mWidth;
     stream_config.fmt.height = mHeight;
@@ -281,10 +285,6 @@ status_t QCameraStream::setFormat()
                               mStreamId,
                               &stream_config);
 
-    if(mHalCamCtrl->rdiMode != STREAM_IMAGE) {
-        mHalCamCtrl->mRdiWidth = stream_config.fmt.width;
-        mHalCamCtrl->mRdiHeight = stream_config.fmt.height;
-    }
 
     mWidth = stream_config.fmt.width;
     mHeight = stream_config.fmt.height;
@@ -319,15 +319,8 @@ QCameraStream::QCameraStream(uint32_t CameraHandle,
     mChannelId=ChannelId;
     mWidth=Width;
     mHeight=Height;
-#if 0 // QCT 10162012 RDI2 changes // not needed!
-    mFormat=CAMERA_YUV_420_NV12;
-    if(imgmode == MM_CAMERA_RDI2) {
-      ALOGE("Setting format to 422 YUVU for RDI2, num_of_bufs %d", NumBuffers);
-      mFormat=CAMERA_RDI;//CAMERA_YUV_422_YUYV;
-    }
-#else
+
     mFormat=Format;
-#endif
     mNumBuffers=NumBuffers;
     p_mm_ops=mm_ops;
     mExtImgMode=imgmode;
