@@ -304,6 +304,47 @@ int32_t mm_jpeg_omx_config_user_preference(mm_jpeg_obj* my_obj, mm_jpeg_encode_j
     return rc;
 }
 
+int32_t mm_jpeg_omx_config_restart_interval(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job) {
+    int32_t rc = 0;
+    OMX_INDEXTYPE restart_interval_idx;
+    omx_jpeg_restart_interval restart_interval;
+    CDBG_ERROR("%s:%d", __func__,__LINE__);
+    restart_interval =
+        job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_MAIN].restart_interval;
+    OMX_GetExtensionIndex(my_obj->omx_handle,
+                          "omx.qcom.jpeg.exttype.restart_interval",
+                          &restart_interval_idx);
+    CDBG_ERROR("%s: restart interval is: %d",
+               __func__, restart_interval);
+    OMX_SetParameter(my_obj->omx_handle, restart_interval_idx, &restart_interval);
+    return rc;
+}
+
+int32_t mm_jpeg_omx_config_tables(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job) {
+    int32_t rc = 0;
+    OMX_INDEXTYPE user_tables;
+    omx_jpeg_tables tables;
+    int i = 0;
+
+    src_image_buffer_info* src_buf =
+        &(job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_MAIN]);
+    memset(&tables, 0, sizeof(tables));
+    tables.luma_quant_tbl =  (uint16_t*)malloc(64 * sizeof(uint16_t));
+    tables.chroma_quant_tbl =  (uint16_t*)malloc(64 * sizeof(uint16_t));
+    for(i=0; i<64; i++){
+        tables.luma_quant_tbl[i]=(uint16_t)src_buf->luma_qtable[i];
+        tables.chroma_quant_tbl[i]=(uint16_t)src_buf->chroma_qtable[i];
+    }
+
+    OMX_GetExtensionIndex(my_obj->omx_handle,
+                          "omx.qcom.jpeg.exttype.tables",
+                          &user_tables);
+    CDBG_ERROR("%s:%d", __func__,__LINE__);
+    OMX_SetParameter(my_obj->omx_handle, user_tables, &tables);
+    CDBG_ERROR("%s:%d", __func__,__LINE__);
+    return rc;
+}
+
 int32_t mm_jpeg_omx_config_thumbnail(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job)
 {
     int32_t rc = -1;
@@ -456,13 +497,15 @@ int32_t mm_jpeg_omx_config_main(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job)
     }
 
     /* config crop */
-    CDBG("%s: config main crop", __func__);
-    rc = mm_jpeg_omx_config_main_crop(my_obj, src_buf);
-    if (0 != rc) {
-        CDBG_ERROR("%s: config crop failed", __func__);
-        return rc;
+    CDBG("%s: color format %d", __func__, src_buf->color_format);
+    if(src_buf->color_format != MM_JPEG_COLOR_FORMAT_BITSTREAM){
+        CDBG("%s: config main crop", __func__);
+        rc = mm_jpeg_omx_config_main_crop(my_obj, src_buf);
+        if (0 != rc) {
+            CDBG_ERROR("%s: config crop failed", __func__);
+            return rc;
+        }
     }
-
     /* set quality */
     memset(&q_factor, 0, sizeof(q_factor));
     q_factor.nPortIndex = INPUT_PORT_MAIN;
@@ -489,7 +532,16 @@ int32_t mm_jpeg_omx_config_common(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job)
         CDBG_ERROR("%s: config user preferences failed", __func__);
         return rc;
     }
-
+    if (job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_MAIN].
+        color_format == MM_JPEG_COLOR_FORMAT_BITSTREAM) {
+        CDBG_ERROR("%s:%d", __func__,__LINE__);
+        mm_jpeg_omx_config_restart_interval(my_obj, job);
+    }
+    if (job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_MAIN].
+        user_defined_tables) {
+        CDBG_ERROR("%s:%d", __func__,__LINE__);
+        mm_jpeg_omx_config_tables(my_obj, job);
+    }
     /* set rotation */
     memset(&rotate, 0, sizeof(rotate));
     rotate.nPortIndex = OUTPUT_PORT;

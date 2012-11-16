@@ -41,7 +41,7 @@ void stream_cb_routine(mm_camera_super_buf_t *bufs,
 {
     ALOGD("%s E ", __func__);
     QCameraStream *p_obj=(QCameraStream*) userdata;
-    ALOGD("DEBUG4:ExtMode:%d,streamid:%d",p_obj->mExtImgMode,bufs->bufs[0]->stream_id);
+    ALOGD("DEBUG4:ExtMode:%d,buffer %x streamid:%d frame Idx:%d",p_obj->mExtImgMode, bufs->bufs[0]->buffer, bufs->bufs[0]->stream_id, bufs->bufs[0]->frame_idx);
     switch(p_obj->mExtImgMode)
     {
         case MM_CAMERA_PREVIEW:
@@ -52,6 +52,10 @@ void stream_cb_routine(mm_camera_super_buf_t *bufs,
             ((QCameraStream_record *)p_obj)->processRecordFrame(bufs);
             break;
         case MM_CAMERA_RDI:
+#if 1 // QCT 10162012 RDI2 changes 
+        case MM_CAMERA_RDI1:
+        case MM_CAMERA_RDI2:
+#endif
             ((QCameraStream_Rdi *)p_obj)->processRdiFrame(bufs);
             break;
         case MM_CAMERA_SNAPSHOT_MAIN:
@@ -96,7 +100,6 @@ int32_t QCameraStream::streamOn()
             __func__,mStreamId);
        return rc;
    }
-
    if (mInit == true) {
        /* this is the restart case, for now we need config again */
        rc = setFormat();
@@ -123,13 +126,13 @@ int32_t QCameraStream::streamOff(bool isAsyncCmd)
               __func__,mStreamId);
         return rc;
     }
-    mActive = false;
 
     rc = p_mm_ops->ops->stop_streams(mCameraHandle,
                               mChannelId,
                               1,
                               &mStreamId);
 
+    mActive = false;
     ALOGD("%s: X, mActive = %d, mInit = %d, streamid = %d, image_mode = %d",
           __func__, mActive, mInit, mStreamId, mExtImgMode);
     return rc;
@@ -209,18 +212,29 @@ status_t QCameraStream::deinitStream()
     return NO_ERROR;
 }
 
+status_t QCameraStream::setMode(int enable) {
+  ALOGE("%s: E, mActive = %d, streamid = %d, image_mode = %d",__func__, mActive, mStreamId, mExtImgMode);
+  if (enable) {
+      myMode = (camera_mode_t)(myMode | CAMERA_ZSL_MODE);
+  } else {
+      myMode = (camera_mode_t)(myMode & ~CAMERA_ZSL_MODE);
+  }
+  return NO_ERROR;
+}
+
 status_t QCameraStream::setFormat()
 {
     int rc = MM_CAMERA_OK;
     mm_camera_stream_config_t stream_config;
 
-    ALOGV("%s: E, mActive = %d, streamid = %d, image_mode = %d",__func__, mActive, mStreamId, mExtImgMode);
+    ALOGE("%s: E, mActive = %d, streamid = %d, image_mode = %d",__func__, mActive, mStreamId, mExtImgMode);
     memset(&stream_config, 0, sizeof(mm_camera_stream_config_t));
 
     switch(mExtImgMode)
     {
     case MM_CAMERA_PREVIEW:
             /* Get mFormat */
+	    ALOGE("%s, Before setting Format - %d",__func__, mFormat);
             rc = p_mm_ops->ops->get_parm(p_mm_ops->camera_handle,
                                 MM_CAMERA_PARM_PREVIEW_FORMAT,
                                 &mFormat);
@@ -246,11 +260,17 @@ status_t QCameraStream::setFormat()
             mWidth = 0;
             mHeight = 0;
             mFormat = CAMERA_BAYER_SBGGR10;
+#if 1 // QCT 10162012 RDI2 changes 
+		case MM_CAMERA_RDI2:
+            mFormat = CAMERA_RDI;//CAMERA_YUV_422_YUYV;
+#endif
         default:
             break;
     }
 
     stream_config.fmt.fmt = (cam_format_t)mFormat;
+    ALOGE("%s, Format - %d",__func__, stream_config.fmt.fmt);
+	ALOGE("%s: mNumBuffers %d",__func__, mNumBuffers);
     stream_config.fmt.meta_header = MM_CAMEAR_META_DATA_TYPE_DEF;
     stream_config.fmt.width = mWidth;
     stream_config.fmt.height = mHeight;
@@ -282,28 +302,35 @@ QCameraStream::QCameraStream (){
 }
 
 QCameraStream::QCameraStream(uint32_t CameraHandle,
-                             uint32_t ChannelId,
-                             uint32_t Width,
-                             uint32_t Height,
-                             uint32_t Format,
-                             uint8_t NumBuffers,
-                             mm_camera_vtbl_t *mm_ops,
-                             mm_camera_img_mode imgmode,
-                             camera_mode_t mode,
-                             QCameraHardwareInterface* camCtrl)
-              : mCameraHandle(CameraHandle),
-                mChannelId(ChannelId),
-                mWidth(Width),
-                mHeight(Height),
-                mFormat(Format),
-                mNumBuffers(NumBuffers),
-                p_mm_ops(mm_ops),
-                mExtImgMode(imgmode),
-                mHalCamCtrl(camCtrl)
+                        uint32_t ChannelId,
+                        uint32_t Width,
+                        uint32_t Height,
+                        uint32_t Format,
+                        uint8_t NumBuffers,
+                        mm_camera_vtbl_t *mm_ops,
+                        mm_camera_img_mode imgmode,
+                        camera_mode_t mode)
+              :myMode(mode)
 {
     mInit = false;
     mActive = false;
 
+    mCameraHandle=CameraHandle;
+    mChannelId=ChannelId;
+    mWidth=Width;
+    mHeight=Height;
+#if 0 // QCT 10162012 RDI2 changes // not needed!
+    mFormat=CAMERA_YUV_420_NV12;
+    if(imgmode == MM_CAMERA_RDI2) {
+      ALOGE("Setting format to 422 YUVU for RDI2, num_of_bufs %d", NumBuffers);
+      mFormat=CAMERA_RDI;//CAMERA_YUV_422_YUYV;
+    }
+#else
+    mFormat=Format;
+#endif
+    mNumBuffers=NumBuffers;
+    p_mm_ops=mm_ops;
+    mExtImgMode=imgmode;
     mStreamId = 0;
     m_flag_no_cb = FALSE;
     m_flag_stream_on = TRUE;
@@ -312,43 +339,17 @@ QCameraStream::QCameraStream(uint32_t CameraHandle,
     memset(&mCrop, 0, sizeof(mm_camera_rect_t));
 }
 
-QCameraStream::~QCameraStream ()
-{
-}
+QCameraStream::~QCameraStream () {;}
 
 void QCameraStream::release() {
     return;
 }
 
-int32_t QCameraStream::setCrop()
-{
-    mm_camera_rect_t v4l2_crop;
-    int32_t rc = 0;
-    memset(&v4l2_crop,0,sizeof(v4l2_crop));
+void QCameraStream::setHALCameraControl(QCameraHardwareInterface* ctrl) {
 
-    if(!mActive) {
-        ALOGE("%s: Stream:%d is not active", __func__, mStreamId);
-        return -1;
-    }
-
-    rc = p_mm_ops->ops->get_stream_parm(mCameraHandle,
-                                   mChannelId,
-                                   mStreamId,
-                                   MM_CAMERA_STREAM_CROP,
-                                   &v4l2_crop);
-    ALOGI("%s: Crop info received: %d, %d, %d, %d ",
-                                 __func__,
-                                 v4l2_crop.left,
-                                 v4l2_crop.top,
-                                 v4l2_crop.width,
-                                 v4l2_crop.height);
-    if (rc == 0) {
-        mCrop.offset_x = v4l2_crop.left;
-        mCrop.offset_y = v4l2_crop.top;
-        mCrop.width = v4l2_crop.width;
-        mCrop.height = v4l2_crop.height;
-    }
-    return rc;
+    /* provide a frame data user,
+    for the  queue monitor thread to call the busy queue is not empty*/
+    mHalCamCtrl = ctrl;
 }
 
 }; // namespace android

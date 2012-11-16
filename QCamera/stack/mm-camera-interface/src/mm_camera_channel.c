@@ -82,6 +82,8 @@ int32_t mm_channel_stop_streams(mm_channel_t *my_obj,
                                 uint32_t *stream_ids,
                                 uint8_t tear_down_flag);
 int32_t mm_channel_request_super_buf(mm_channel_t *my_obj, uint32_t num_buf_requested);
+int32_t mm_channel_request_super_buf_by_frameId(mm_channel_t *my_obj,
+                                                mm_camera_req_buf_t *req_buf);
 int32_t mm_channel_cancel_super_buf_request(mm_channel_t *my_obj);
 int32_t mm_channel_start_focus(mm_channel_t *my_obj,
                                uint32_t sensor_idx,
@@ -194,6 +196,7 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
     mm_camera_super_buf_notify_mode_t notify_mode;
     mm_channel_queue_node_t *node = NULL;
     mm_channel_t *ch_obj = (mm_channel_t *)user_data;
+    uint32_t yuv_frame_id = 0;
     if (NULL == ch_obj) {
         return;
     }
@@ -208,6 +211,18 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
         /* skip frames if needed */
         ch_obj->pending_cnt = cmd_cb->u.req_buf.num_buf_requested;
         mm_channel_superbuf_skip(ch_obj, &ch_obj->bundle.superbuf_queue);
+    } else if (MM_CAMERA_CMD_TYPE_REQ_DATA_CB_BY_FRAMEID  == cmd_cb->cmd_type) {
+    /* for jpeg soc sensor, we have to find matching yuv frame
+     * with id provided by jpeg meta data which is passed from HAL*/
+    CDBG("%s: E num_bufs_requested %d frame Id %d",
+        __func__, cmd_cb->u.req_buf.num_buf_requested,
+        cmd_cb->u.req_buf.yuv_frame_id);
+        ch_obj->pending_cnt = cmd_cb->u.req_buf.num_buf_requested;
+        yuv_frame_id = cmd_cb->u.req_buf.yuv_frame_id;
+        mm_channel_superbuf_match_frameId(ch_obj, &ch_obj->
+                                          bundle.superbuf_queue, yuv_frame_id);
+        CDBG("%s:ch_obj->pending_cnt %d", __func__, ch_obj->pending_cnt);
+        //TODO: return from here?
     }
 
     notify_mode = ch_obj->bundle.superbuf_queue.attr.notify_mode;
@@ -577,6 +592,14 @@ int32_t mm_channel_fsm_fn_active(mm_channel_t *my_obj,
         {
             uint32_t num_buf_requested = (uint32_t)in_val;
             rc = mm_channel_request_super_buf(my_obj, num_buf_requested);
+        }
+        break;
+    case MM_CHANNEL_EVT_REQUEST_SUPER_BUF_BY_FRAMEID:
+        {
+            mm_camera_req_buf_t *req_buf = (mm_camera_req_buf_t *)in_val;
+            CDBG("%s: EVT_SUPER_BUF_BY_ID num_bufs_requested %d frame Id %d",
+                __func__, req_buf->num_buf_requested, req_buf->yuv_frame_id);
+            rc = mm_channel_request_super_buf_by_frameId(my_obj, req_buf);
         }
         break;
     case MM_CHANNEL_EVT_CANCEL_REQUEST_SUPER_BUF:
@@ -1191,6 +1214,35 @@ int32_t mm_channel_request_super_buf(mm_channel_t *my_obj, uint32_t num_buf_requ
     return rc;
 }
 
+int32_t mm_channel_request_super_buf_by_frameId(mm_channel_t *my_obj,
+                                                mm_camera_req_buf_t *req_buf)
+{
+    int32_t rc = 0;
+    mm_camera_cmdcb_t* node = NULL;
+    CDBG("%s: num_bufs_requested %d frame Id %d",
+        __func__, req_buf->num_buf_requested, req_buf->yuv_frame_id);
+    /* set pending_cnt
+     * will trigger dispatching super frames if pending_cnt > 0 */
+    /* send sem_post to wake up cmd thread to dispatch super buffer */
+    node = (mm_camera_cmdcb_t *)malloc(sizeof(mm_camera_cmdcb_t));
+    if (NULL != node) {
+        memset(node, 0, sizeof(mm_camera_cmdcb_t));
+        node->cmd_type = MM_CAMERA_CMD_TYPE_REQ_DATA_CB_BY_FRAMEID;
+        node->u.req_buf.num_buf_requested = req_buf->num_buf_requested;
+        node->u.req_buf.yuv_frame_id = req_buf->yuv_frame_id;
+
+        /* enqueue to cmd thread */
+        mm_camera_queue_enq(&(my_obj->cmd_thread.cmd_queue), node);
+
+        /* wake up cmd thread */
+        sem_post(&(my_obj->cmd_thread.cmd_sem));
+    } else {
+        CDBG_ERROR("%s: No memory for mm_camera_node_t", __func__);
+        rc = -1;
+    }
+    return rc;
+}
+
 int32_t mm_channel_cancel_super_buf_request(mm_channel_t *my_obj)
 {
     int32_t rc = 0;
@@ -1638,6 +1690,133 @@ int32_t mm_channel_superbuf_skip(mm_channel_t* my_obj,
     }
     pthread_mutex_unlock(&queue->que.lock);
 
+    return rc;
+}
+
+uint32_t swapByteEndian(uint32_t word_data)
+{
+    ALOGE("Before swap: %x", word_data);
+    word_data = (word_data >> 24) |
+                ((word_data << 8) & 0x00FF0000) |
+                ((word_data >> 8) & 0x0000FF00) |
+                (word_data << 24);
+    ALOGE("After swap: %x", word_data);
+    return word_data;
+}
+
+int32_t mm_channel_superbuf_match_frameId(mm_channel_t* my_obj,
+                              mm_channel_queue_t * queue, uint32_t yuv_frame_id)
+{
+    int32_t rc = 0, i, count;
+    mm_channel_queue_node_t* super_buf= NULL;
+    mm_channel_queue_node_t* super_buf1 = NULL;
+    uint8_t match_frame = FALSE;
+    CDBG("%s: E",__func__);
+    if (MM_CAMERA_SUPER_BUF_NOTIFY_CONTINUOUS == queue->attr.notify_mode) {
+        /* for continuous streaming mode, no skip is needed */
+        return 0;
+    }
+    /* bufdone overflowed bufs */
+    pthread_mutex_lock(&queue->que.lock);
+    /* For JPEG SoC sensor, (yuv sync) frame matching logic*/
+    if(my_obj->cam_obj->properties.yuv_output) {
+        while(!match_frame) {
+            super_buf1 = mm_channel_superbuf_dequeue_internal(queue);
+            if(NULL == super_buf1) {
+                if(super_buf == NULL) {
+                    CDBG_ERROR("%s : Queue empty: ERROR No SuperBuf callback",
+                               __func__);
+                    my_obj->pending_cnt--;
+                    match_frame = FALSE;
+                    free(super_buf1);
+                    break;
+                }else {
+                    CDBG_ERROR("%s : WARNING SuperBuf callback with available"
+                               " super buf in queue...", __func__);
+                    my_obj->pending_cnt--;
+                    match_frame = TRUE;
+                    break;
+                }
+            }
+            if(super_buf)
+                free(super_buf);
+
+            super_buf = super_buf1;
+            for (i=0; i<super_buf->num_of_bufs; i++) {
+                if (super_buf->super_buf[i].buf->num_planes == 1 ) {
+                    mm_camera_buf_def_t *meta_buf = super_buf->super_buf[i].buf;
+                    CDBG("%s: Meta stream Id %d frame idx %d",__func__,
+                         super_buf->super_buf[i].buf->stream_id,
+                         super_buf->super_buf[i].buf->frame_idx);
+                    /* yuv frame id is present in YUV Meta buffer at an
+                    *  offset 0x800 (jpeg Info) + 0xE (16 bytes start merker)*/
+
+                    uint32_t *yuvFrameId_ptr =
+                        (uint32_t *)((uint8_t *)(meta_buf->buffer)+0x80E);
+                    //swap byte endianess
+                    *yuvFrameId_ptr = swapByteEndian(*yuvFrameId_ptr);
+                    //Comapre with incoming frame Id
+                    CDBG("%s: compare frame Ids Input:%d Queue: %d ",
+                         __func__, *yuvFrameId_ptr, yuv_frame_id);
+
+                    if(*yuvFrameId_ptr >= yuv_frame_id) {
+                        CDBG("%s: Found superbuf with matching yuv frame ID !!",
+                             __func__);
+                        my_obj->pending_cnt--;
+                        match_frame = TRUE;
+                        break;
+                    }else {
+                        for (count=0; count<super_buf->num_of_bufs; count++) {
+                            if (NULL != super_buf->super_buf[count].buf) {
+                                CDBG("%s: queue back unused buffers %d",
+                                     __func__, super_buf->
+                                     super_buf[count].frame_idx);
+                                mm_channel_qbuf(my_obj,
+                                            super_buf->super_buf[count].buf);
+                            }
+                        }
+                    }
+                }else{
+                    continue;
+                }
+            }
+       }
+    }
+
+    /* dispatch superbuf */
+    if (NULL != my_obj->bundle.super_buf_notify_cb && match_frame == TRUE) {
+        mm_camera_cmdcb_t* cb_node = NULL;
+
+        CDBG("%s: Send superbuf to HAL, pending_cnt=%d",
+             __func__, my_obj->pending_cnt);
+        /* send sem_post to wake up cb thread to dispatch super buffer */
+        cb_node = (mm_camera_cmdcb_t *)malloc(sizeof(mm_camera_cmdcb_t));
+        if (NULL != cb_node) {
+            memset(cb_node, 0, sizeof(mm_camera_cmdcb_t));
+            cb_node->cmd_type = MM_CAMERA_CMD_TYPE_SUPER_BUF_DATA_CB;
+            cb_node->u.superbuf.num_bufs = super_buf->num_of_bufs;
+            for (i=0; i<super_buf->num_of_bufs; i++) {
+                cb_node->u.superbuf.bufs[i] = super_buf->super_buf[i].buf;
+            }
+            cb_node->u.superbuf.camera_handle = my_obj->cam_obj->my_hdl;
+            cb_node->u.superbuf.ch_id = my_obj->my_hdl;
+
+            /* enqueue to cb thread */
+            mm_camera_queue_enq(&(my_obj->cb_thread.cmd_queue), cb_node);
+            /* wake up cb thread */
+            sem_post(&(my_obj->cb_thread.cmd_sem));
+        } else {
+            CDBG_ERROR("%s: No memory for mm_camera_node_t", __func__);
+            /* buf done with the nonuse super buf */
+            for (i=0; i<super_buf->num_of_bufs; i++) {
+                mm_channel_qbuf(my_obj, super_buf->super_buf[i].buf);
+            }
+        }
+        free(super_buf);
+    }
+
+    pthread_mutex_unlock(&queue->que.lock);
+    CDBG("%s: X",__func__);
     return rc;
 }
 

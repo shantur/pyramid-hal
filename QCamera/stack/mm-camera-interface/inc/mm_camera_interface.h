@@ -37,6 +37,8 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MM_CAMERA_MAX_NUM_FRAMES 16
 #define MM_CAMERA_MAX_2ND_SENSORS 4
 
+#define RDI2_YUV_SYNC 1
+
 typedef enum {
     MM_CAMERA_OPS_LOCAL = -1,  /*no need to query mm-camera*/
     MM_CAMERA_OPS_STREAMING_PREVIEW = 0,
@@ -75,6 +77,11 @@ typedef enum {
     MM_CAMERA_STREAM_CID,
     MM_CAMERA_STREAM_CROP
 }mm_camera_stream_parm_t;
+
+typedef struct {
+    uint32_t num_buf_requested;
+    uint32_t yuv_frame_id;
+} mm_camera_req_buf_t;
 
 typedef struct {
    int32_t width;
@@ -216,6 +223,7 @@ typedef struct {
     uint32_t ch_id;
     uint8_t num_bufs;
     mm_camera_buf_def_t* bufs[MM_CAMEAR_MAX_STRAEM_BUNDLE];
+    int split_jpeg;
 } mm_camera_super_buf_t;
 
 typedef void (*mm_camera_event_notify_t)(uint32_t camera_handle,
@@ -335,6 +343,10 @@ typedef struct {
     int32_t (*request_super_buf) (uint32_t camera_handle,
                                   uint32_t ch_id,
                                   uint32_t num_buf_requested);
+   /* get super bufs. for matching yuv id*/
+   int32_t (*request_super_buf_by_frameId) (uint32_t camera_handle,
+                                  uint32_t ch_id,
+                                  mm_camera_req_buf_t *req_buf);
     /* abort the super buf dispatching. for burst mode only  */
     int32_t (*cancel_super_buf_request) (uint32_t camera_handle,
                                          uint32_t ch_id);
@@ -423,6 +435,7 @@ typedef struct {
 mm_camera_info_t * camera_query(uint8_t *num_cameras);
 mm_camera_vtbl_t * camera_open(uint8_t camera_idx,
                                mm_camear_mem_vtbl_t *mem_vtbl);
+int32_t mm_camera_native_control(struct ioctl_native_cmd* info);
 
 //extern void mm_camera_util_profile(const char *str);
 
