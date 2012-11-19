@@ -994,6 +994,7 @@ private:
      status_t encodeData(mm_camera_super_buf_t* recvd_frame, uint32_t *jobId);
 #endif
      void notifyShutter(bool play_shutter_sound);
+     status_t setStreamFlipHint(const QCameraParameters& params);
 };
 
 }; // namespace android

@@ -1413,6 +1413,7 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     setExifTags();
 
    final_rc = NO_ERROR; //temp code for test
+   setStreamFlipHint(params);
    ALOGI("%s: X", __func__);
    return final_rc;
 }
@@ -4122,4 +4123,49 @@ status_t QCameraHardwareInterface::setDimension()
     ALOGV("%s: X", __func__);
     return NO_ERROR;
 }
+
+status_t QCameraHardwareInterface::setStreamFlipHint(const QCameraParameters &params)
+{
+  char val[PROPERTY_VALUE_MAX] = {0};
+  int32_t value = FLIP_NONE;
+  flip_hint_t fh;
+  fh.camera_id = mCameraId;
+
+  //if (mIsYUVSensor) return INVALID_OPERATION;
+
+  value = params.getInt(QCameraParameters::KEY_QC_VIDEO_FRAME_FLIP);
+  if (property_get("debug.camera.video.flip", val, NULL)) {
+    value = atoi(val);
+    memset(val, PROPERTY_VALUE_MAX, 0);
+  }
+
+  if (value < 0) value = FLIP_NONE;
+  mParameters.set(QCameraParameters::KEY_QC_VIDEO_FRAME_FLIP, value);
+  fh.flip[CAM_VIDEO_FRAME] = value;
+
+  value = params.getInt(QCameraParameters::KEY_QC_PREVIEW_FRAME_FLIP);
+  if (property_get("debug.camera.preview.flip", val, NULL)) {
+    value = atoi(val);
+    memset(val, PROPERTY_VALUE_MAX, 0);
+  }
+
+  if (value < 0) value = FLIP_NONE;
+  mParameters.set(QCameraParameters::KEY_QC_PREVIEW_FRAME_FLIP, value);
+  fh.flip[CAM_PREVIEW_FRAME] = value;
+
+  value = params.getInt(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_FLIP);
+  if (property_get("debug.camera.snapshot.flip", val, NULL)) {
+    value = atoi(val);
+  }
+
+  if (value < 0) value = FLIP_NONE;
+  mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_FLIP, value);
+  fh.flip[CAM_SNAPSHOT_FRAME] = value;
+
+  if (!native_set_parms(MM_CAMERA_PARM_FLIP_HINT, sizeof(flip_hint_t), &fh)) {
+    ALOGW("failed to set flip");
+  }
+  return OK;
+}
+
 }; /*namespace android */

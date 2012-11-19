@@ -240,6 +240,10 @@ public:
 
    static const char KEY_QC_SINGLE_ISP_OUTPUT_ENABLED[];
 
+   static const char KEY_QC_VIDEO_FRAME_FLIP[];
+   static const char KEY_QC_PREVIEW_FRAME_FLIP[];
+   static const char KEY_QC_SNAPSHOT_FRAME_FLIP[];
+
     enum {
         CAMERA_ORIENTATION_UNKNOWN = 0,
         CAMERA_ORIENTATION_PORTRAIT = 1,

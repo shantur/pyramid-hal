@@ -468,6 +468,7 @@ typedef enum {
     MM_CAMERA_PARM_FACIAL_FEATURE_INFO,
     MM_CAMERA_PARM_ISYUV,
     MM_CAMERA_PARM_MOBICAT,
+    MM_CAMERA_PARM_FLIP_HINT,
     MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
@@ -620,6 +621,7 @@ typedef enum {
   CAMERA_SET_BUNDLE, /* set stream bundle */
   CAMERA_ENABLE_MOBICAT,
   CAMERA_GET_PARM_MOBICAT,
+  CAMERA_SET_FLIP_HINT,
   CAMERA_CTRL_PARM_MAX
 } cam_ctrl_type;
 
@@ -1143,6 +1145,13 @@ typedef struct {
   int data_len;  //client return real size including null "\0".
   char tags[MAX_MOBICAT_SIZE];
 } cam_exif_tags_t;
+
+#define MAX_CAM_FRAME_TYPE 3 /* in match with enum in cam_frame_type_t */
+
+typedef struct {
+  int8_t camera_id;
+  int flip[MAX_CAM_FRAME_TYPE];
+} flip_hint_t;
 
 /******************************************************************************
  * Function: exif_set_tag

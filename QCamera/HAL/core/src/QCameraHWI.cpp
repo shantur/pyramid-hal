@@ -378,7 +378,7 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                     mm_camera_super_buf_t *super_buf =
                         (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     mm_camera_super_buf_t *super_buf2 = NULL;
-                    if (pme->mIsYUVSensor) {
+                    if (pme->mIsYUVSensor  && !pme->mHdrMode) {
                         ALOGD("%s: Deque thumb super buf", __func__);
                         super_buf2 = (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     }
@@ -941,11 +941,7 @@ int32_t QCameraHardwareInterface::createRdi()
                                                    mRdiWidth/*Width*/,
                                                    mRdiHeight/*Height*/,
                                                    CAMERA_RDI/*Format*/,
-                                                  #if 1 // QCT 10162012 RDI2 changes
-                                                   5/*NumBuffers*/,
-                                                  #else
-                                                   mStreamDisplay->mNumBuffers/*NumBuffers*/,
-                                                   #endif
+                                                   7/*NumBuffers*/,
                                                    mCameraHandle,
                                                    MM_CAMERA_RDI2,
                                                    myMode);
@@ -2687,6 +2683,53 @@ status_t  QCameraHardwareInterface::takePicture()
     int num_streams = 0;
     Mutex::Autolock lock(mLock);
 
+    if(mIsYUVSensor && mHdrMode) {
+        ALOGE("Sagar: Stopping preview");
+        mStreamRdi->streamOff(0);
+	mStreamRdi->deinitStream();
+	mStreamDisplay->streamOff(0);
+	mStreamDisplay->deinitStream();
+	ret = mCameraHandle->ops->destroy_stream_bundle(mCameraHandle->camera_handle, mChannelId);
+	if(ret != MM_CAMERA_OK) {
+		ALOGE("%s : destroy_stream_bundle Error",__func__);
+	}
+	uint32_t yuv422_size= mPictureWidth*mPictureHeight*2;
+	ALOGE("%s: yuv422_size %d = mPictureWidth %d x mPictureHeight%d ", __func__, yuv422_size,mPictureWidth, mPictureHeight);
+	uint32_t meta_size= 2048+4096;
+	mRdiWidth = (yuv422_size + meta_size+ mRdiHeight)/mRdiHeight;//6341;//26M buffer;
+	ALOGE("%s: mRdiWidth %d mRdiHeight %d ", __func__, mRdiWidth, mRdiHeight);
+	ret = setDimension();
+        if (MM_CAMERA_OK != ret) {
+              ALOGE("%s: error - can't Set Dimensions!", __func__);
+              return BAD_VALUE;
+        }
+	mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_VIDEO;
+        ret = mCameraHandle->ops->set_parm(
+                         mCameraHandle->camera_handle,
+                         MM_CAMERA_PARM_OP_MODE,
+                         &op_mode);
+        ALOGE("OP Mode Set");
+        if (MM_CAMERA_OK != ret){
+            ALOGE("%s: X :set mode MM_CAMERA_OP_MODE_VIDEO err=%d\n", __func__, ret);
+            return BAD_VALUE;
+        }
+        ret = mStreamRdi->initStream(FALSE, TRUE);
+        if (MM_CAMERA_OK != ret) {
+            ALOGE("%s: called initStream from preview and ret = %d", __func__, ret);
+            return BAD_VALUE;
+        }
+
+	ALOGE("%s: Starting RDI stream", __func__);
+	ret = mStreamRdi->streamOn();
+	if (MM_CAMERA_OK != ret) {
+		ALOGE("%s: X: error - cannot start rdi stream!", __func__);
+		return BAD_VALUE;
+	}
+	ALOGE("%s: Started RDI stream, streamOn returned", __func__);
+	ALOGE("%s: EXT_CAM_SET_HDR", __func__);
+	/* Place Holder for Native Call */
+        }
+
     /* set rawdata proc thread and jpeg notify thread to active state */
     mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
     mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
@@ -2710,13 +2753,11 @@ status_t  QCameraHardwareInterface::takePicture()
                     return BAD_VALUE;
                 }
                 return ret;
-#if 1 // QCT 10162012 RDI2 changes
                 }else if(mIsYUVSensor) {
-                    ALOGE("Trigger capture cmd: E");
+                    ALOGE("Capture cmd: Burst E");
                     /* Place Holder for Native Call */
                     return ret;
-                #endif
-            }
+                }
 
             /* stop preview */
             pausePreviewForSnapshot();
@@ -3154,13 +3195,9 @@ void QCameraHardwareInterface::dumpFrameToFile(mm_camera_buf_def_t* newFrame,
             file_fd = open(buf, O_RDWR | O_CREAT, 0777);
             break;
           case HAL_DUMP_FRM_RDI:
-#if 1 // QCT 10162012 RDI2 changes
-              w = 4128;//mRdiWidth;
-              h = 3096;//mRdiHeight;
-#else
               w = mRdiWidth;
               h = mRdiHeight;
-#endif
+
               snprintf(buf, sizeof(buf),"/data/%dr_%dx%d.raw", mDumpFrmCnt, w, h);
               file_fd = open(buf, O_RDWR | O_CREAT, 0777);
               break;

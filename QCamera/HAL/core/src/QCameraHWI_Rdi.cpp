@@ -360,8 +360,9 @@ status_t QCameraStream_Rdi::processRdiFrame(
 
     Mutex::Autolock lock(mStopCallbackLock);
     if(!mActive) {
-      ALOGE("RDI Streaming Stopped. Returning callback");
-      return NO_ERROR;
+    ALOGE("RDI Streaming Stopped. Qbuf and return");
+      status = NO_ERROR;
+      goto done;
     }
     if(mHalCamCtrl==NULL) {
       ALOGE("%s: X: HAL control object not set",__func__);

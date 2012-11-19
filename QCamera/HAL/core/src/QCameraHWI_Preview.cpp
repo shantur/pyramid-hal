@@ -742,6 +742,64 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
     /*Call buf done*/
     return BAD_VALUE;
   }
+
+  mHalCamCtrl->mCallbackLock.lock();
+  camera_data_callback pcb = mHalCamCtrl->mDataCb;
+  mHalCamCtrl->mCallbackLock.unlock();
+  ALOGD("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
+
+  camera_memory_t *previewMem = NULL;
+
+  if (pcb != NULL) {
+       ALOGD("%s: mMsgEnabled =0x%x, preview format =%d", __func__,
+            mHalCamCtrl->mMsgEnabled, mHalCamCtrl->mPreviewFormat);
+      //Sending preview callback if corresponding Msgs are enabled
+      if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
+          ALOGE("Q%s: PCB callback enabled", __func__);
+          msgType |=  CAMERA_MSG_PREVIEW_FRAME;
+          int previewBufSize;
+          /* The preview buffer size sent back in the callback should be (width*height*bytes_per_pixel)
+           * As all preview formats we support, use 12 bits per pixel, buffer size = previewWidth * previewHeight * 3/2.
+           * We need to put a check if some other formats are supported in future. (punits) */
+          if ((mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV21) ||
+              (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV12) ||
+              (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_YV12))
+          {
+              if(mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_YV12) {
+                  previewBufSize = ((mHalCamCtrl->mPreviewWidth+15)/16) * 16 * mHalCamCtrl->mPreviewHeight +
+                                   ((mHalCamCtrl->mPreviewWidth/2+15)/16) * 16* mHalCamCtrl->mPreviewHeight;
+              } else {
+                  previewBufSize = mHalCamCtrl->mPreviewWidth * mHalCamCtrl->mPreviewHeight * 3/2;
+              }
+              if(previewBufSize != mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->bufs[0]->buf_idx]->size) {
+                  previewMem = mHalCamCtrl->mGetMemory(mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->bufs[0]->buf_idx]->fd,
+                  previewBufSize, 1, mHalCamCtrl->mCallbackCookie);
+                  if (!previewMem || !previewMem->data) {
+                      ALOGE("%s: mGetMemory failed.\n", __func__);
+                  } else {
+                      data = previewMem;
+                  }
+              } else
+                    data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->bufs[0]->buf_idx];
+          } else {
+                data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->bufs[0]->buf_idx];
+                ALOGE("Invalid preview format, buffer size in preview callback may be wrong.");
+          }
+      } else {
+          data = NULL;
+      }
+      if(msgType) {
+          mStopCallbackLock.unlock();
+          if(mActive)
+            pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
+          if (previewMem)
+              previewMem->release(previewMem);
+      }
+	  ALOGD("end of cb");
+  } else {
+    ALOGD("%s PCB is not enabled", __func__);
+  }
+
   mHalCamCtrl->mCallbackLock.lock();
   camera_data_timestamp_callback rcb = mHalCamCtrl->mDataCbTimestamp;
   void *rdata = mHalCamCtrl->mCallbackCookie;
@@ -852,62 +910,6 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
   mLastQueuedFrame = &(mDisplayBuf[frame->bufs[0]->buf_idx]);
   mHalCamCtrl->mPreviewMemoryLock.unlock();
 
-  mHalCamCtrl->mCallbackLock.lock();
-  camera_data_callback pcb = mHalCamCtrl->mDataCb;
-  mHalCamCtrl->mCallbackLock.unlock();
-  ALOGD("Message enabled = 0x%x", mHalCamCtrl->mMsgEnabled);
-
-  camera_memory_t *previewMem = NULL;
-
-  if (pcb != NULL) {
-       ALOGD("%s: mMsgEnabled =0x%x, preview format =%d", __func__,
-            mHalCamCtrl->mMsgEnabled, mHalCamCtrl->mPreviewFormat);
-      //Sending preview callback if corresponding Msgs are enabled
-      if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
-          ALOGE("Q%s: PCB callback enabled", __func__);
-          msgType |=  CAMERA_MSG_PREVIEW_FRAME;
-          int previewBufSize;
-          /* The preview buffer size sent back in the callback should be (width*height*bytes_per_pixel)
-           * As all preview formats we support, use 12 bits per pixel, buffer size = previewWidth * previewHeight * 3/2.
-           * We need to put a check if some other formats are supported in future. (punits) */
-          if ((mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV21) ||
-              (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_NV12) ||
-              (mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_YV12))
-          {
-              if(mHalCamCtrl->mPreviewFormat == CAMERA_YUV_420_YV12) {
-                  previewBufSize = ((mHalCamCtrl->mPreviewWidth+15)/16) * 16 * mHalCamCtrl->mPreviewHeight +
-                                   ((mHalCamCtrl->mPreviewWidth/2+15)/16) * 16* mHalCamCtrl->mPreviewHeight;
-              } else {
-                  previewBufSize = mHalCamCtrl->mPreviewWidth * mHalCamCtrl->mPreviewHeight * 3/2;
-              }
-              if(previewBufSize != mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->bufs[0]->buf_idx]->size) {
-                  previewMem = mHalCamCtrl->mGetMemory(mHalCamCtrl->mPreviewMemory.private_buffer_handle[frame->bufs[0]->buf_idx]->fd,
-                  previewBufSize, 1, mHalCamCtrl->mCallbackCookie);
-                  if (!previewMem || !previewMem->data) {
-                      ALOGE("%s: mGetMemory failed.\n", __func__);
-                  } else {
-                      data = previewMem;
-                  }
-              } else
-                    data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->bufs[0]->buf_idx];
-          } else {
-                data = mHalCamCtrl->mPreviewMemory.camera_memory[frame->bufs[0]->buf_idx];
-                ALOGE("Invalid preview format, buffer size in preview callback may be wrong.");
-          }
-      } else {
-          data = NULL;
-      }
-      if(msgType) {
-          mStopCallbackLock.unlock();
-          if(mActive)
-            pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
-          if (previewMem)
-              previewMem->release(previewMem);
-      }
-	  ALOGD("end of cb");
-  } else {
-    ALOGD("%s PCB is not enabled", __func__);
-  }
   if(rcb != NULL && mVFEOutputs == 1)
   {
       int flagwait = 1;

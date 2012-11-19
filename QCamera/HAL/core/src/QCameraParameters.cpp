@@ -73,6 +73,12 @@ const char QCameraParameters::KEY_QC_SUPPORTED_ZSL_MODES[] = "zsl-values";
 const char QCameraParameters::KEY_QC_CAMERA_MODE[] = "camera-mode";
 const char QCameraParameters::KEY_QC_AE_BRACKET_HDR[] = "ae-bracket-hdr";
 const char QCameraParameters::KEY_QC_POWER_MODE[] = "power-mode";
+
+/*flip parameters */
+const char QCameraParameters::KEY_QC_VIDEO_FRAME_FLIP[] = "video-flip";
+const char QCameraParameters::KEY_QC_PREVIEW_FRAME_FLIP[] = "preview-flip";
+const char QCameraParameters::KEY_QC_SNAPSHOT_FRAME_FLIP[] = "snapshot-flip";
+
 /*only effective when KEY_QC_AE_BRACKET_HDR set to ae_bracketing*/
 //const char QCameraParameters::KEY_QC_AE_BRACKET_SETTING_KEY[] = "ae-bracket-setting";
 
