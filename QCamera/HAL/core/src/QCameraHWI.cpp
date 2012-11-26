@@ -209,7 +209,7 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                     mm_camera_super_buf_t *super_buf =
                         (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     if (super_buf != NULL) {
-                        ALOGD("%s:RAW PICTURE super buf %x",__func__,super_buf);
+                        ALOGD("%s:RAW PICTURE super buf %x",__func__, (uint32_t)super_buf);
                         receiveRawPicture(super_buf, pme);
                     }
                     /*free superbuf*/
@@ -382,9 +382,9 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                         ALOGD("%s: Deque thumb super buf", __func__);
                         super_buf2 = (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     }
-                    ALOGD("mIsYUVSensor %d super_buf2 %x", pme->mIsYUVSensor, super_buf2);
+                    ALOGD("mIsYUVSensor %d super_buf2 %x", pme->mIsYUVSensor, (uint32_t)super_buf2);
                     if (NULL != super_buf && (!pme->mIsYUVSensor || super_buf2 != NULL)) {
-                            ALOGD("calling encode Data", pme->mIsYUVSensor, super_buf2);
+                            ALOGD("calling encode Data");
                             ret = pme->encodeData(super_buf, &current_jobId, super_buf2);
 
                              //play shutter sound
@@ -454,7 +454,7 @@ uint16_t getSOSOffset(uint8_t *bs_ptr, uint32_t size, src_image_buffer_info *but
     uint16_t jump =0;
     uint16_t offset = 0;
     uint8_t *nxt_byte = NULL;
-    ALOGD("%s: E ptr %x sz %d",__func__, bs_ptr, size);
+    ALOGD("%s: E ptr %x sz %d",__func__, (uint32_t)bs_ptr, size);
 
     while(offset < size){
         nxt_byte = bs_ptr+1;
@@ -477,7 +477,9 @@ uint16_t getSOSOffset(uint8_t *bs_ptr, uint32_t size, src_image_buffer_info *but
                     //then 00 01 01 01 (00 is luma table index)
                     but_info->luma_qtable = bs_ptr+0x5; //bs_ptr is at FF
                     but_info->chroma_qtable = bs_ptr+0x46; //0x40 = 64 bytes is size of luma table and 1 byte for chroma table index 01
-                    ALOGD("luma table %x chroma table %x", but_info->luma_qtable, but_info->chroma_qtable);
+                    ALOGD("luma table %x chroma table %x",
+                        (uint32_t)but_info->luma_qtable,
+                        (uint32_t)but_info->chroma_qtable);
                 }else if(*nxt_byte== 0xDA){
                     ALOGD("found at offset %d", offset);
                     offset += (jump+2);
@@ -562,7 +564,8 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
             ALOGE("found stream Id %d", recvd_frame2->bufs[i]->stream_id);
             if (thumb_stream->mStreamId == recvd_frame2->bufs[i]->stream_id) {
                 thumb_frame = recvd_frame2->bufs[i];
-                ALOGD("thumbnail frame %x, frame idx %d", thumb_frame, recvd_frame2->bufs[i]->frame_idx);
+                ALOGD("thumbnail frame %x, frame idx %d",
+                    (uint32_t)thumb_frame, recvd_frame2->bufs[i]->frame_idx);
                 src_img_num++;
                 break;
             }
@@ -607,7 +610,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
                 *jpegLength, main_buf_info);
         ALOGD("fill up JPEG bit stream info buffer %x sos_offset %d "
               "jpegLength %d main_frame->frame_len %d",
-            main_frame->buffer, sos_offset, *jpegLength, main_frame->frame_len);
+            (uint32_t)main_frame->buffer, sos_offset, *jpegLength, main_frame->frame_len);
         main_buf_info->bit_stream[0].sequence = 0;
         main_buf_info->bit_stream[0].buf_vaddr =
             (uint8_t *)main_frame->buffer+JPEG_DATA_OFFSET+sos_offset;
@@ -616,14 +619,15 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         main_buf_info->bit_stream[0].buf_size = *jpegLength - sos_offset;
         main_buf_info->bit_stream[0].data_offset = 0;//JPEG_DATA_OFFSET;
         main_buf_info->img_fmt = JPEG_SRC_IMAGE_FMT_BITSTREAM;
-        main_buf_info->src_dim.width = DEFAULT_BACK_CAM_WIDTH;//mPictureWidth;
-        main_buf_info->src_dim.height = DEFAULT_BACK_CAM_HEIGHT;//mPictureHeight;
+        main_buf_info->src_dim.width = mPictureWidth;
+        main_buf_info->src_dim.height = mPictureHeight;
         jpg_job.encode_job.encode_parm.buf_info.sink_img.buf_len =
             main_frame->frame_len;
         jpg_job.encode_job.encode_parm.rotation = 0;//getJpegRotation();
         ALOGD("%s: restart_interval %d luma_qtables %x, chroma %x", __func__,
               main_buf_info->restart_interval,
-              main_buf_info->luma_qtable, main_buf_info->chroma_qtable);
+              (uint32_t)main_buf_info->luma_qtable,
+              (uint32_t)main_buf_info->chroma_qtable);
         main_buf_info->user_defined_tables = 1;
         ALOGD("%s: jpeg rotation is set to %d getrotation %d", __func__,
               jpg_job.encode_job.encode_parm.rotation, getJpegRotation());
@@ -2345,6 +2349,7 @@ void QCameraHardwareInterface::stopPreviewInternal()
             ALOGE("%s : ZSL destroy_stream_bundle Error",__func__);
         }
     }else{
+        mStreamDisplay->streamOff(0);
 #if 1 // QCT 10162012 RDI2 changes // Reverted. Causing crash while switching back camera - camcorder
         if(mIsYUVSensor) {
             mStreamRdi->streamOff(0);
@@ -2359,7 +2364,6 @@ void QCameraHardwareInterface::stopPreviewInternal()
             return;
         }
 #endif
-        mStreamDisplay->streamOff(0);
     }
     if (mStreamRecord)
         mStreamRecord->deinitStream();
@@ -2708,12 +2712,10 @@ status_t  QCameraHardwareInterface::takePicture()
                 return ret;
 #if 1 // QCT 10162012 RDI2 changes
                 }else if(mIsYUVSensor) {
-                #if 0 //enable later
                     ALOGE("Trigger capture cmd: E");
-                    native_control_cam(EXT_CAM_SNAPSHOT_MODE, 0, 0, 0);
+                    /* Place Holder for Native Call */
                     return ret;
                 #endif
-#endif
             }
 
             /* stop preview */
@@ -2831,9 +2833,7 @@ status_t  QCameraHardwareInterface::takePicture()
 #if 1 // QCT 10162012 RDI2 changes
         if(mIsYUVSensor) {
                     ALOGE("Trigger live shot capture cmd: E");
-#if 0   /* Ebable later */
-                    native_control_cam(EXT_CAM_SNAPSHOT_MODE, 0, 0, 0);
-#endif
+                    /* Place Holder for Native Call */
                     ALOGI("takePicture: X");
                     return MM_CAMERA_OK;
         }

@@ -435,7 +435,6 @@ typedef struct {
 mm_camera_info_t * camera_query(uint8_t *num_cameras);
 mm_camera_vtbl_t * camera_open(uint8_t camera_idx,
                                mm_camear_mem_vtbl_t *mem_vtbl);
-int32_t mm_camera_native_control(struct ioctl_native_cmd* info);
 
 //extern void mm_camera_util_profile(const char *str);
 

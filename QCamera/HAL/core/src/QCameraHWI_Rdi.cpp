@@ -442,7 +442,11 @@ if (pcb != NULL) {
             memcpy(dup_frame, frame, sizeof(mm_camera_super_buf_t));
 #endif
             mHalCamCtrl->mSuperBufQueue.enqueue(dup_frame);
-        
+            if(status == RAW_RECEIVED){
+                ALOGE("For HDR Raw snapshot, just enqueue raw buffer and proceed ");
+                mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
+                return NO_ERROR;
+            }
 #if RDI2_THUMB //thumbnail
 #if RDI2_YUV_SYNC
             ALOGE("Request_super_buf matching frame id %d ",jpegInfo.jpegFrameId);

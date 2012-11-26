@@ -1305,29 +1305,6 @@ void QCameraHardwareInterface::initDefaultParameters()
     return;
 }
 
-bool QCameraHardwareInterface::native_control_cam(uint8_t mode, uint32_t address, uint32_t value1, uint32_t value2)
-{
-    ALOGE("native_control_cam : mode(%d), address(%d), value1(%d), value2(%d), id(%d)", mode, address, value1, value2, HAL_currentCameraId);
-
-    struct ioctl_native_cmd info;
-
-    info.mode = mode;
-    info.address = address;
-    info.value_1 = value1;
-    info.value_2 = value2;
-    info.value_3 = HAL_currentCameraId;
-
-    mm_camera_native_control(&info);
-
-    switch(mode) {
-
-    default:
-        break;
-    }
-
-    return true;
-}
-
 /**
  * Set the camera parameters. This returns BAD_VALUE if any parameter is
  * invalid or not supported.
@@ -2441,10 +2418,7 @@ status_t QCameraHardwareInterface::setVideoSize(const QCameraParameters& params)
     }
     ALOGE("%s: preview dimensions: %dx%d", __func__, mPreviewWidth, mPreviewHeight);
     ALOGE("%s: video dimensions: %dx%d", __func__, videoWidth, videoHeight);
-#if 1 // QCT 10092012 - Rear Camera Recording through C2D
-    mPreviewWidth = videoWidth = 640;
-    mPreviewHeight = videoHeight = 480;
-#endif
+
     mDimension.orig_video_width = videoWidth;
     mDimension.orig_video_height = videoHeight;
     mDimension.video_width = videoWidth;
@@ -4060,7 +4034,7 @@ status_t QCameraHardwareInterface::setDimension()
     #endif
 #if 1 // QCT 10162012 RDI2 changes
     ALOGE("%s: mRdiWidth %d mRdiHeight %d", __func__, mRdiWidth, mRdiHeight);
-    dim.rdi2_format= CAMERA_RDI;//CAMERA_YUV_422_YUYV;
+    dim.rdi2_format= CAMERA_RDI;
     dim.rdi2_width= mRdiWidth;
     dim.rdi2_height= mRdiHeight;
 #endif

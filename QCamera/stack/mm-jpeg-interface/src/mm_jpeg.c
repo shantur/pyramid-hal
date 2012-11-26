@@ -268,8 +268,7 @@ omx_jpeg_color_format map_jpeg_format(mm_jpeg_color_format color_fmt)
     case MM_JPEG_COLOR_FORMAT_RGBa:
         return OMX_RGBa;
     case MM_JPEG_COLOR_FORMAT_BITSTREAM:
-        /* TODO: need to change to new bitstream value once omx interface changes */
-        return OMX_JPEG_BITSTREAM_H2V2;
+        return OMX_JPEG_BITSTREAM_H2V1;
     default:
         return OMX_JPEG_COLOR_FORMAT_MAX;
     }

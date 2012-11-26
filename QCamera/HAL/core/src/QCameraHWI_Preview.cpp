@@ -263,24 +263,33 @@ status_t QCameraStream_preview::initStream(uint8_t no_cb_needed, uint8_t stream_
     int err = 0;
 
     ALOGI(" %s : E ", __FUNCTION__);
-    if( mPreviewWindow == NULL) {
-        ALOGE("%s: mPreviewWindow = NULL", __func__);
-        return INVALID_OPERATION;
-    }
-    numMinUndequeuedBufs = 0;
-    if(mPreviewWindow->get_min_undequeued_buffer_count) {
-        err = mPreviewWindow->get_min_undequeued_buffer_count(mPreviewWindow, &numMinUndequeuedBufs);
-        if (err != 0) {
-            ALOGE("get_min_undequeued_buffer_count  failed: %s (%d)",
-                  strerror(-err), -err);
-            ret = UNKNOWN_ERROR;
-            goto end;
+    if(mHalCamCtrl->isNoDisplayMode()) {
+        mNumBuffers = kPreviewBufferCount;
+        if(mHalCamCtrl->isZSLMode()) {
+            if(mNumBuffers < mHalCamCtrl->getZSLQueueDepth() + 3) {
+                mNumBuffers = mHalCamCtrl->getZSLQueueDepth() + 3;
+            }
         }
-    }
-    mNumBuffers = kPreviewBufferCount + numMinUndequeuedBufs;
-    if(mHalCamCtrl->isZSLMode()) {
-      if(mHalCamCtrl->getZSLQueueDepth() > numMinUndequeuedBufs)
-        mNumBuffers += mHalCamCtrl->getZSLQueueDepth() - numMinUndequeuedBufs;
+    } else {
+        if( mPreviewWindow == NULL) {
+            ALOGE("%s: mPreviewWindow = NULL", __func__);
+            return INVALID_OPERATION;
+        }
+        numMinUndequeuedBufs = 0;
+        if(mPreviewWindow->get_min_undequeued_buffer_count) {
+            err = mPreviewWindow->get_min_undequeued_buffer_count(mPreviewWindow, &numMinUndequeuedBufs);
+            if (err != 0) {
+                ALOGE("get_min_undequeued_buffer_count  failed: %s (%d)",
+                      strerror(-err), -err);
+                ret = UNKNOWN_ERROR;
+                goto end;
+            }
+        }
+        mNumBuffers = kPreviewBufferCount + numMinUndequeuedBufs;
+        if(mHalCamCtrl->isZSLMode()) {
+          if(mHalCamCtrl->getZSLQueueDepth() > numMinUndequeuedBufs)
+            mNumBuffers += mHalCamCtrl->getZSLQueueDepth() - numMinUndequeuedBufs;
+        }
     }
     ret = QCameraStream::initStream(no_cb_needed, stream_on);
 end:
@@ -318,9 +327,9 @@ status_t  QCameraStream_preview::getBufferNoDisplay( )
     planes[i] = dim.display_frame_offset.mp[i].len;
   }
 
-  frame_len = dim.picture_frame_offset.frame_len;
-  y_off = dim.picture_frame_offset.mp[0].offset;
-  cbcr_off = dim.picture_frame_offset.mp[1].offset;
+  frame_len = dim.display_frame_offset.frame_len;
+  y_off = dim.display_frame_offset.mp[0].offset;
+  cbcr_off = dim.display_frame_offset.mp[1].offset;
   ALOGE("%s: main image: rotation = %d, yoff = %d, cbcroff = %d, size = %d, width = %d, height = %d",
        __func__, dim.rotation, y_off, cbcr_off, frame_len,
        dim.display_width, dim.display_height);
@@ -655,6 +664,7 @@ status_t QCameraStream_preview::initPreviewOnlyBuffers()
 
     mDisplayBuf[i].stream_id = mStreamId;
     mDisplayBuf[i].fd = mHalCamCtrl->mNoDispPreviewMemory.fd[i];
+	mDisplayBuf[i].buffer = (void *)mHalCamCtrl->mNoDispPreviewMemory.camera_memory[i]->data;
   }/*end of for loop*/
 
  /* register the streaming buffers for the channel*/
