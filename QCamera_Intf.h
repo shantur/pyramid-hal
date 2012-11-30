@@ -51,6 +51,20 @@
 #define MAX_SNAPSHOT_BUFFERS 5
 #define MAX_EXP_BRACKETING_LENGTH 32
 
+/* Temporary defines for MR1 bringup - Start */
+#define CAMERA_MSG_STATS_DATA   0x1000
+#define CAMERA_CMD_HISTOGRAM_ON   10
+#define CAMERA_CMD_HISTOGRAM_OFF  11
+#define CAMERA_CMD_HISTOGRAM_SEND_DATA  12
+
+enum {
+  CAMERA_SUPPORT_MODE_2D = 0x01, /* Camera Sensor supports 2D mode. */
+  CAMERA_SUPPORT_MODE_3D = 0x02, /* Camera Sensor supports 3D mode. */
+  CAMERA_SUPPORT_MODE_NONZSL = 0x04, /* Camera Sensor in NON-ZSL mode. */
+  CAMERA_SUPPORT_MODE_ZSL = 0x08 /* Camera Sensor supports ZSL mode. */
+};
+/* Temporary defines for MR1 bringup - End */
+
 
 /* Exif Tag ID */
 typedef uint32_t exif_tag_id_t;

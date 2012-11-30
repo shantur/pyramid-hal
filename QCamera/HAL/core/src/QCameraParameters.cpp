@@ -32,7 +32,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <utils/Log.h>
 #include <string.h>
 #include <stdlib.h>
-#include <camera/QCameraParameters.h>
+#include "QCameraParameters.h"
 
 namespace android {
 // Parameter keys to communicate between camera application and driver.
