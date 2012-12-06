@@ -900,11 +900,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     }
     //Set Preview Format
     //mParameters.setPreviewFormat("yuv420sp"); // informative
-#if 1 // QCT 10092012 - Rear Camera Recording through C2D
-    mParameters.setPreviewFormat(QCameraParameters::PIXEL_FORMAT_NV12);
-#else
     mParameters.setPreviewFormat(QCameraParameters::PIXEL_FORMAT_YUV420SP);
-#endif
 
     mPreviewFormatValues = create_values_str(
         preview_formats, sizeof(preview_formats) / sizeof(str_map));
