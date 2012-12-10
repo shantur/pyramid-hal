@@ -589,10 +589,99 @@ static int mm_camera_channel_skip_frames(mm_camera_obj_t *my_obj,
             notify_frame.idx = sframe->idx;
             mm_camera_stream_util_buf_done(my_obj, sstream, &notify_frame);
         }
+        CDBG("%s: count : %d, mframe = %p, sframe = %p\n", __func__, count,
+              mframe, sframe);
     }
 
     CDBG("Post %s: Q-size=%d, look_back =%d, M_match=%d, T_match=%d", __func__,
          count, frame_attr->look_back, mq->match_cnt, sq->match_cnt);
+    return MM_CAMERA_OK;
+}
+
+static int mm_camera_channel_match_zsl_frame(mm_camera_obj_t *my_obj,
+                                          mm_camera_frame_queue_t *mq,
+                                          mm_camera_frame_queue_t *sq,
+                                          mm_camera_stream_t *mstream,
+                                          mm_camera_stream_t *sstream,
+                                          mm_camera_channel_attr_buffering_frame_t *frame_attr)
+{
+    int count = 0;
+    int i = 0;
+    mm_camera_frame_t *mframe = NULL, *sframe = NULL;
+    mm_camera_notify_frame_t notify_frame;
+    uint32_t match_id = frame_attr->match_id;
+    ALOGE("%s: match_id = %d\n", __func__, match_id);
+
+    count = mm_camera_stream_frame_get_q_cnt(mq);
+    if(count < mm_camera_stream_frame_get_q_cnt(sq))
+        count = mm_camera_stream_frame_get_q_cnt(sq);
+    CDBG("%s: Q-size=%d, look_back =%d, M_match=%d, T_match=%d", __func__,
+         count, frame_attr->look_back, mq->match_cnt, sq->match_cnt);
+
+    count -= frame_attr->look_back;
+    if(count < 0)
+      count = 0;
+    CDBG("count=%d, frame_attr->look_back=%d,mq->match_cnt=%d, sq->match_cnt=%d",
+               count, frame_attr->look_back, mq->match_cnt,sq->match_cnt);
+    for(i=0; i < count; i++) {
+        mframe = mm_camera_stream_frame_deq(mq);
+        if(mframe != NULL && !mframe->match) {
+            CDBG("%s: no match\n", __func__);
+            if(mframe) {
+              mm_camera_stream_frame_enq(mq, &mstream->frame.frame[mframe->idx]);
+              mframe = NULL;
+            }
+            continue;
+        }
+
+        sframe = mm_camera_stream_frame_deq(sq);
+
+        if(sframe != NULL && !sframe->match){
+            CDBG("%s: no match\n", __func__);
+            if(sframe) {
+              mm_camera_stream_frame_enq(sq, &sstream->frame.frame[sframe->idx]);
+              sframe = NULL;
+            }
+            continue;
+        }
+
+        if(mframe == NULL || sframe == NULL) {
+            return MM_CAMERA_OK;
+        }
+
+        CDBG("%s: mframe->frame.frame_id : %d\n", __func__, mframe->frame.frame_id);
+        CDBG("%s: sframe->frame.frame_id : %d\n", __func__, sframe->frame.frame_id);
+        if(mframe && sframe && mframe->frame.frame_id == match_id && sframe->frame.frame_id == match_id) {
+		  if(mframe) {
+              mm_camera_stream_frame_enq(mq, &mstream->frame.frame[mframe->idx]);
+              mframe = NULL;
+          }
+          if(sframe) {
+              mm_camera_stream_frame_enq(sq, &sstream->frame.frame[sframe->idx]);
+              sframe = NULL;
+          }
+          my_obj->ch[MM_CAMERA_CH_SNAPSHOT].zsl_evt = 0;
+        } else {
+            mq->match_cnt--;
+            sq->match_cnt--;
+            if(mframe) {
+                notify_frame.frame = &mframe->frame;
+                notify_frame.idx = mframe->idx;
+                mm_camera_stream_util_buf_done(my_obj, mstream, &notify_frame);
+            }
+            if(sframe) {
+                notify_frame.frame = &sframe->frame;
+                notify_frame.idx = sframe->idx;
+                mm_camera_stream_util_buf_done(my_obj, sstream, &notify_frame);
+            }
+        }
+        CDBG("%s: count : %d, mframe = %p, sframe = %p\n", __func__, count,
+              mframe, sframe);
+    }
+
+    CDBG("Post %s: Q-size=%d, look_back =%d, M_match=%d, T_match=%d", __func__,
+         count, frame_attr->look_back, mq->match_cnt, sq->match_cnt);
+    
     return MM_CAMERA_OK;
 }
 
@@ -624,11 +713,22 @@ void mm_camera_dispatch_buffered_frames(mm_camera_obj_t *my_obj,
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
     if (mq && sq && stream1 && stream2) {
-        rc = mm_camera_channel_skip_frames(my_obj, mq, sq, stream1, stream2, &ch->buffering_frame);
-        if(rc != MM_CAMERA_OK) {
-            CDBG_ERROR("%s: Error getting right frame!", __func__);
-            goto end;
+
+        ALOGE("%s: zsl evt : %d\n", __func__, my_obj->ch[MM_CAMERA_CH_SNAPSHOT].zsl_evt);
+        if(my_obj->ch[MM_CAMERA_CH_SNAPSHOT].zsl_evt != 1) {
+            rc = mm_camera_channel_skip_frames(my_obj, mq, sq, stream1, stream2, &ch->buffering_frame);
+            if(rc != MM_CAMERA_OK) {
+                CDBG_ERROR("%s: Error getting right frame!", __func__);
+                goto end;
+            }
+        } else {
+            rc = mm_camera_channel_match_zsl_frame(my_obj, mq, sq, stream1, stream2, &ch->buffering_frame);
+            if(rc != MM_CAMERA_OK) {
+                CDBG_ERROR("%s: Error getting right frame!", __func__);
+                goto end;
+            }
         }
+
         num_of_req_frame = my_obj->snap_burst_num_by_user;
         ch->snapshot.pending_cnt = num_of_req_frame;
 

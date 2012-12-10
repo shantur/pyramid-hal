@@ -113,6 +113,9 @@ int mm_camera_zsl_frame_cmp_and_enq(mm_camera_obj_t * my_obj,
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
     pthread_mutex_lock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
 
+    CDBG("%s: node->frame.frame_id: %d, stream type: %d", __func__,
+          node->frame.frame_id, mystream->stream_type);
+
     if(mystream->stream_type == MM_CAMERA_STREAM_PREVIEW) {
         peerstream = &my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.main;
     } else
@@ -130,6 +133,8 @@ int mm_camera_zsl_frame_cmp_and_enq(mm_camera_obj_t * my_obj,
         pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
         return rc;
     }
+
+
 
     peer_frame = peerq->tail;
     /* for 30-120 fps streaming no need to consider the wrapping back of frame_id
@@ -344,15 +349,17 @@ end:
 
     CDBG("%s Dispatching ZSL frame ", __func__);
     if(MM_CAMERA_STREAM_STATE_NOTUSED == mystream->state || MM_CAMERA_STREAM_STATE_NOTUSED == peerstream->state) {
-        CDBG("%s: one or two streams have been released, not processing here", __func__);
+        CDBG_ERROR("%s: one or two streams have been released, not processing here\n", __func__);
         pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
         pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
         return 0;
     }
+    CDBG("%s: pending cnt :%d\n", __func__, my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.pending_cnt);
     if(my_obj->ch[MM_CAMERA_CH_SNAPSHOT].snapshot.pending_cnt > 0) {
         if(!myq->match_cnt || !peerq->match_cnt) {
             pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
             pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
+            CDBG_ERROR("%s: pending count is zero\n", __func__);
             return 0;
         }
         /* dequeue one by one and then pass to HAL */
@@ -361,11 +368,12 @@ end:
         if (!my_frame || !peer_frame) {
             pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_SNAPSHOT].mutex);
             pthread_mutex_unlock(&my_obj->ch[MM_CAMERA_CH_PREVIEW].mutex);
+            CDBG_ERROR("%s: one of the frames is null\n", __func__);
             return 0;
         }
         myq->match_cnt--;
         peerq->match_cnt--;
-        CDBG("%s: Dequeued frame: main frame idx: %d thumbnail "
+        ALOGE("%s: Dequeued frame: main frame idx: %d thumbnail "
              "frame idx: %d", __func__, my_frame->idx, peer_frame->idx);
         /* dispatch this pair of frames */
         memset(&data, 0, sizeof(data));
@@ -391,6 +399,7 @@ end:
     return rc;
 
 send_to_hal:
+    CDBG("%s:sending to HAL LAKS\n", __func__);
     for( i=0;i < MM_CAMERA_BUF_CB_MAX;i++) {
         if (buf_cb[i].cb && my_obj->poll_threads[MM_CAMERA_CH_SNAPSHOT].data.used == 1)
           buf_cb[i].cb(&data,buf_cb[i].user_data);
@@ -867,6 +876,13 @@ void mm_camera_msm_evt_notify(mm_camera_obj_t * my_obj, int fd)
         }
         switch(evt->event_type) {
         case MM_CAMERA_EVT_TYPE_INFO:
+            CDBG("%s: event id : %d\n", __func__,evt->e.info.event_id);
+            if(evt->e.info.event_id == MM_CAMERA_INFO_FLASH_FRAME_IDX) {
+                CDBG("%s: valid entry: %d\n", __func__, evt->e.info.e.zsl_flash_info.valid_entires);
+                CDBG("%s: frame idx: %d\n", __func__,evt->e.info.e.zsl_flash_info.frame_idx[0]);
+                my_obj->ch[MM_CAMERA_CH_SNAPSHOT].buffering_frame.match_id =
+                    evt->e.info.e.zsl_flash_info.frame_idx[0];
+            }
            break;
         case MM_CAMERA_EVT_TYPE_STATS:
            break;

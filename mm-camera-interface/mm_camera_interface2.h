@@ -257,6 +257,7 @@ typedef struct {
     int water_mark;
     int look_back;
     int interval;  /*skipping n-1 frames*/
+    uint32_t match_id;
 } mm_camera_channel_attr_buffering_frame_t;
 
 typedef struct {

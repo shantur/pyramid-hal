@@ -362,6 +362,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
         mm_jpeg_encoder_setRotation(*((int *)parm->p_value),isZSL);
         return MM_CAMERA_OK;
     case MM_CAMERA_PARM_ZSL_FLASH:
+      my_obj->ch[MM_CAMERA_CH_SNAPSHOT].zsl_evt = 1;
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_ZSL_FLASH, sizeof(uint32_t), (void *)parm->p_value);
     case MM_CAMERA_PARM_ASD_ENABLE:

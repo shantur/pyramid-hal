@@ -1700,6 +1700,7 @@ status_t  QCameraHardwareInterface::takePicture()
                 }
                 ALOGV("flash_expected = %d", flash_expected);
                 if(getFlashMode() != LED_MODE_OFF && flash_expected) {
+                    pausePreviewForZSL();
                     // Flash is used
                     takePicturePrepareHardware();
 
@@ -1710,7 +1711,7 @@ status_t  QCameraHardwareInterface::takePicture()
                         ALOGE("%s: error: cannot set ZSL flash", __func__);
                         return BAD_VALUE;
                     }
-                    pausePreviewForZSL();
+
                     // takepictureZSL() will be called when the event for
                     // zslflash is received
                 } else {
