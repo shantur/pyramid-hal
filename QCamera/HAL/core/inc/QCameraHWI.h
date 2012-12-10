@@ -47,6 +47,7 @@ extern "C" {
 #include "QCameraHWI_Mem.h"
 #include "QCameraStream.h"
 
+static const char TempBuffer[] = "This is temp buffer";
 //Error codes
 #define  NOT_FOUND -1
 #define MAX_ZOOM_RATIOS 62
@@ -71,12 +72,10 @@ extern "C" {
 //for histogram stats
 #define HISTOGRAM_STATS_SIZE 257
 #define NUM_HISTOGRAM_BUFFERS 3
-#if 1 // QCT 10162012 RDI2 changes 
 #define JPEG_DATA_OFFSET 0x2800 //(2048+4096+4096)
 #define RAW_DATA_OFFSET 0x1800 //(2048+4096)
 #define RDI2_THUMB  1
 #define RDI2_SPLIT  1
-#endif
 
 struct str_map {
     const char *const desc;
@@ -138,13 +137,8 @@ typedef enum {
 }mm_camera_status_type_t;
 
 
-#if 1 // QCT 10162012 RDI2 changes 
 #define HAL_DUMP_FRM_MASK_ALL ( HAL_DUMP_FRM_PREVIEW + HAL_DUMP_FRM_VIDEO + \
     HAL_DUMP_FRM_MAIN + HAL_DUMP_FRM_THUMBNAIL + HAL_DUMP_FRM_RDI)
-#else
-#define HAL_DUMP_FRM_MASK_ALL ( HAL_DUMP_FRM_PREVIEW + HAL_DUMP_FRM_VIDEO + \
-    HAL_DUMP_FRM_MAIN + HAL_DUMP_FRM_THUMBNAIL)
-#endif
 #define QCAMERA_HAL_PREVIEW_STOPPED    0
 #define QCAMERA_HAL_PREVIEW_START      1
 #define QCAMERA_HAL_PREVIEW_STARTED    2
@@ -266,16 +260,12 @@ typedef struct {
     uint8_t* out_data;
     uint32_t data_size;
     mm_camera_super_buf_t* src_frame;
-#if 1 // QCT 10162012 RDI2 changes 
     mm_camera_super_buf_t* src_frame2;
-#endif
 } camera_jpeg_data_t;
 
 typedef struct {
     mm_camera_super_buf_t* src_frame;
-#if 1 // QCT 10162012 RDI2 changes 
     mm_camera_super_buf_t* src_frame2;
-#endif
     void* userdata;
 } camera_jpeg_encode_cookie_t;
 
@@ -655,9 +645,12 @@ private:
     void stopRecordingInternal();
     //void stopPreviewZSL();
     status_t cancelPictureInternal();
+    status_t restartRdiForHdr();
     //status_t startPreviewZSL();
     void pausePreviewForSnapshot();
     void pausePreviewForZSL();
+    void snapshot_buf_done(mm_camera_super_buf_t* src_frame);
+    void release_superbuf(mm_camera_super_buf_t* src_frame);
     //status_t resumePreviewAfterSnapshot();
 
     status_t runFaceDetection();
@@ -863,9 +856,7 @@ private:
     bool mRecordingHint;
     bool mStartRecording;
     bool mReleasedRecordingFrame;
-    #if 1 // QCT - 10152012 - Enabling ZSL
     bool mIsYUVSensor;
-    #endif
     int mHdrMode;
     int mSnapshotFormat;
     int mZslInterval;
@@ -986,13 +977,10 @@ private:
                                             QCameraHardwareInterface* pme);
      static void superbuf_cb_routine(mm_camera_super_buf_t *recvd_frame,
                                      void *userdata);
-     static void receiveRawPicture(mm_camera_super_buf_t* recvd_frame, QCameraHardwareInterface *pme);
-#if RDI2_THUMB// QCT 10162012 RDI2 changes 
+     static void receiveRawPicture(mm_camera_super_buf_t* recvd_frame,
+                                   QCameraHardwareInterface *pme);
      status_t encodeData(mm_camera_super_buf_t* recvd_frame, uint32_t *jobId,
                  mm_camera_super_buf_t* recvd_frame2 = NULL);
-#else
-     status_t encodeData(mm_camera_super_buf_t* recvd_frame, uint32_t *jobId);
-#endif
      void notifyShutter(bool play_shutter_sound);
      status_t setStreamFlipHint(const QCameraParameters& params);
 };

@@ -722,6 +722,7 @@ int32_t mm_channel_init(mm_channel_t *my_obj)
 {
     int32_t rc = 0;
     CDBG("%s : Launch data poll thread in channel open",__func__);
+    my_obj->poll_thread[0].my_obj = my_obj->cam_obj;
     mm_camera_poll_thread_launch(&my_obj->poll_thread[0],
                                  MM_CAMERA_POLL_TYPE_CH);
 

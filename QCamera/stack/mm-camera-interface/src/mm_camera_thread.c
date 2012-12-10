@@ -166,8 +166,8 @@ static void *mm_camera_poll_fn(mm_camera_poll_thread_t *poll_cb)
 {
     int rc = 0, i;
 
-    CDBG("%s: poll type = %d, num_fd = %d poll_cb = %p\n",
-         __func__, poll_cb->poll_type, poll_cb->num_fds,poll_cb);
+    CDBG("%s: poll type = %d, num_fd = %d poll_cb = %p, my_obj addr = %p\n",
+         __func__, poll_cb->poll_type, poll_cb->num_fds,poll_cb, poll_cb->my_obj);
     do {
          for(i = 0; i < poll_cb->num_fds; i++) {
             poll_cb->poll_fds[i].events = POLLIN|POLLRDNORM|POLLPRI;
@@ -204,6 +204,16 @@ static void *mm_camera_poll_fn(mm_camera_poll_thread_t *poll_cb)
         } else {
             /* in error case sleep 10 us and then continue. hard coded here */
             usleep(10);
+            CDBG("poll type %d\n", poll_cb->poll_type);
+            if(poll_cb->poll_type == MM_CAMERA_POLL_TYPE_CH){
+	            CDBG_ERROR("%s: MM_CAMERA_CH_EVT_STREAMING_ERR", __func__);
+				CDBG_ERROR("%s: poll type = %d, num_fd = %d poll_cb = %p, my_obj addr = %p, timeout = %d\n",
+	                        __func__, poll_cb->poll_type, poll_cb->num_fds,poll_cb, poll_cb->my_obj, 
+	                        poll_cb->timeoutms);
+	            mm_camera_send_ch_event(poll_cb->my_obj, poll_cb->poll_entries[0].handler,
+	                                    poll_cb->poll_entries[0].handler,
+	                                    MM_CAMERA_CH_EVT_STREAMING_ERR);
+            }
             continue;
         }
     } while (poll_cb->state == MM_CAMERA_POLL_TASK_STATE_POLL);
@@ -224,6 +234,9 @@ static void *mm_camera_poll_thread(void *data)
 
     mm_camera_poll_sig_done(poll_cb);
     mm_camera_poll_set_state(poll_cb, MM_CAMERA_POLL_TASK_STATE_POLL);
+	CDBG("%s: Before sending to poll function, type = %d, poll_thread addr = %p, my_obj = %p, timeout = %d",
+		        __func__, poll_cb->poll_type, poll_cb, poll_cb->my_obj, poll_cb->timeoutms);
+		         
     ret = mm_camera_poll_fn(poll_cb);
     return ret;
 }
@@ -310,7 +323,8 @@ int32_t mm_camera_poll_thread_launch(mm_camera_poll_thread_t * poll_cb,
         return -1;
     }
 
-    poll_cb->timeoutms = -1;  /* Infinite seconds */
+    //poll_cb->timeoutms = -1;  /* Infinite seconds */
+    poll_cb->timeoutms = 5000;
 
     CDBG("%s: poll_type = %d, read fd = %d, write fd = %d timeout = %d",
         __func__, poll_cb->poll_type,

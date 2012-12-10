@@ -43,6 +43,16 @@ extern "C" {
 #define MM_CAMERA_CH_SNAPSHOT_MASK   (0x01 << MM_CAMERA_CH_SNAPSHOT)
 #define MM_CAMERA_CH_RDI_MASK        (0x01 << MM_CAMERA_CH_RDI)
 
+#define JPEG_RECEIVED           1
+#define JPEG_PENDING            2
+#define RAW_RECEIVED            3
+#define META_MODE               0x00
+#define NORMAL_JPEG_MODE        0x01
+#define SPLIT_JPEG_MODE         0x02
+#define HDR_JPEG_MODE           0x10
+#define COMBINED_BUF_SIZE       0x1000000
+#define FIRST_JPEG_SIZE         0x800000
+
 } /* extern C*/
 
 namespace android {
@@ -352,24 +362,18 @@ private:
     /*allocate and free buffers for rdi case*/
     status_t getBufferRdi();
     status_t freeBufferRdi();
-#if 1 // QCT 10162012 RDI2 changes 
     status_t updatePreviewMetadata(const void *yuvMetadata);
-    status_t processJpegData(const void *jpegInfo, const void *jpegData, jpeg_info_t * jpeg_info, mm_camera_super_buf_t *jpeg_buf);
-#endif
+    status_t processJpegData(const void *jpegInfo, const void *jpegData, 
+                             jpeg_info_t * jpeg_info, mm_camera_super_buf_t *jpeg_buf);
+    void qbuf_helper(mm_camera_super_buf_t *frame);
 
     void dumpFrameToFile(mm_camera_buf_def_t* newFrame);
-#if 1 // QCT 10162012 RDI2 changes 
 	uint32_t swapByteEndian(uint32_t jpegLength);
-#endif
 
     int8_t my_id;
     mm_camera_op_mode_type_t op_mode;
     cam_ctrl_dimension_t dim;
-#if 1 // QCT 10162012 RDI2 changes
-    mm_camera_buf_def_t mRdiBuf[MM_CAMERA_MAX_NUM_FRAMES]; 
-#else
-    mm_camera_buf_def_t mRdiBuf[PREVIEW_BUFFER_COUNT];
-#endif
+    mm_camera_buf_def_t mRdiBuf[MM_CAMERA_MAX_NUM_FRAMES];
     mm_camera_super_buf_t* mJpegSuperBuf;
     //mm_cameara_stream_buf_t mRdiStreamBuf;
     Mutex mDisplayLock;

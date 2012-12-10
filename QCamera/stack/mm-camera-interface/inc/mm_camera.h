@@ -158,7 +158,7 @@ typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t cond_v;
     int32_t status;
-    //void *my_obj;
+    void *my_obj;
 } mm_camera_poll_thread_t;
 
 /* mm_stream */

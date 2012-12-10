@@ -52,10 +52,8 @@ void stream_cb_routine(mm_camera_super_buf_t *bufs,
             ((QCameraStream_record *)p_obj)->processRecordFrame(bufs);
             break;
         case MM_CAMERA_RDI:
-#if 1 // QCT 10162012 RDI2 changes 
         case MM_CAMERA_RDI1:
         case MM_CAMERA_RDI2:
-#endif
             ((QCameraStream_Rdi *)p_obj)->processRdiFrame(bufs);
             break;
         case MM_CAMERA_SNAPSHOT_MAIN:
