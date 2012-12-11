@@ -628,8 +628,8 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         thumb_buf_info->src_dim.width = thumb_stream->mWidth;
         thumb_buf_info->src_dim.height = thumb_stream->mHeight;
         ALOGE("thumbnailWidth %d thumbnailHeight %d",thumbnailWidth, thumbnailHeight);
-        thumb_buf_info->out_dim.width = 320;//thumbnailWidth;
-        thumb_buf_info->out_dim.height = 240;//thumbnailHeight;
+        thumb_buf_info->out_dim.width = thumbnailWidth;
+        thumb_buf_info->out_dim.height = thumbnailHeight;
         memcpy(&thumb_buf_info->crop, &thumb_stream->mCrop, sizeof(image_crop_t));
         if (thumb_buf_info->crop.width == 0 || thumb_buf_info->crop.height == 0) {
             thumb_buf_info->crop.width = thumb_stream->mWidth;
