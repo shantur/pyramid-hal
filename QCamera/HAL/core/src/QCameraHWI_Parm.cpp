@@ -4023,18 +4023,12 @@ status_t QCameraHardwareInterface::setDimension()
     dim.thumb_format = CAMERA_YUV_420_NV21;
 
     //RDI Format
-    #if 1 // QCT 10092012 - Rear Camera Recording through C2D
     dim.rdi0_format = CAMERA_YUV_420_NV12;
     dim.rdi1_format = CAMERA_YUV_420_NV12;
-    #else
-    dim.rdi0_format = CAMERA_BAYER_SBGGR10;
-    #endif
-#if 1 // QCT 10162012 RDI2 changes
     ALOGE("%s: mRdiWidth %d mRdiHeight %d", __func__, mRdiWidth, mRdiHeight);
     dim.rdi2_format= CAMERA_RDI;
     dim.rdi2_width= mRdiWidth;
     dim.rdi2_height= mRdiHeight;
-#endif
 
     /*Code to handle different limitations*/
     if (mRecordingHint && mFullLiveshotEnabled){

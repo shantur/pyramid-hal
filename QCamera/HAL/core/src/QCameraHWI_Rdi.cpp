@@ -35,9 +35,6 @@
 /* following code implement the RDI logic of this class*/
 
 namespace android {
-#define JPEG_RECEIVED 1
-#define JPEG_PENDING 2
-#define RAW_RECEIVED 3
 
 status_t   QCameraStream_Rdi::freeBufferRdi()
 {
@@ -53,7 +50,6 @@ status_t   QCameraStream_Rdi::freeBufferRdi()
     ALOGI(" %s : X ",__FUNCTION__);
     return NO_ERROR;
 }
-#if 1 // QCT 10162012 RDI2 changes 
 status_t QCameraStream_Rdi::updatePreviewMetadata(const void *yuvMetadata)
 {
     memset(mHalCamCtrl->mFace, 0, sizeof(mHalCamCtrl->mFace));
@@ -77,17 +73,17 @@ status_t QCameraStream_Rdi::updatePreviewMetadata(const void *yuvMetadata)
 
 uint32_t QCameraStream_Rdi::swapByteEndian(uint32_t jpegLength)
 {
-    ALOGE("Before swap: %x", jpegLength);
+    ALOGD("Before swap: %x", jpegLength);
     jpegLength = (jpegLength >> 24) |
                  ((jpegLength << 8) & 0x00FF0000) |
                  ((jpegLength >> 8) & 0x0000FF00) |
                  (jpegLength << 24);
-    ALOGE("After swap: %x", jpegLength);
+    ALOGD("After swap: %x", jpegLength);
     return jpegLength;
 
 }
 
-status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jpegData, 
+status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jpegData,
                                             jpeg_info_t * jpeg_info, mm_camera_super_buf_t *jpeg_buf)
 {
     status_t ret = NO_ERROR;
@@ -101,10 +97,10 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
 
     jpegLength = swapByteEndian(jpegLength);
     jpegFrameId = swapByteEndian(jpegFrameId);
-    ALOGE("yuvFrameId %x (NV12_meta+0xE) %x %x %x %x",yuvFrameId,  
+    ALOGE("yuvFrameId %x (NV12_meta+0xE) %x %x %x %x",yuvFrameId,
           *(NV12_meta+0xE), *(NV12_meta+0xF), *(NV12_meta+0x10), *(NV12_meta+0x11));
     yuvFrameId = swapByteEndian(yuvFrameId);
-    ALOGE("jpegMode %d jpegCount %d jpegLength %d, jpegFrameId %d yuvFrameId %d", 
+    ALOGE("jpegMode %d jpegCount %d jpegLength %d, jpegFrameId %d yuvFrameId %d",
           jpegMode, jpegCount, (int)jpegLength, (int)jpegFrameId, (int)yuvFrameId);
 
     jpeg_info->NV12_meta = NV12_meta;
@@ -115,114 +111,80 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
     jpeg_info->jpegFrameId = jpegFrameId;
     jpeg_info->yuvFrameId = yuvFrameId;
 
-    if (jpegMode == 0x00) {
-        // Meta
-    } else if (jpegMode == 0x01) {
+    if (jpegMode == META_MODE) {
+        /* Meta  Data parsing */
+    } else if (jpegMode == NORMAL_JPEG_MODE) {
         if(mJpegSuperBuf != NULL){
-            ALOGD("%s: mJpegSuperBuf was not null, so free and null", __func__);
             free(mJpegSuperBuf);
             mJpegSuperBuf = NULL;
         }
         mJpegSuperBuf = (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
-        ALOGD("%s: superbuf address = new = %x, old =%x", __func__, mJpegSuperBuf, jpeg_buf);
         memcpy(mJpegSuperBuf, jpeg_buf, sizeof(mm_camera_super_buf_t));
         mJpegSuperBuf->split_jpeg = 0;
         *((uint32_t *)jpegInfo + 1) = jpegLength;
-        ALOGD("%s jpegLength = %d, jpegLength written to superbuf = %d, jpeg_length_ptr = %x", 
-              __func__, jpegLength, *((uint32_t *)jpegInfo + 1), (uint32_t *)jpegInfo + 1);
         ret = JPEG_RECEIVED;
-    }
-#ifdef RDI2_SPLIT
-     else if (jpegMode == 0x02) {
+    } else if (jpegMode == SPLIT_JPEG_MODE) {
         // Meta + splitted JPEG_1 or JPEG_2
-
         ALOGD("%s: split jpeg case: jpegCount %d jpegLength %d, yuvFrameId %d ",
             __func__, jpegCount, (int)jpegLength, (int)yuvFrameId);
         // if this is the first segment, alloc 16MB and copy, return JPEG_PENDING
-        if (jpegCount == 0)
-        {
-           ALOGD("%s: first jpeg received", __func__);
-           if(mJpegSuperBuf != NULL){
-               ALOGD("%s: mJpegSuperBuf was not null, so free and null", __func__);
+        if (jpegCount == 0) {
+           if(mJpegSuperBuf != NULL) {
                free(mJpegSuperBuf);
-               ALOGD("%s: mJpegSuperBuf was not null, after free", __func__);
                mJpegSuperBuf = NULL;
            }
-           ALOGD("%s: allocating memory for the mJpegSuperBuf", __func__);
            mJpegSuperBuf = (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
-           memcpy (mJpegSuperBuf, jpeg_buf, sizeof(mm_camera_super_buf_t));
-           mJpegSuperBuf->split_jpeg = 1;
-           mJpegSuperBuf->bufs[0]->buffer = (void *)malloc(0x1000000);
-           mJpegSuperBuf->bufs[0]->frame_len = 0x1000000;
-           // make a 16MB for jpeg_buf_dup, and copy data
-           ALOGD("%s:mJpegSuperBuf is at %p, jpeg_buf is at %p", __func__, mJpegSuperBuf, jpeg_buf);
-           ALOGD("%s:mJpegSuperBuf->bufs[0]->buffer is at %p", __func__, mJpegSuperBuf->bufs[0]->buffer);
-
+           //memcpy (mJpegSuperBuf, jpeg_buf, sizeof(mm_camera_super_buf_t));
+           mJpegSuperBuf->camera_handle = jpeg_buf->camera_handle;
+		   mJpegSuperBuf->ch_id = jpeg_buf->ch_id;
+		   mJpegSuperBuf->num_bufs = jpeg_buf->num_bufs;
+		   mJpegSuperBuf->bufs[0] = (mm_camera_buf_def_t*)malloc(sizeof(mm_camera_buf_def_t));
+		   mJpegSuperBuf->bufs[0]->buf_idx = jpeg_buf->bufs[0]->buf_idx;
+	   	   mJpegSuperBuf->bufs[0]->fd = jpeg_buf->bufs[0]->fd;
+	   	   mJpegSuperBuf->bufs[0]->frame_idx = jpeg_buf->bufs[0]->frame_idx;
+	   	   mJpegSuperBuf->bufs[0]->frame_len = jpeg_buf->bufs[0]->frame_len;
+	   	   mJpegSuperBuf->bufs[0]->mem_info = jpeg_buf->bufs[0]->mem_info;
+	   	   mJpegSuperBuf->bufs[0]->num_planes = jpeg_buf->bufs[0]->num_planes;
+	   	   memcpy(mJpegSuperBuf->bufs[0]->planes, jpeg_buf->bufs[0]->planes, sizeof(struct v4l2_plane *));
+	   	   mJpegSuperBuf->bufs[0]->stream_id = jpeg_buf->bufs[0]->stream_id;
+	   	   mJpegSuperBuf->bufs[0]->ts = jpeg_buf->bufs[0]->ts;
+	   	   mJpegSuperBuf->split_jpeg = 1;
+           mJpegSuperBuf->bufs[0]->buffer = (void *)malloc(COMBINED_BUF_SIZE);
+           mJpegSuperBuf->bufs[0]->frame_len = COMBINED_BUF_SIZE;
            memcpy(mJpegSuperBuf->bufs[0]->buffer, jpeg_buf->bufs[0]->buffer, JPEG_DATA_OFFSET);
-           memcpy(mJpegSuperBuf->bufs[0]->buffer+JPEG_DATA_OFFSET, jpegData, jpegLength);
+           memcpy(mJpegSuperBuf->bufs[0]->buffer + JPEG_DATA_OFFSET, jpegData, jpegLength);
 
            //need to qbuf the old 8MB buffer
-           for (int i=0; i<jpeg_buf->num_bufs; i++) {
-             if (jpeg_buf->bufs[i] != NULL) {
-                ALOGD("%s: qbuf the old 8MB buf first jpeg", __func__);
-                if(MM_CAMERA_OK != p_mm_ops->ops->qbuf(mCameraHandle, mChannelId,
-                                    jpeg_buf->bufs[i])){
-                     ALOGE("%s: Buf done failed for buffer %p", __func__, jpeg_buf->bufs[i]);
-                 }
-             }
-           }
+           //Since status is JPEG_PENDING, qbuf will be called 
+           //at the end of processRdiFrame()
            ret = JPEG_PENDING;
-
         } else if (jpegCount == 1) {
-          ALOGD("%s: second jpeg received", __func__);
-        // if this is second segemnt, copy after first, return JPEG_RECEIVED
-           memcpy(mJpegSuperBuf->bufs[0]->buffer+ 0x802800, jpegData, jpegLength);
-
-           ALOGD("%s: address writing to is %p", __func__, (uint32_t *)((uint8_t*)mJpegSuperBuf->bufs[0]->buffer+0x13));
-           *(uint32_t *)((uint8_t*)mJpegSuperBuf->bufs[0]->buffer+0x13) = jpegLength + 0x800000;
-           ALOGD("%s: count = 1, mJpegSuperBuf->bufs[0]->buffer is at %p", __func__, mJpegSuperBuf->bufs[0]->buffer);
+           // if this is second segemnt, copy after first, return JPEG_RECEIVED
+           memcpy(mJpegSuperBuf->bufs[0]->buffer + FIRST_JPEG_SIZE + JPEG_DATA_OFFSET, jpegData, jpegLength);
+           *(uint32_t *)((uint8_t*)mJpegSuperBuf->bufs[0]->buffer+0x13) = jpegLength + FIRST_JPEG_SIZE;
            //need to qbuf the old 8MB buffer
-           for (int i=0; i<jpeg_buf->num_bufs; i++) {
-             if (jpeg_buf->bufs[i] != NULL) {
-                ALOGE("%s: qbuf the old 8MB buf second jpeg", __func__);
-                if(MM_CAMERA_OK != p_mm_ops->ops->qbuf(mCameraHandle, mChannelId,
-                                    jpeg_buf->bufs[i])){
-                         ALOGE("%s: Buf done failed for buffer %p", __func__, jpeg_buf->bufs[i]);
-                    }
-                }
-             }
+           qbuf_helper(jpeg_buf);
            ret = JPEG_RECEIVED;
         }
-     }
-#endif
-    else if (jpegMode == 0x10) {
+     } else if (jpegMode == HDR_JPEG_MODE) {
         ALOGD("%d : Received HDR Raw data. Count %d ",jpegMode,  jpegCount);
         if(mJpegSuperBuf != NULL){
             free(mJpegSuperBuf);
             mJpegSuperBuf = NULL;
         }
-        ALOGD("%s: allocating memory for the mJpegSuperBuf", __func__);
         mJpegSuperBuf = (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
-        ALOGD("%s: superbuf address = new = %x, old =%x", __func__, mJpegSuperBuf, jpeg_buf);
         memcpy(mJpegSuperBuf, jpeg_buf, sizeof(mm_camera_super_buf_t));
         mJpegSuperBuf->split_jpeg = 0;
         *((uint32_t *)jpegInfo + 1) = jpegLength;
-        ALOGD("%s jpegLength = %d, jpegLength written to superbuf = %d, jpeg_length_ptr = %x",
-              __func__, jpegLength, *((uint32_t *)jpegInfo + 1), (uint32_t *)jpegInfo + 1);
-        ALOGD("%s: mode = 1, mJpegSuperBuf is at %p", __func__, mJpegSuperBuf);
         ret = RAW_RECEIVED;
-    }
-    else {
-        // Meta + splitted JPEG_1 or JPEG_2
-        ALOGD("jpegCount %d jpegLength %d, yuvFrameId %d ", jpegCount, 
-                                              (int)jpegLength, (int)yuvFrameId);
-        ALOGD("Error - %d mode This is not supported yet.", jpegMode);
+    } else {
+        ALOGE("Error - %d mode This is not supported yet.", jpegMode);
         ret = BAD_VALUE;
     }
     ALOGD("%s: X", __func__);
     return ret;
 }
-#endif
+
 status_t QCameraStream_Rdi::initRdiBuffers()
 {
     status_t ret = NO_ERROR;
@@ -268,7 +230,7 @@ status_t QCameraStream_Rdi::initRdiBuffers()
     for (i = 0; i < mHalCamCtrl->mRdiMemory.buffer_count ; i++) {
       int j;
 
-      mRdiBuf[i].fd = mHalCamCtrl->mRdiMemory.fd[i]; 
+      mRdiBuf[i].fd = mHalCamCtrl->mRdiMemory.fd[i];
       mRdiBuf[i].frame_len = mHalCamCtrl->mRdiMemory.alloc[i].len;
       mRdiBuf[i].num_planes = num_planes;
       mRdiBuf[i].buffer= (void *)mHalCamCtrl->mRdiMemory.camera_memory[i]->data;
@@ -310,17 +272,12 @@ void QCameraStream_Rdi::dumpFrameToFile(mm_camera_buf_def_t* newFrame)
     int file_fd;
     int i;
     char *ext = "yuv";
-    int w,h,main_422;
+    int w,h;
     static int count = 0;
     char *name = "rdi";
 
     w = mHalCamCtrl->mRdiWidth;
     h = mHalCamCtrl->mRdiHeight;
-#if 1 // QCT 10162012 RDI2 changes 
-    w = 2048;
-    h = 4101;
-#endif
-    main_422 = 1;
 
     if ( newFrame != NULL) {
         char * str;
@@ -330,13 +287,7 @@ void QCameraStream_Rdi::dumpFrameToFile(mm_camera_buf_def_t* newFrame)
             ALOGE("%s: cannot open file\n", __func__);
         } else {
             void* y_off = newFrame->buffer + newFrame->planes[0].data_offset;
-            void* cbcr_off = newFrame->buffer + newFrame->planes[0].length;
-
             write(file_fd, (const void *)(y_off), newFrame->planes[0].length);
-#if 0 // QCT 10162012 RDI2 changes  // original 0
-            write(file_fd, (const void *)(cbcr_off), 
-                  (newFrame->planes[1].length * newFrame->num_planes));
-#endif
             close(file_fd);
         }
         count++;
@@ -350,76 +301,35 @@ status_t QCameraStream_Rdi::processRdiFrame(
     int err = 0;
     int msgType = 0;
     int i;
-#if 1 // QCT 10162012 RDI2 changes
-    status_t status = NO_ERROR;
+    status_t status, ret= NO_ERROR;
     camera_data_callback pcb;
-#endif
-    camera_memory_t *data = NULL;
     uint8_t * jpeg_info;
-    uint8_t * jpeg_data;
-
+    jpeg_info = (uint8_t *)(frame->bufs[0]->buffer);
+    if (jpeg_info == NULL) {
+        ALOGE("%s: Error: Received null jpeg_info", __func__);
+        return BAD_VALUE;
+    }
     Mutex::Autolock lock(mStopCallbackLock);
     if(!mActive) {
-    ALOGE("RDI Streaming Stopped. Qbuf and return");
-      status = NO_ERROR;
-      goto done;
+      ALOGE("RDI Streaming Stopped. Returning callback");
+      ret = NO_ERROR;
+      qbuf_helper(frame);
+      return ret;
     }
     if(mHalCamCtrl==NULL) {
       ALOGE("%s: X: HAL control object not set",__func__);
-    /*Call buf done*/
-      status = BAD_VALUE;
-      goto done;
+      /*Call buf done*/
+      ret = BAD_VALUE;
+      qbuf_helper(frame);
+      return ret;
     }
     mHalCamCtrl->mCallbackLock.lock();
     pcb = mHalCamCtrl->mDataCb;
     mHalCamCtrl->mCallbackLock.unlock();
+    ALOGD("RDI2 frame idx %d", frame->bufs[0]->frame_idx);
 
-    jpeg_info = (uint8_t *)(frame->bufs[0]->buffer);
-    ALOGD("jpeg_info %x", jpeg_info);
-    if(NULL != jpeg_info) {
-        jpeg_data = jpeg_info + 0x2800;
-        ALOGE("jpegMode %x \n", *((uint8_t *)(jpeg_info+0xF)));
-        ALOGD("RDI2 frame idx %d", frame->bufs[0]->frame_idx);
-
-        if(*(uint8_t *)(jpeg_info + 0xF)) {
-            ALOGE("JPEG RECEIVED!!!!");
-#if 0 //debugging
-            ALOGE("dump the frame");
-            dumpFrameToFile(frame->bufs[0]);
-#endif
-        }
-    } else {
-        ALOGE("got an NULL buffer on frame %p", frame);
-        }
-    //dumpFrameToFile(frame->bufs[0]);
-#if 0 // QCT 10162012 RDI2 changes  //original 0
     if (pcb != NULL) {
-      //Sending rdi callback if corresponding Msgs are enabled
-      if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
-          msgType |=  CAMERA_MSG_PREVIEW_FRAME;
-        data = mHalCamCtrl->mRdiMemory.camera_memory[frame->bufs[0]->buf_idx];
-      } else {
-          data = NULL;
-      }
-
-      if(msgType) {
-          mStopCallbackLock.unlock();
-          if(mActive)
-            pcb(msgType, data, 0, NULL, mHalCamCtrl->mCallbackCookie);
-      }
-      ALOGD("end of cb");
-    }
-#endif
-if (pcb != NULL) {
-
-        //process YUV metadata
-     /*   status = updatePreviewMetadata(frame->bufs[0]->buffer + YUV_META_OFFSET);
-        if (status != NO_ERROR) {
-            ALOGE("updatePreviewMetadata failed with %d", status);
-            goto done;
-        }*/
-
-        //process JPEG info and data.
+       //process JPEG info and data.
         jpeg_info_t jpegInfo;
         status = processJpegData(frame->bufs[0]->buffer,
                 frame->bufs[0]->buffer + JPEG_DATA_OFFSET,&jpegInfo, frame);
@@ -427,71 +337,61 @@ if (pcb != NULL) {
             ALOGD("%s: split jpeg, finished with the first jpeg", __func__);
         }
         else if (status == JPEG_RECEIVED || status == RAW_RECEIVED) {
-            ALOGD("%s: frame addr %x num_bufs %d", __func__, frame, frame->num_bufs );
             mm_camera_super_buf_t* dup_frame =
                    (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
             if (dup_frame == NULL) {
                 ALOGE("%s: Error allocating memory to save received_frame structure.", __func__);
-                return BAD_VALUE;
-                goto done;
-            }
-#ifdef RDI2_SPLIT
-            memcpy(dup_frame, mJpegSuperBuf, sizeof(mm_camera_super_buf_t));
-            free (mJpegSuperBuf);
-            mJpegSuperBuf = NULL;
-#else
-            memcpy(dup_frame, frame, sizeof(mm_camera_super_buf_t));
-#endif
-            mHalCamCtrl->mSuperBufQueue.enqueue(dup_frame);
+                qbuf_helper(frame);
+                ret = BAD_VALUE;
+            } else {
+                memcpy(dup_frame, mJpegSuperBuf, sizeof(mm_camera_super_buf_t));
+                free (mJpegSuperBuf);
+                mJpegSuperBuf = NULL;
+                mHalCamCtrl->mSuperBufQueue.enqueue(dup_frame);
             if(status == RAW_RECEIVED){
-                ALOGE("For HDR Raw snapshot, just enqueue raw buffer and proceed ");
+                ALOGD("For HDR Raw snapshot, just enqueue raw buffer and proceed ");
                 mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
                 return NO_ERROR;
             }
-#if RDI2_THUMB //thumbnail
-#if RDI2_YUV_SYNC
-            ALOGE("Request_super_buf matching frame id %d ",jpegInfo.jpegFrameId);
-            mm_camera_req_buf_t req_buf;
-            req_buf.num_buf_requested = 1;
-            req_buf.yuv_frame_id = jpegInfo.jpegFrameId;
-            status = mHalCamCtrl->mCameraHandle->ops->request_super_buf_by_frameId(
-                    mHalCamCtrl->mCameraHandle->camera_handle,
-                    mHalCamCtrl->mChannelId,
-                    &req_buf);
-#else
-            ALOGD("Request_super_buf .");
-            status = mHalCamCtrl->mCameraHandle->ops->request_super_buf(
-                    mHalCamCtrl->mCameraHandle->camera_handle,
-                    mHalCamCtrl->mChannelId,
-                    1)
-#endif
-            if (MM_CAMERA_OK != status) {
+                ALOGV("Request_super_buf matching frame id %d ",jpegInfo.jpegFrameId);
+                mm_camera_req_buf_t req_buf;
+                req_buf.num_buf_requested = 1;
+                req_buf.yuv_frame_id = jpegInfo.jpegFrameId;
+                ret = mHalCamCtrl->mCameraHandle->ops->request_super_buf_by_frameId(
+                        mHalCamCtrl->mCameraHandle->camera_handle,
+                        mHalCamCtrl->mChannelId,
+                        &req_buf);
+
+                if (MM_CAMERA_OK != ret) {
                     ALOGE("error - request_super_buf failed.");
-                    goto done;
+                    qbuf_helper(frame);
+                }
+                ret = NO_ERROR; //TODO: return or queue back the buff
             }
-#else // if thumbnail changes not taken, issue DO_NEXT_JOB from here.
-           mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
-#endif
-
-            return NO_ERROR; //TODO: return or queue back the buff
-        }
-        if (status != NO_ERROR) {
-            ALOGE("processJpegData failed with %d", status);
-            goto done;
-        }
+        } else if (ret != NO_ERROR) {
+            ALOGE("processJpegData failed with %d", ret);
+            qbuf_helper(frame);
+            ret = BAD_VALUE;
+        }  
     }
-
-done:
     if (status != JPEG_RECEIVED) {
         ALOGE("%s: Return RDI2 buffer back Qbuf\n", __func__);
-        for (int i=0; i<frame->num_bufs; i++) {
-             if (frame->bufs[i] != NULL) {
-                p_mm_ops->ops->qbuf(mCameraHandle, mChannelId,
-                                                frame->bufs[i]);
-                }
+        qbuf_helper(frame);
+    }
+    ALOGV("%s: X", __func__);
+    return ret;
+}
+
+void QCameraStream_Rdi::qbuf_helper(mm_camera_super_buf_t *frame)
+{
+    for (int i=0; i<frame->num_bufs; i++) {
+        if (frame->bufs[i] != NULL) {
+            if(MM_CAMERA_OK != p_mm_ops->ops->qbuf(mCameraHandle, mChannelId,
+                                    frame->bufs[i])){
+                     ALOGE("%s: Buf done failed for buffer %p", __func__, frame->bufs[i]);
+            }
         }
     }
-    return status;
 }
 
 

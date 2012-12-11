@@ -346,6 +346,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj)
     /* launch event poll thread
      * we will add evt fd into event poll thread upon user first register for evt */
     CDBG("%s : Launch evt Poll Thread in Cam Open",__func__);
+	my_obj->evt_poll_thread.my_obj = my_obj;
     mm_camera_poll_thread_launch(&my_obj->evt_poll_thread,
                                  MM_CAMERA_POLL_TYPE_EVT);
 
@@ -1745,6 +1746,12 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                                             CAMERA_SET_FLIP_HINT,
                                             sizeof(flip_hint_t),
+                                            p_value);
+        break;
+    case MM_CAMERA_PARM_STREAM_ERROR:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                            CAMERA_SET_PARM_STREAM_ERROR,
+                                            sizeof(uint32_t),
                                             p_value);
         break;
     default:
