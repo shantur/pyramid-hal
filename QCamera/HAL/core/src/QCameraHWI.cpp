@@ -1190,7 +1190,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     mSmoothZoomRunning(false),
     mParamStringInitialized(false),
     mZoomSupported(false),
-    mFullLiveshotEnabled(true),
+    mFullLiveshotEnabled(false),
     mRecordingHint(0),
     mStartRecording(0),
     mReleasedRecordingFrame(false),
@@ -1230,7 +1230,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     property_get("persist.camera.hal.multitouchaf", value, "0");
     mMultiTouch = atoi(value);
 
-    property_get("persist.camera.full.liveshot", value, "1");
+    property_get("persist.camera.full.liveshot", value, "0");
     mFullLiveshotEnabled = atoi(value);
 
     property_get("persist.camera.hal.dis", value, "0");
