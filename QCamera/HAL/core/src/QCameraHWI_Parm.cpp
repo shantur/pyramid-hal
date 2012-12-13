@@ -101,6 +101,11 @@ extern "C" {
 #define DEFAULT_VIDEO_WIDTH 1920
 #define DEFAULT_VIDEO_HEIGHT 1088
 
+//Low power dimensions
+#define DEFAULT_LP_WIDTH 192
+#define DEFAULT_LP_HEIGHT 112
+
+
 #define THUMBNAIL_SIZE_COUNT (sizeof(thumbnail_sizes)/sizeof(thumbnail_size_type))
 #define DEFAULT_THUMBNAIL_SETTING 4
 #define THUMBNAIL_WIDTH_STR "512"
@@ -124,6 +129,7 @@ typedef struct {
 
 static thumbnail_size_type thumbnail_sizes[] = {
 { 7281, 512, 288 }, //1.777778
+{ 7022, 192, 112 }, //LP
 { 6826, 480, 288 }, //1.666667
 { 6808, 256, 154 }, //1.66233
 { 6144, 432, 288 }, //1.5
@@ -141,6 +147,7 @@ static struct camera_size_type zsl_picture_sizes[] = {
   { 640, 480}, // VGA
   { 352, 288}, //CIF
   { 320, 240}, // QVGA
+  { 192, 112}, //LP
   { 176, 144} // QCIF
 };
 
@@ -159,6 +166,7 @@ static camera_size_type default_picture_sizes[] = {
   { 640, 480}, // VGA
   { 352, 288}, //CIF
   { 320, 240}, // QVGA
+  { 192, 112}, //LP
   { 176, 144} // QCIF
 };
 
@@ -692,6 +700,8 @@ void QCameraHardwareInterface::initDefaultParameters()
     int rc = 0;
     ALOGI("%s: E", __func__);
     uint8_t supported;
+
+    mInitSetting = true;
 
     memset(&maxDim, 0, sizeof(mm_camera_dimension_t));
     ret = getMaxPictureDimension(&maxDim);
@@ -1332,6 +1342,8 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     if ((rc = setCameraMode(params)))                   final_rc = rc;
 //    if ((rc = setChannelInterfaceMask(params)))         final_rc = rc;
     if ((rc = setPowerMode(params)))                    final_rc = rc;
+    if ((rc = setNoDisplayMode(params)))                final_rc = rc;
+    if ((rc = setIntelligentMode(params)))                final_rc = rc;
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
     if ((rc = setVideoSize(params)))                    final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
@@ -1403,13 +1415,15 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
     if ((rc = setZSLBurstLookBack(params))) final_rc = rc;
     if ((rc = setZSLBurstInterval(params))) final_rc = rc;
-    if ((rc = setNoDisplayMode(params))) final_rc = rc;
 
     //Update Exiftag values.
     setExifTags();
 
    final_rc = NO_ERROR; //temp code for test
    setStreamFlipHint(params);
+
+   if (mInitSetting == true)
+     mInitSetting = false;
    ALOGI("%s: X", __func__);
    return final_rc;
 }
@@ -3953,6 +3967,30 @@ status_t QCameraHardwareInterface::setNoDisplayMode(const QCameraParameters& par
     ALOGD("prop mNoDisplayMode =%d", mNoDisplayMode);
   }
   return NO_ERROR;
+}
+
+/* setIntelligentMode enables camera in low display and low power configuration if supported
+* by sensor*/
+status_t QCameraHardwareInterface::setIntelligentMode(const QCameraParameters& params)
+{
+    int val = params.getInt("intelligent-mode");
+    int old_val = mParameters.getInt("intelligent-mode");
+    bool ret = true;
+    if ((val == old_val) && (mInitSetting == false)) {
+        ALOGE("%s: same mode: %d", __func__, val);
+        return NO_ERROR;
+    }
+    ALOGV("%s: intelligent-mode: %d", __func__, val);
+    if (val == 1)
+        mNoDisplayMode = true;
+    else
+        mNoDisplayMode = false;
+    mLowPowerMode = mNoDisplayMode;
+    ret = native_set_parms(MM_CAMERA_PARM_INTELLIGENT_MODE, sizeof(int), (void *)&mLowPowerMode);
+    if (!ret)
+      return UNKNOWN_ERROR;
+    mParameters.set("intelligent-mode", val);
+    return NO_ERROR;
 }
 
 status_t QCameraHardwareInterface::setRDIMode(const QCameraParameters& params)

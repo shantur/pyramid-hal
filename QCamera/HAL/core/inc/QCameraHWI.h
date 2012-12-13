@@ -721,6 +721,7 @@ private:
     status_t setPowerMode(const QCameraParameters& params);
     void takePicturePrepareHardware( );
     status_t setNoDisplayMode(const QCameraParameters& params);
+    status_t setIntelligentMode(const QCameraParameters& params);
     status_t setDimension();
     status_t setRDIMode(const QCameraParameters& params);
 
@@ -957,6 +958,7 @@ private:
      exif_values_t          mExifValues;                        //Exif values in usable format
      int                    mExifTableNumEntries;            //NUmber of entries in mExifData
      int                 mNoDisplayMode;
+     int                 mLowPowerMode;
      QCameraQueue mSuperBufQueue;     /* queue for raw super buf */
      QCameraQueue mJpegDataQueue;     /* queue for encoded jpeg frame */
      QCameraCmdThread *mNotifyTh;     /* thread for data notify */
@@ -965,6 +967,7 @@ private:
      uint32_t mJpegClientHandle;
      snap_hdr_record_t    mHdrInfo;
      power_module_t*   mPowerModule;
+     bool  mInitSetting;
 
      static void *dataNotifyRoutine(void *data);
      static void *dataProcessRoutine(void *data);
