@@ -287,12 +287,10 @@ QCameraHardwareInterface(int cameraId, int mode)
     }
     mCameraState = CAMERA_STATE_READY;
 
-#if 0 // Commenting for MR1 bringup
     if (hw_get_module(POWER_HARDWARE_MODULE_ID,
             (const hw_module_t **)&mPowerModule)) {
         ALOGE("%s module not found", POWER_HARDWARE_MODULE_ID);
     }
-#endif
     ALOGI("QCameraHardwareInterface: X");
 }
 
@@ -1304,14 +1302,12 @@ status_t QCameraHardwareInterface::startRecording()
             mCameraState = CAMERA_STATE_ERROR;
         mPreviewState = QCAMERA_HAL_RECORDING_STARTED;
 
-#if 0 // Commenting for MR1 bringup
         if (mPowerModule) {
             if (mPowerModule->powerHint) {
                 mPowerModule->powerHint(mPowerModule,
                     POWER_HINT_VIDEO_ENCODE, (void *)"state=1");
             }
         }
-#endif
         break;
     case QCAMERA_HAL_RECORDING_STARTED:
         ALOGE("%s: ", __func__);
@@ -1365,14 +1361,12 @@ void QCameraHardwareInterface::stopRecordingInternal()
     mCameraState = CAMERA_STATE_PREVIEW;  //TODO : Apurva : Hacked for 2nd time Recording
     mPreviewState = QCAMERA_HAL_PREVIEW_STARTED;
 
-#if 0 // Commenting for MR1 bringup
     if (mPowerModule) {
         if (mPowerModule->powerHint) {
             mPowerModule->powerHint(mPowerModule,
                     POWER_HINT_VIDEO_ENCODE, (void *)"state=0");
         }
     }
-#endif
 
     ALOGI("stopRecordingInternal: X");
     return;

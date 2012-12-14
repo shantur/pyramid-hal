@@ -1209,7 +1209,8 @@ QCameraHardwareInterface(int cameraId, int mode)
     mExifTableNumEntries(0),
     mNoDisplayMode(0),
     mIsYUVSensor(0),
-    rdiMode(STREAM_IMAGE)
+    rdiMode(STREAM_IMAGE),
+    mPowerModule(0)
 {
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -1360,6 +1361,11 @@ QCameraHardwareInterface(int cameraId, int mode)
 
     mCameraState = CAMERA_STATE_READY;
     memset(&mHdrInfo, 0, sizeof(snap_hdr_record_t));
+
+    if (hw_get_module(POWER_HARDWARE_MODULE_ID,
+                (const hw_module_t **)&mPowerModule)) {
+        ALOGE("%s module not found", POWER_HARDWARE_MODULE_ID);
+    }
 
     ALOGI("QCameraHardwareInterface: X");
 }
@@ -2328,6 +2334,14 @@ status_t QCameraHardwareInterface::startRecording()
             break;
         }
         mPreviewState = QCAMERA_HAL_RECORDING_STARTED;
+
+        if (mPowerModule) {
+            if (mPowerModule->powerHint) {
+                mPowerModule->powerHint(mPowerModule,
+                        POWER_HINT_VIDEO_ENCODE, (void *)"state=1");
+            }
+        }
+
         break;
     case QCAMERA_HAL_RECORDING_STARTED:
         ALOGE("%s: ", __func__);
@@ -2378,6 +2392,14 @@ void QCameraHardwareInterface::stopRecordingInternal()
     */
     mStreamRecord->streamOff(0);
     mPreviewState = QCAMERA_HAL_PREVIEW_STARTED;
+
+    if (mPowerModule) {
+        if (mPowerModule->powerHint) {
+            mPowerModule->powerHint(mPowerModule,
+                    POWER_HINT_VIDEO_ENCODE, (void *)"state=0");
+        }
+    }
+
     ALOGI("stopRecordingInternal: X");
     return;
 }
