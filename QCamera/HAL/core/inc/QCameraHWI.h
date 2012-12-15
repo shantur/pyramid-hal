@@ -968,6 +968,7 @@ private:
      snap_hdr_record_t    mHdrInfo;
      power_module_t*   mPowerModule;
      bool  mInitSetting;
+     cam_sensor_fps_range_t mSensorFpsRange;
 
      static void *dataNotifyRoutine(void *data);
      static void *dataProcessRoutine(void *data);
