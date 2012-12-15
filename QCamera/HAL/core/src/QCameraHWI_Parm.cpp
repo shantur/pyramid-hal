@@ -99,7 +99,7 @@ extern "C" {
 
 //Default Video Width
 #define DEFAULT_VIDEO_WIDTH 1920
-#define DEFAULT_VIDEO_HEIGHT 1088
+#define DEFAULT_VIDEO_HEIGHT 1080
 
 //Low power dimensions
 #define DEFAULT_LP_WIDTH 192
@@ -114,12 +114,23 @@ extern "C" {
 
 #define DONT_CARE_COORDINATE -1
 
-//Supported preview fps ranges should be added to this array in the form (minFps,maxFps)
-static  android::FPSRange FpsRangesSupported[] = {
-            android::FPSRange(MINIMUM_FPS*1000,MAXIMUM_FPS*1000)
-        };
-#define FPS_RANGES_SUPPORTED_COUNT (sizeof(FpsRangesSupported)/sizeof(FpsRangesSupported[0]))
-
+// All fps ranges which can be supported. This list will be filtered according
+// to the min and max fps supported by hardware
+// this list must be sorted first by max_fps and then min_fps
+// fps values are multiplied by 1000
+static android::FPSRange allFpsRanges[] = {
+            android::FPSRange(7500, 7500),
+            android::FPSRange(10000, 10000),
+            android::FPSRange(7500, 15000),
+            android::FPSRange(15000, 15000),
+            android::FPSRange(7500, 20000),
+            android::FPSRange(20000, 20000),
+            android::FPSRange(7500, 30000),
+            android::FPSRange(10000, 30000),
+            android::FPSRange(15000, 30000),
+            android::FPSRange(30000, 30000)
+};
+#define ALL_FPS_RANGES_COUNT (sizeof(allFpsRanges)/sizeof(android::FPSRange))
 
 typedef struct {
     uint32_t aspect_ratio;
@@ -156,13 +167,14 @@ static camera_size_type default_picture_sizes[] = {
   { 3200, 2400}, // 8MP
   { 2592, 1944}, // 5MP
   { 2048, 1536}, // 3MP QXGA
-  { 1920, 1088}, //HD1080
+  { 1920, 1080}, //HD1080
   { 1600, 1200}, // 2MP UXGA
   { 1280, 768}, //WXGA
   { 1280, 720}, //HD720
   { 1024, 768}, // 1MP XGA
   { 800, 600}, //SVGA
   { 800, 480}, // WVGA
+  { 720, 480}, //D1
   { 640, 480}, // VGA
   { 352, 288}, //CIF
   { 320, 240}, // QVGA
@@ -784,6 +796,68 @@ void QCameraHardwareInterface::initDefaultParameters()
         mHfrValues = str;
         mHfrSizeValues = create_sizes_str(
                 default_hfr_sizes, hfr_sizes_count);
+
+        //Query for min and max fps values from lower layer
+        if(MM_CAMERA_OK != mCameraHandle->ops->get_parm(mCameraHandle->camera_handle,
+                                     MM_CAMERA_PARM_FPS_RANGE, (void *)&mSensorFpsRange)){
+            ALOGE("error: failed to get fps range from sensor");
+            return;
+        } else {
+            ALOGD("sensor fps range = (%f, %f)", mSensorFpsRange.min_fps,
+                            mSensorFpsRange.max_fps);
+
+            mSupportedFpsRanges = new android::FPSRange[ALL_FPS_RANGES_COUNT+1];
+
+            //min and max fps in android format
+            int minFps = (int)(mSensorFpsRange.min_fps * 1000);
+            int maxFps = (int)(mSensorFpsRange.max_fps * 1000);
+            int idx=0;
+            //filter supported fps ranges according to sensor fps range
+            for(int i=0; i<(int)ALL_FPS_RANGES_COUNT; i++) {
+                if(allFpsRanges[i].maxFPS <= maxFps && allFpsRanges[i].minFPS >= minFps) {
+                    memcpy(&mSupportedFpsRanges[idx], &allFpsRanges[i], sizeof(android::FPSRange));
+                    idx++;
+                }
+            }
+            mSupportedFpsRangesCount = idx;
+            //insert sensor absolute fps range as one entry, if
+            //its not already there in table
+            //find insertion point
+            int insertIndex = mSupportedFpsRangesCount;
+            for(int i=0; i<mSupportedFpsRangesCount; i++) {
+                if(mSupportedFpsRanges[i].maxFPS < maxFps) {
+                   continue;
+                } else if (mSupportedFpsRanges[i].maxFPS == maxFps) {
+                    if(mSupportedFpsRanges[i].minFPS > minFps) {
+                        insertIndex = i;
+                        break;
+                    } else if (mSupportedFpsRanges[i].minFPS == minFps) {
+                        //entry already exists, no need to insert
+                        insertIndex = -1;
+                        break;
+                    }
+                }
+            }
+            if(insertIndex != -1) {
+                for(int i=mSupportedFpsRangesCount; i>=0; i--) {
+                    if(insertIndex == i) {
+                        mSupportedFpsRanges[i].maxFPS = maxFps;
+                        mSupportedFpsRanges[i].minFPS = minFps;
+                        mSupportedFpsRangesCount++;
+                        break;
+                    }
+                    mSupportedFpsRanges[i].maxFPS = mSupportedFpsRanges[i-1].maxFPS;
+                    mSupportedFpsRanges[i].minFPS = mSupportedFpsRanges[i-1].minFPS;
+                }
+            }
+            mFpsRangesSupportedValues = create_fps_str(mSupportedFpsRanges, mSupportedFpsRangesCount);
+
+            ALOGD("supported fps ranges = %s", mFpsRangesSupportedValues.string());
+            mParameters.set(CameraParameters::KEY_SUPPORTED_PREVIEW_FPS_RANGE,
+                mFpsRangesSupportedValues);
+            mParameters.setPreviewFpsRange(minFps, maxFps);
+        }
+
         mFlashValues = create_values_str(
             flash, sizeof(flash) / sizeof(str_map));
         mLensShadeValues = create_values_str(
@@ -2520,12 +2594,11 @@ status_t QCameraHardwareInterface::setPreviewFpsRange(const QCameraParameters& p
         rc = NO_ERROR;
         goto end;
     }
-    for(size_t i=0; i<FPS_RANGES_SUPPORTED_COUNT; i++) {
+    for(int i=0; i<mSupportedFpsRangesCount; i++) {
         // if the value is in the supported list
-        if(minFps==FpsRangesSupported[i].minFPS && maxFps == FpsRangesSupported[i].maxFPS){
+        if(minFps >= mSupportedFpsRanges[i].minFPS && maxFps <= mSupportedFpsRanges[i].maxFPS) {
             found = true;
-            ALOGE("FPS: i=%d : minFps = %d, maxFps = %d ",
-                  i,FpsRangesSupported[i].minFPS,FpsRangesSupported[i].maxFPS );
+            ALOGE("FPS: i=%d : minFps = %d, maxFps = %d ", i, minFps, maxFps);
             mParameters.setPreviewFpsRange(minFps,maxFps);
             // validate the values
             bool valid = true;

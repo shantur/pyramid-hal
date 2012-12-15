@@ -1209,8 +1209,10 @@ QCameraHardwareInterface(int cameraId, int mode)
     mExifTableNumEntries(0),
     mNoDisplayMode(0),
     mIsYUVSensor(0),
-    rdiMode(STREAM_IMAGE),
-    mPowerModule(0)
+    mPowerModule(0),
+    mSupportedFpsRanges(NULL),
+    mSupportedFpsRangesCount(0),
+    rdiMode(STREAM_IMAGE)
 {
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
