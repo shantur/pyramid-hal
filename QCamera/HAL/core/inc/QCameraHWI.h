@@ -47,6 +47,7 @@ extern "C" {
 
 #include "QCameraHWI_Mem.h"
 #include "QCameraStream.h"
+#include <utils/List.h>
 
 static const char TempBuffer[] = "This is temp buffer";
 //Error codes
@@ -267,6 +268,7 @@ typedef struct {
 typedef struct {
     mm_camera_super_buf_t* src_frame;
     mm_camera_super_buf_t* src_frame2;
+    mm_camera_buf_def_t* scratch_frame;
     void* userdata;
 } camera_jpeg_encode_cookie_t;
 
@@ -969,6 +971,14 @@ private:
      power_module_t*   mPowerModule;
      bool  mInitSetting;
      cam_sensor_fps_range_t mSensorFpsRange;
+     int mSnapshotFlip;
+
+     typedef struct {
+       mm_camera_buf_def_t * frame;
+       QCameraHalHeap_t * heap;
+     } ScratchMem;
+
+     List<ScratchMem> mScratchMems;
 
      static void *dataNotifyRoutine(void *data);
      static void *dataProcessRoutine(void *data);
@@ -988,7 +998,26 @@ private:
      status_t encodeData(mm_camera_super_buf_t* recvd_frame, uint32_t *jobId,
                  mm_camera_super_buf_t* recvd_frame2 = NULL);
      void notifyShutter(bool play_shutter_sound);
+
+     int32_t flipFrame(mm_camera_buf_def_t * frame, const QCameraStream * stream);
+
+     int32_t flipHorizontal(uint8_t * buffer,
+                            uint32_t y_off, uint32_t cbcr_off,
+                            uint32_t width, uint32_t height);
+
+     int32_t flipVertical(uint8_t * buffer,
+                          uint32_t y_off, uint32_t cbcr_off,
+                          uint32_t width, uint32_t height);
+
      status_t setStreamFlipHint(const QCameraParameters& params);
+
+     int32_t flushFrame(mm_camera_buf_def_t * frame, QCameraHalHeap_t * heap);
+
+     ScratchMem * allocateScratchMem(int32_t size);
+
+     void deleteScratchMem(mm_camera_buf_def_t * scratch_frame);
+
+     void finalizeFlip();
 };
 
 }; // namespace android

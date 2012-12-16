@@ -190,7 +190,8 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mNoDisplayMode(0),
     mSupportedFpsRanges(NULL),
     mSupportedFpsRangesCount(0),
-    mPowerModule(0)
+    mPowerModule(0),
+    mSnapshotFlip(FLIP_NONE)
 {
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
