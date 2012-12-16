@@ -65,6 +65,12 @@ typedef struct {
     uint8_t *buf_vaddr;              /*ptr to buf*/
     int fd;                          /*fd of buf*/
     cam_frame_len_offset_t offset;   /*alway use multi-planar, offset is used to skip the metadata header*/
+    /* specifies the offsets of each plane w.r.t the y plane address.
+    * This needs to be filled by the client other than qcom HAL.
+    * For eg:- for NV21 image with dimension WxH both multiple of 16,
+    * start_offset[Y] = 0, start_offset[CrCb] = W * H needs to be set.
+    */
+    uint32_t start_offset[8];
 } src_image_buffer_t;
 
 typedef enum {
