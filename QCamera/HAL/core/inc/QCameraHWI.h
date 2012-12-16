@@ -968,6 +968,7 @@ private:
      mm_jpeg_ops_t mJpegHandle;
      uint32_t mJpegClientHandle;
      snap_hdr_record_t    mHdrInfo;
+     bool mTakeLowlight;
      power_module_t*   mPowerModule;
      bool  mInitSetting;
      cam_sensor_fps_range_t mSensorFpsRange;

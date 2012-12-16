@@ -3038,10 +3038,14 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
     uint8_t supported;
     mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
                                           MM_CAMERA_PARM_HDR,&supported,&supported);
+    if(mIsYUVSensor) {
+		ALOGE("%s: Skipping fr JPEG SoC", __func__);
+		return NO_ERROR;
+     }
     if(!supported || (myMode & CAMERA_ZSL_MODE)) {
         ALOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
 
-        if (myMode & CAMERA_ZSL_MODE && !mIsYUVSensor) {
+        if (myMode & CAMERA_ZSL_MODE) {
             ALOGE("In ZSL mode, reset AEBBracket to HDR_OFF mode");
             exp_bracketing_t temp;
             memset(&temp, 0, sizeof(temp));
@@ -4134,9 +4138,9 @@ status_t QCameraHardwareInterface::setDimension()
     dim.thumb_format = CAMERA_YUV_420_NV21;
 
     //RDI Format
-    dim.rdi0_format = CAMERA_YUV_420_NV12;
-    dim.rdi1_format = CAMERA_YUV_420_NV12;
-    ALOGE("%s: mRdiWidth %d mRdiHeight %d", __func__, mRdiWidth, mRdiHeight);
+    dim.rdi0_format = CAMERA_YUV_420_NV21;
+    dim.rdi1_format = CAMERA_YUV_420_NV21;
+    ALOGD("%s: mRdiWidth %d mRdiHeight %d", __func__, mRdiWidth, mRdiHeight);
     dim.rdi2_format= CAMERA_RDI;
     dim.rdi2_width= mRdiWidth;
     dim.rdi2_height= mRdiHeight;
