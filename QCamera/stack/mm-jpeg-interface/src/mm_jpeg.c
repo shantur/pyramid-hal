@@ -205,7 +205,6 @@ int32_t mm_jpeg_omx_config_main_buffer_offset(mm_jpeg_obj* my_obj,
 
             /* set acbcr (special case for video-sized live snapshot)*/
             if (is_video_frame) {
-                CDBG("Using acbcroffset\n");
                 memset(&buffer_offset, 0, sizeof(buffer_offset));
                 buffer_offset.cbcrOffset = src_buf->src_image[i].offset.mp[0].offset +
                                           src_buf->src_image[i].offset.mp[0].len +

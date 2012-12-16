@@ -4192,4 +4192,8 @@ status_t QCameraHardwareInterface::setNoDisplayMode(const QCameraParameters& par
   return NO_ERROR;
 }
 
+status_t QCameraHardwareInterface::setStreamFlipHint(const QCameraParameters& params) {
+  return NO_ERROR; //TBD
+}
+
 }; /*namespace android */

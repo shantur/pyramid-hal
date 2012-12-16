@@ -4261,12 +4261,13 @@ status_t QCameraHardwareInterface::setStreamFlipHint(const QCameraParameters &pa
 
   if (value < 0) value = FLIP_NONE;
   mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_FLIP, value);
-  fh.flip[CAM_SNAPSHOT_FRAME] = value;
+  mSnapshotFlip = value;
+  fh.flip[CAM_SNAPSHOT_FRAME] = FLIP_NONE;
 
   if (!native_set_parms(MM_CAMERA_PARM_FLIP_HINT, sizeof(flip_hint_t), &fh)) {
-    ALOGW("failed to set flip");
+    ALOGW("failed to set flip parameters");
   }
-  return OK;
+  return NO_ERROR;
 }
 
 }; /*namespace android */

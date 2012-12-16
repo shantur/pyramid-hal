@@ -27,6 +27,7 @@
 #include <cutils/properties.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <utils/Timers.h>
 
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
@@ -150,6 +151,11 @@ void QCameraHardwareInterface::snapshot_jpeg_cb(jpeg_job_status_t status,
         }
         /* free sink frame */
         free(out_data);
+
+        if (cookie->scratch_frame) {
+          pme->deleteScratchMem(cookie->scratch_frame);
+          cookie->scratch_frame = NULL;
+        }
         /* free cookie */
         free(cookie);
         return;
@@ -170,6 +176,10 @@ void QCameraHardwareInterface::snapshot_jpeg_cb(jpeg_job_status_t status,
     /* notify thread to process */
     pme->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
 
+    if (cookie->scratch_frame) {
+      pme->deleteScratchMem(cookie->scratch_frame);
+      cookie->scratch_frame = NULL;
+    }
     free(cookie);
 
     ALOGE("%s: X", __func__);
@@ -484,24 +494,81 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
     cookie->src_frame = recvd_frame;
     cookie->src_frame2 = recvd_frame2;
     cookie->userdata = this;
+    cookie->scratch_frame = NULL;
+
+    if (!mIsYUVSensor) {
+      /* flip block */
+      QCameraHalHeap_t *main_mem_heap = NULL;
+      QCameraHalHeap_t * scratch_heap = NULL;
+      mm_camera_buf_def_t * scratch_frame = NULL;
+
+      if (1/*isFullSizeLiveSnapshot()*/) {
+        main_mem_heap = &mSnapshotMemory;
+      } else { //video size snapshot;
+        /*
+          Need to make a copy so that a video frame pending (or given in) rcb
+          does not get flipped
+        */
+        main_mem_heap = &mRecordingMemory;
+        main_stream = mStreamRecord;
+
+        finalizeFlip();
+
+        if (mSnapshotFlip != FLIP_NONE) {
+          const ScratchMem * sm = allocateScratchMem(mRecordingMemory.size);
+          scratch_frame = sm->frame;
+          main_mem_heap = sm->heap;
+
+          /* CHECK, if we need to fill in the rest of
+             the fields of main_frame */
+          memcpy(scratch_frame->buffer,
+                 main_frame->buffer, main_frame->frame_len);
+          main_frame = scratch_frame;
+          cookie->scratch_frame = scratch_frame;
+        }
+      }
+
+      //in place flip, main stream has w,h,format, offsets
+      flipFrame(main_frame, main_stream);
+
+      //Flush cache after the flip
+      if (flushFrame(main_frame, main_mem_heap) < 0) {
+        ALOGE("flushFrame failed/not needed");
+      }
+    }
 
     dumpFrameToFile(main_frame, HAL_DUMP_FRM_MAIN);
 
     QCameraStream *thumb_stream = NULL;
+    QCameraHalHeap_t *thumb_heap = NULL;
     if (recvd_frame->num_bufs > 1) {
         /* has thumbnail */
         if(!isZSLMode()) {
             thumb_stream = mStreamSnapThumb;
+            thumb_heap = &mThumbnailMemory;
         } else {
             thumb_stream = mStreamDisplay;
+            thumb_heap = &mNoDispPreviewMemory;
         }
+
         for (i = 0; i < recvd_frame->num_bufs; i++) {
             if (thumb_stream->mStreamId == recvd_frame->bufs[i]->stream_id) {
                 thumb_frame = recvd_frame->bufs[i];
                 break;
             }
         }
-   } else if(!mIsYUVSensor && mStreamSnapThumb->mWidth &&
+        /* TBD - enable if needed
+        if (!mIsYUVSensor && thumb_frame) {
+          if (mSnapshotFlip & FLIP_H ||
+              mSnapshotFlip & FLIP_V)  {
+            //in place
+            flipFrame(thumb_frame, thumb_stream);
+            flushFrame(thumb_frame, thumb_heap);
+          }
+        }
+        */
+
+    } else if(!mIsYUVSensor && mStreamSnapThumb->mWidth &&
                mStreamSnapThumb->mHeight) {
         /*thumbnail is required, not YUV thumbnail, borrow main image*/
         thumb_stream = main_stream;
@@ -1212,7 +1279,8 @@ QCameraHardwareInterface(int cameraId, int mode)
     mPowerModule(0),
     mSupportedFpsRanges(NULL),
     mSupportedFpsRangesCount(0),
-    rdiMode(STREAM_IMAGE)
+    rdiMode(STREAM_IMAGE),
+    mSnapshotFlip(FLIP_NONE)
 {
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -2078,14 +2146,8 @@ status_t QCameraHardwareInterface::startPreview2()
             return BAD_VALUE;
         }
 
-        ret = mStreamDisplay->streamOn();
-        if (MM_CAMERA_OK != ret){
-            ALOGE("%s: error - can't start preview stream!", __func__);
-            mStreamDisplay->deinitStream();
-            mStreamSnapMain->deinitStream();
-            return BAD_VALUE;
-        }
-
+        //XXX - THe order of display stream on and snapmain stream on need
+        //to be swapped for flip and zsl to work
         ret = mStreamSnapMain->streamOn(); // 10152012
         if (MM_CAMERA_OK != ret){
             ALOGE("%s: error - can't start snapshot stream!", __func__);
@@ -2094,6 +2156,15 @@ status_t QCameraHardwareInterface::startPreview2()
             mStreamSnapMain->deinitStream();
             return BAD_VALUE;
         }
+
+        ret = mStreamDisplay->streamOn();
+        if (MM_CAMERA_OK != ret){
+            ALOGE("%s: error - can't start preview stream!", __func__);
+            mStreamDisplay->deinitStream();
+            mStreamSnapMain->deinitStream();
+            return BAD_VALUE;
+        }
+
     }else{
         /*now init all the buffers and send to steam object*/
         ALOGE("Setting OP MODE to MM_CAMERA_OP_MODE_VIDEO");
@@ -3302,7 +3373,7 @@ int QCameraHardwareInterface::cache_ops(int ion_fd,
   data.arg = (unsigned long)cache_data;
   rc = ioctl(ion_fd, ION_IOC_CUSTOM, &data);
   if (rc < 0)
-    ALOGE("%s: Cache Invalidate failed\n", __func__);
+    ALOGE("%s: Cache Invalidate failed w/ errno %s\n", __func__, strerror(errno));
   else
     ALOGV("%s: Cache OPs type(%d) success", __func__);
 
@@ -3769,6 +3840,302 @@ void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * c
     ALOGE("%s X", __func__);
 }
 
+int32_t QCameraHardwareInterface::flipFrame(mm_camera_buf_def_t * frame,
+                                            const QCameraStream * stream)
+
+{
+
+  uint32_t width, height;
+  uint32_t y_offset;
+  uint32_t cbcr_offset; //for cam_sp_len_offset_t fields
+  const cam_mp_len_offset_t *planes;
+  const cam_sp_len_offset_t *offsets;
+
+  switch (stream->mFormat) {
+  case CAMERA_YUV_420_NV21:
+  case CAMERA_YUV_420_NV12:
+    break;
+  default:
+    ALOGW("Unsupported format for flip");
+    return -1;
+  }
+
+  width = stream->mWidth;
+  height = stream->mHeight;
+
+  const image_crop_t * crop = &stream->mCrop;
+  ALOGV("%s, stream width = %d, height = %d,  "
+        "crop_x %d, crop_y %d, crop_width %d, crop_height %d",
+        __func__,
+        width, height,
+        crop->offset_x,
+        crop->offset_y,
+        crop->width,
+        crop->height);
+
+  switch (stream->mFrameOffsetInfo.num_planes) {
+  case 1:
+    {
+      offsets = &stream->mFrameOffsetInfo.sp;
+      ALOGV("%s, got y_offset to %d and cbcr_offset to %d from sp", __func__,
+            offsets->y_offset, offsets->cbcr_offset);
+      y_offset = offsets->y_offset;
+      cbcr_offset = y_offset + width*height + offsets->cbcr_offset; //atleast
+    }
+    break;
+  default:
+    {
+      planes = stream->mFrameOffsetInfo.mp;
+      ALOGV("%s, got y_offset to %d and cbcr_offset to %d from mp", __func__,
+            planes[0].offset, planes[1].offset);
+      y_offset = planes[0].offset;
+
+      //XXX -  For ZSL, this y_offset should not be added.
+      //Needs clarifcation
+      cbcr_offset =
+        (isZSLMode() ? 0 : y_offset) + planes[0].len + planes[1].offset;
+    }
+  }
+
+  ALOGV("%s, set y_offset = %d and cbcr_offset = %d, "
+        "plane[1].len = %d, frame_len = %d", __func__,
+        y_offset, cbcr_offset, planes[1].len, frame->frame_len);
+
+  if (mSnapshotFlip & FLIP_H) {
+    flipHorizontal((uint8_t*)frame->buffer, y_offset, cbcr_offset,
+                   width, height);
+  }
+
+  if (mSnapshotFlip & FLIP_V) {
+    flipVertical((uint8_t *)frame->buffer, y_offset, cbcr_offset,
+                 width, height);
+  }
+  return 0;
+}
+
+
+int32_t QCameraHardwareInterface::flipHorizontal(uint8_t * buffer,
+                                                 uint32_t y_off,
+                                                 uint32_t cbcr_off,
+                                                 uint32_t width,
+                                                 uint32_t height)
+{
+  uint32_t i, j;
+  uint8_t *buffer_y = (uint8_t *)(buffer + y_off);
+  uint16_t *buffer_cbcr = (uint16_t *)(buffer + cbcr_off);
+  uint16_t tmp_cbcr;
+  uint8_t tmp_y;
+
+  // Flip Y
+  for (i = 0; i < height; i++)
+    for (j = 0; j < width/2; j++) {
+      tmp_y = buffer_y[i*width+j];
+      buffer_y[i*width+j] = buffer_y[i*width+width-1-j];
+      buffer_y[i*width+width-1-j] = tmp_y;
+    }
+
+  // Flip CbCr
+  for (i = 0; i < height/2; i++)
+    for (j = 0; j < width/4; j++) {
+      tmp_cbcr = buffer_cbcr[i*width/2+j];
+      buffer_cbcr[i*width/2+j] = buffer_cbcr[i*width/2+width/2-1-j];
+      buffer_cbcr[i*width/2+width/2-1-j] = tmp_cbcr;
+    }
+
+  return 0;
+}
+
+int32_t QCameraHardwareInterface::flipVertical(uint8_t * buffer,
+                                               uint32_t y_off,
+                                               uint32_t cbcr_off,
+                                               uint32_t width,
+                                               uint32_t height)
+{
+  uint32_t i;
+  uint8_t *buffer_y = (uint8_t *)(buffer + y_off);
+  uint8_t *buffer_cbcr = (uint8_t *)(buffer + cbcr_off);
+
+  uint8_t * scratch = (uint8_t *)malloc(width);
+  uint32_t stride = width;
+
+  DurationTimer dt;
+  dt.start();
+
+  /* flip Y */
+  for (i = 0; i < height/2; i++) {
+    uint8_t * r1 = buffer_y + i*stride;
+    uint8_t * r2 = buffer_y + stride*height - (i+1)*stride;
+    memcpy(scratch, r1, width);
+    memcpy(r1, r2, width);
+    memcpy(r2, scratch, width);
+  }
+
+  /* flip CbCr */
+  for (i = 0; i < height/4; i++) {
+    uint8_t * r1 = buffer_cbcr + i*stride;
+    uint8_t * r2 = buffer_cbcr + stride*height/2 - (i+1)*stride;
+    memcpy(scratch, r1, width);
+    memcpy(r1, r2, width);
+    memcpy(r2, scratch, width);
+  }
+
+  /* left over rows in chroma */
+  uint8_t * slow_ptr  = buffer_cbcr + stride*height/4;
+  uint32_t slow_rows = height & 3;
+
+  for (i = 0; i < slow_rows/2; i++) {
+    uint8_t * r1 = slow_ptr + i*stride;
+    //confirm /4 and not /2
+    uint8_t * r2 = slow_ptr + stride*height/4 - (i+1)*stride;
+    memcpy(scratch, r1, width);
+    memcpy(r1, r2, width);
+    memcpy(r2, scratch, width);
+  }
+
+  dt.stop();
+  ALOGV("V flip took %lld us\n", dt.durationUsecs());
+
+  free(scratch);
+
+  return 0;
+}
+
+/* Temporary till the cache_ops changes get cherry-picked */
+int32_t QCameraHardwareInterface::flushFrame(mm_camera_buf_def_t *frame,
+                                             QCameraHalHeap_t * heap)
+{
+
+  int i = 0;
+  int ret = 0;
+
+  if (!heap || !frame) return -1;
+
+  for (i = 0; i < heap->buffer_count; ++i) {
+    if (heap->fd[i] == frame->fd) break; //heap->fd[i] == heap->ion_info_fd[i]
+  }
+
+  if (i == heap->buffer_count) {
+    ALOGE("%s, invalid frame->fd %d or heap sent %d", __func__, frame->fd,
+          heap->buffer_count);
+    return -1;
+  }
+
+  int ion_fd = heap->main_ion_fd[i];
+  struct ion_flush_data cache_data;
+
+  cache_data.vaddr = frame->buffer;
+  cache_data.fd  = frame->fd;
+  cache_data.handle = heap->alloc[i].handle;
+  cache_data.length = heap->alloc[i].len;
+  ALOGE("Calling cache ops with fd %d, handle %p, len %d",
+        frame->fd, cache_data.handle, cache_data.length);
+
+  if(ioctl(ion_fd, ION_IOC_CLEAN_INV_CACHES, &cache_data) < 0) {
+    ALOGE("%s: Cache Invalidate failed w/ errno %s\n", __func__, strerror(errno));
+    ret = -1;
+  }
+  return ret;
+  //  return cache_ops(ion_fd, &cache_data, ION_IOC_CLEAN_INV_CACHES);
+}
+
+QCameraHardwareInterface::ScratchMem *
+QCameraHardwareInterface::allocateScratchMem(int32_t size)
+{
+  mm_camera_buf_def_t * f = NULL;
+  QCameraHalHeap_t * heap = NULL;
+
+  f = (mm_camera_buf_def_t *)malloc(sizeof(mm_camera_buf_def_t));
+  memset(f, 0, sizeof(mm_camera_buf_def_t));
+  f->fd = -1;
+  f->buffer = NULL;
+  f->frame_len = 0;
+
+#ifdef USE_ION
+  heap = (QCameraHalHeap_t *)malloc(sizeof(QCameraHalHeap_t));
+
+  const int ion_type =
+    ((0x1 << CAMERA_ION_HEAP_ID) | (0x1 << CAMERA_ION_FALLBACK_HEAP_ID));
+
+  memset(heap, 0, sizeof(QCameraHalHeap_t));
+  for (int i = 0; i < MM_CAMERA_MAX_NUM_FRAMES; i++) {
+    heap->main_ion_fd[i] = -1;
+    heap->fd[i] = -1;
+  }
+
+  heap->buffer_count = 1;
+  heap->size = size;
+  allocate_ion_memory(heap, 1, ion_type);
+
+  heap->camera_memory[0] = mGetMemory(heap->fd[0], heap->size, 1, this);
+
+  f->fd = heap->fd[0];
+  f->buffer = heap->camera_memory[0]->data;
+  f->frame_len = size;
+#else
+  f->buffer = (uint8_t *)malloc(size);
+  f->frame_len = size;
+#endif
+
+  ScratchMem * m = new ScratchMem;
+  m->frame = f;
+  m->heap = heap;
+  mScratchMems.push_back(*m);
+  return m;
+}
+
+void
+QCameraHardwareInterface::finalizeFlip()
+{
+  if (0/*!videosizesnapshot*/) return;
+
+  int32_t video_flip =
+    mParameters.getInt(QCameraParameters::KEY_QC_VIDEO_FRAME_FLIP);
+  int32_t snapshot_flip =
+    mParameters.getInt(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_FLIP);
+
+  if (video_flip < 0) video_flip = FLIP_NONE;
+  if (snapshot_flip < 0) snapshot_flip = FLIP_NONE;
+
+  mSnapshotFlip = video_flip ^ snapshot_flip;
+}
+
+void
+QCameraHardwareInterface::deleteScratchMem(mm_camera_buf_def_t * scratch_frame)
+{
+  List<ScratchMem>::iterator it = mScratchMems.begin();
+  ScratchMem s = {0,0};
+
+  while (it != mScratchMems.end()) {
+    if ((*it).frame == scratch_frame) {
+      s.frame = (*it).frame;
+      s.heap = (*it).heap;
+      break;
+    }
+    it++;
+  }
+
+  if (!s.frame && !s.heap) {
+    ALOGE("invalid scratch mem?");
+    return;
+  }
+
+  mScratchMems.erase(it);
+  QCameraHalHeap_t * heap = s.heap;
+
+  if (heap) {
+    camera_memory_t * mem = heap->camera_memory[0];
+    mem->release(mem);
+    close(heap->fd[0]);
+    heap->fd[0] = -1;
+    deallocate_ion_memory(heap, 1);
+    delete heap;
+  } else {
+    if (scratch_frame->buffer)
+      delete (uint8_t *)scratch_frame->buffer;
+  }
+  delete scratch_frame;
+  return;
+}
 
 QCameraQueue::QCameraQueue()
 {

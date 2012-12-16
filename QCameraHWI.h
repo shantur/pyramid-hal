@@ -650,6 +650,8 @@ private:
     bool getHdrInfoAndSetExp( int max_num_frm, int *num_frame, int *exp);
     void hdrEvent(cam_ctrl_status_t status, void *cookie);
 
+    status_t setStreamFlipHint(const QCameraParameters &params);
+
     int           mCameraId;
     camera_mode_t myMode;
 
@@ -839,6 +841,7 @@ private:
      int mSupportedFpsRangesCount;
 
      power_module_t*   mPowerModule;
+     int mSnapshotFlip;
 };
 
 }; // namespace android
