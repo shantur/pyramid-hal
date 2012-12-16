@@ -73,12 +73,10 @@ status_t QCameraStream_Rdi::updatePreviewMetadata(const void *yuvMetadata)
 
 uint32_t QCameraStream_Rdi::swapByteEndian(uint32_t jpegLength)
 {
-    ALOGD("Before swap: %x", jpegLength);
     jpegLength = (jpegLength >> 24) |
                  ((jpegLength << 8) & 0x00FF0000) |
                  ((jpegLength >> 8) & 0x0000FF00) |
                  (jpegLength << 24);
-    ALOGD("After swap: %x", jpegLength);
     return jpegLength;
 
 }
@@ -97,8 +95,6 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
 
     jpegLength = swapByteEndian(jpegLength);
     jpegFrameId = swapByteEndian(jpegFrameId);
-    ALOGE("yuvFrameId %x (NV12_meta+0xE) %x %x %x %x",yuvFrameId,
-          *(NV12_meta+0xE), *(NV12_meta+0xF), *(NV12_meta+0x10), *(NV12_meta+0x11));
     yuvFrameId = swapByteEndian(yuvFrameId);
     ALOGE("jpegMode %d jpegCount %d jpegLength %d, jpegFrameId %d yuvFrameId %d",
           jpegMode, jpegCount, (int)jpegLength, (int)jpegFrameId, (int)yuvFrameId);
@@ -134,21 +130,20 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
                mJpegSuperBuf = NULL;
            }
            mJpegSuperBuf = (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
-           //memcpy (mJpegSuperBuf, jpeg_buf, sizeof(mm_camera_super_buf_t));
            mJpegSuperBuf->camera_handle = jpeg_buf->camera_handle;
-		   mJpegSuperBuf->ch_id = jpeg_buf->ch_id;
-		   mJpegSuperBuf->num_bufs = jpeg_buf->num_bufs;
-		   mJpegSuperBuf->bufs[0] = (mm_camera_buf_def_t*)malloc(sizeof(mm_camera_buf_def_t));
-		   mJpegSuperBuf->bufs[0]->buf_idx = jpeg_buf->bufs[0]->buf_idx;
-	   	   mJpegSuperBuf->bufs[0]->fd = jpeg_buf->bufs[0]->fd;
-	   	   mJpegSuperBuf->bufs[0]->frame_idx = jpeg_buf->bufs[0]->frame_idx;
-	   	   mJpegSuperBuf->bufs[0]->frame_len = jpeg_buf->bufs[0]->frame_len;
-	   	   mJpegSuperBuf->bufs[0]->mem_info = jpeg_buf->bufs[0]->mem_info;
-	   	   mJpegSuperBuf->bufs[0]->num_planes = jpeg_buf->bufs[0]->num_planes;
-	   	   memcpy(mJpegSuperBuf->bufs[0]->planes, jpeg_buf->bufs[0]->planes, sizeof(struct v4l2_plane *));
-	   	   mJpegSuperBuf->bufs[0]->stream_id = jpeg_buf->bufs[0]->stream_id;
-	   	   mJpegSuperBuf->bufs[0]->ts = jpeg_buf->bufs[0]->ts;
-	   	   mJpegSuperBuf->split_jpeg = 1;
+           mJpegSuperBuf->ch_id = jpeg_buf->ch_id;
+           mJpegSuperBuf->num_bufs = jpeg_buf->num_bufs;
+           mJpegSuperBuf->bufs[0] = (mm_camera_buf_def_t*)malloc(sizeof(mm_camera_buf_def_t));
+           mJpegSuperBuf->bufs[0]->buf_idx = jpeg_buf->bufs[0]->buf_idx;
+           mJpegSuperBuf->bufs[0]->fd = jpeg_buf->bufs[0]->fd;
+           mJpegSuperBuf->bufs[0]->frame_idx = jpeg_buf->bufs[0]->frame_idx;
+           mJpegSuperBuf->bufs[0]->frame_len = jpeg_buf->bufs[0]->frame_len;
+           mJpegSuperBuf->bufs[0]->mem_info = jpeg_buf->bufs[0]->mem_info;
+           mJpegSuperBuf->bufs[0]->num_planes = jpeg_buf->bufs[0]->num_planes;
+           memcpy(mJpegSuperBuf->bufs[0]->planes, jpeg_buf->bufs[0]->planes, sizeof(struct v4l2_plane *));
+           mJpegSuperBuf->bufs[0]->stream_id = jpeg_buf->bufs[0]->stream_id;
+           mJpegSuperBuf->bufs[0]->ts = jpeg_buf->bufs[0]->ts;
+           mJpegSuperBuf->split_jpeg = 1;
            mJpegSuperBuf->bufs[0]->buffer = (void *)malloc(COMBINED_BUF_SIZE);
            mJpegSuperBuf->bufs[0]->frame_len = COMBINED_BUF_SIZE;
            memcpy(mJpegSuperBuf->bufs[0]->buffer, jpeg_buf->bufs[0]->buffer, JPEG_DATA_OFFSET);
@@ -166,8 +161,8 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
            qbuf_helper(jpeg_buf);
            ret = JPEG_RECEIVED;
         }
-     } else if (jpegMode == HDR_JPEG_MODE) {
-        ALOGD("%d : Received HDR Raw data. Count %d ",jpegMode,  jpegCount);
+     } else if (jpegMode == HDR_JPEG_MODE || jpegMode == LLS_JPEG_MODE) {
+        ALOGD("%s: Received %d mode, Count %d ", __func__, jpegMode,  jpegCount);
         if(mJpegSuperBuf != NULL){
             free(mJpegSuperBuf);
             mJpegSuperBuf = NULL;
@@ -337,6 +332,9 @@ status_t QCameraStream_Rdi::processRdiFrame(
             ALOGD("%s: split jpeg, finished with the first jpeg", __func__);
         }
         else if (status == JPEG_RECEIVED || status == RAW_RECEIVED) {
+            /* set rawdata proc thread and jpeg notify thread to active state */
+            mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
+            mHalCamCtrl->mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
             mm_camera_super_buf_t* dup_frame =
                    (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
             if (dup_frame == NULL) {
@@ -348,11 +346,11 @@ status_t QCameraStream_Rdi::processRdiFrame(
                 free (mJpegSuperBuf);
                 mJpegSuperBuf = NULL;
                 mHalCamCtrl->mSuperBufQueue.enqueue(dup_frame);
-            if(status == RAW_RECEIVED){
-                ALOGD("For HDR Raw snapshot, just enqueue raw buffer and proceed ");
-                mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
-                return NO_ERROR;
-            }
+                if(status == RAW_RECEIVED){
+                    ALOGD("For HDR Raw snapshot, just enqueue raw buffer and proceed ");
+                    mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
+                    return NO_ERROR;
+                }
                 ALOGV("Request_super_buf matching frame id %d ",jpegInfo.jpegFrameId);
                 mm_camera_req_buf_t req_buf;
                 req_buf.num_buf_requested = 1;

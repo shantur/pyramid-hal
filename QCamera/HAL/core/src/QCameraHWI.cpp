@@ -220,7 +220,8 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
             {
                 ALOGD("%s: Is Raw snap %d Is HDR Mode %d", __func__,
                       pme->isRawSnapshot(), pme->mHdrMode);
-                if (pme->isRawSnapshot()||(pme->mIsYUVSensor && pme->mHdrMode)){
+                if (pme->isRawSnapshot()||(pme->mIsYUVSensor &&
+                            (pme->mHdrMode || pme->mTakeLowlight))) {
                     /*raw picture*/
                     mm_camera_super_buf_t *super_buf =
                         (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
@@ -353,7 +354,8 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                     mm_camera_super_buf_t *super_buf =
                         (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     mm_camera_super_buf_t *super_buf2 = NULL;
-                    if (pme->mIsYUVSensor  && !pme->mHdrMode) {
+                    if ((pme->mIsYUVSensor  && !pme->mHdrMode) ||
+                            (pme->mIsYUVSensor  && !pme->mTakeLowlight)) {
                         ALOGD("%s: Deque thumb super buf", __func__);
                         super_buf2 = (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     }
@@ -400,6 +402,16 @@ void QCameraHardwareInterface::notifyShutter(bool play_shutter_sound){
          mNotifyCb(CAMERA_MSG_SHUTTER, 0, play_shutter_sound, mCallbackCookie);
      }
      ALOGV("%s : X", __func__);
+}
+
+uint32_t swapByteEndian_32(uint32_t in_byte)
+{
+    in_byte = (in_byte >> 24) |
+              ((in_byte << 8) & 0x00FF0000) |
+              ((in_byte >> 8) & 0x0000FF00) |
+              (in_byte << 24);
+    return in_byte;
+
 }
 
 uint16_t swapByteEndian(uint16_t in_byte)
@@ -527,7 +539,6 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
           cookie->scratch_frame = scratch_frame;
         }
       }
-
       //in place flip, main stream has w,h,format, offsets
       flipFrame(main_frame, main_stream);
 
@@ -910,7 +921,7 @@ int32_t QCameraHardwareInterface::createRdi()
     // JPEG bitstream: 0x800000
     mRdiWidth = 2048;
 
-    if(mHdrMode && mIsYUVSensor){
+    if(mIsYUVSensor && (mTakeLowlight || mHdrMode)) {
         ALOGD("%s mHdrMode = %d Allocating 26MB buffer", __func__, mHdrMode);
         mRdiWidth = 6341;//2048;
     }
@@ -1293,6 +1304,10 @@ QCameraHardwareInterface(int cameraId, int mode)
     mDebugFps = atoi(value);
     mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
     mPreviewWindow = NULL;
+
+    mHdrMode = false;
+    mTakeLowlight = false;
+
     property_get("camera.hal.fps", value, "0");
     mFps = atoi(value);
 
@@ -1326,7 +1341,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     int ret = 0;
 
     ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_ISYUV, (void *)&mIsYUVSensor);
-     ALOGE("%s, mIsYUVSensor - %d, ret - %d",__func__,mIsYUVSensor,ret);
+    ALOGD("%s, mIsYUVSensor - %d, ret - %d",__func__,mIsYUVSensor,ret);
     if ( !ret ) {
         ALOGE("Failed to get the camera sensor id - %d",ret);
         }
@@ -2714,17 +2729,16 @@ status_t  QCameraHardwareInterface::takePicture()
     int num_streams = 0;
     Mutex::Autolock lock(mLock);
 
-    if(mIsYUVSensor && mHdrMode) {
-        ALOGV("%s: Restart only RDI stream for HDR mode", __func__);
+    if(mIsYUVSensor && (mHdrMode || mTakeLowlight)) {
+        ALOGV("%s: Restart only RDI stream for HDR/LLS mode", __func__);
         ret = restartRdiForHdr();
-        /* Place Holder for Native Call */
-        ALOGV("%s: EXT_CAM_SET_HDR", __func__);
     }
 
-    /* set rawdata proc thread and jpeg notify thread to active state */
-    mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
-    mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
-
+    if(!mIsYUVSensor) {
+        /* set rawdata proc thread and jpeg notify thread to active state */
+        mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
+        mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
+    }
     switch(mPreviewState) {
     case QCAMERA_HAL_PREVIEW_STARTED:
         {
@@ -3891,7 +3905,6 @@ int32_t QCameraHardwareInterface::flipFrame(mm_camera_buf_def_t * frame,
       y_offset = planes[0].offset;
 
       //XXX -  For ZSL, this y_offset should not be added.
-      //Needs clarifcation
       cbcr_offset =
         (isZSLMode() ? 0 : y_offset) + planes[0].len + planes[1].offset;
     }
@@ -4083,8 +4096,7 @@ QCameraHardwareInterface::allocateScratchMem(int32_t size)
   return m;
 }
 
-void
-QCameraHardwareInterface::finalizeFlip()
+void QCameraHardwareInterface::finalizeFlip()
 {
   if (0/*!videosizesnapshot*/) return;
 
@@ -4099,8 +4111,7 @@ QCameraHardwareInterface::finalizeFlip()
   mSnapshotFlip = video_flip ^ snapshot_flip;
 }
 
-void
-QCameraHardwareInterface::deleteScratchMem(mm_camera_buf_def_t * scratch_frame)
+void QCameraHardwareInterface::deleteScratchMem(mm_camera_buf_def_t *scratch_frame)
 {
   List<ScratchMem>::iterator it = mScratchMems.begin();
   ScratchMem s = {0,0};

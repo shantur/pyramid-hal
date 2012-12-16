@@ -51,8 +51,6 @@ void stream_cb_routine(mm_camera_super_buf_t *bufs,
         case MM_CAMERA_VIDEO:
             ((QCameraStream_record *)p_obj)->processRecordFrame(bufs);
             break;
-        case MM_CAMERA_RDI:
-        case MM_CAMERA_RDI1:
         case MM_CAMERA_RDI2:
             ((QCameraStream_Rdi *)p_obj)->processRdiFrame(bufs);
             break;
@@ -60,6 +58,8 @@ void stream_cb_routine(mm_camera_super_buf_t *bufs,
             break;
         case MM_CAMERA_SNAPSHOT_THUMBNAIL:
             break;
+        case MM_CAMERA_RDI:
+        case MM_CAMERA_RDI1:
         default:
             break;
 
