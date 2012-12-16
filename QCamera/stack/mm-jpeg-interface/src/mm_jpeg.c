@@ -141,6 +141,31 @@ int32_t mm_jpeg_omx_abort_job(mm_jpeg_obj *my_obj, mm_jpeg_job_entry* job_entry)
     return rc;
 }
 
+OMX_BOOL mm_jpeg_update_cbcr_offset(src_image_buffer_t *p_src_img,
+	mm_jpeg_color_format color_format, omx_jpeg_buffer_offset *p_buf_offset)
+{
+    OMX_BOOL update_start_offset = OMX_FALSE;
+
+    memset(p_buf_offset, 0, sizeof(omx_jpeg_buffer_offset));
+    switch (color_format) {
+    case MM_JPEG_COLOR_FORMAT_YCBCRLP_H2V2:
+    case MM_JPEG_COLOR_FORMAT_YCRCBLP_H2V2:
+    case MM_JPEG_COLOR_FORMAT_YCRCBLP_H2V1:
+    case MM_JPEG_COLOR_FORMAT_YCBCRLP_H2V1:
+    case MM_JPEG_COLOR_FORMAT_YCRCBLP_H1V2:
+    case MM_JPEG_COLOR_FORMAT_YCBCRLP_H1V2:
+    case MM_JPEG_COLOR_FORMAT_YCRCBLP_H1V1:
+    case MM_JPEG_COLOR_FORMAT_YCBCRLP_H1V1:
+        update_start_offset = (p_src_img->start_offset[1] > 0) ?
+            OMX_TRUE : OMX_FALSE;
+        p_buf_offset->cbcrOffset = p_src_img->start_offset[1];
+        break;
+    default:;
+    }
+
+    return update_start_offset;
+}
+
 /* TODO: needs revisit after omx lib supports multi src buffers */
 int32_t mm_jpeg_omx_config_main_buffer_offset(mm_jpeg_obj* my_obj,
                                               src_image_buffer_info *src_buf,
@@ -184,7 +209,12 @@ int32_t mm_jpeg_omx_config_main_buffer_offset(mm_jpeg_obj* my_obj,
                 memset(&buffer_offset, 0, sizeof(buffer_offset));
                 buffer_offset.cbcrOffset = src_buf->src_image[i].offset.mp[0].offset +
                                           src_buf->src_image[i].offset.mp[0].len +
-                                          src_buf->src_image[i].offset.mp[1].offset;;
+                                          src_buf->src_image[i].offset.mp[1].offset;
+                OMX_GetExtensionIndex(my_obj->omx_handle,"omx.qcom.jpeg.exttype.acbcr_offset",&buf_offset_idx);
+                OMX_SetParameter(my_obj->omx_handle, buf_offset_idx, &buffer_offset);
+            } else if (mm_jpeg_update_cbcr_offset(&src_buf->src_image[i],
+                src_buf->color_format, &buffer_offset) == OMX_TRUE) {
+                CDBG_ERROR("%s:%d] use cbcr start offset %d", __func__, __LINE__, buffer_offset.cbcrOffset);
                 OMX_GetExtensionIndex(my_obj->omx_handle,"omx.qcom.jpeg.exttype.acbcr_offset",&buf_offset_idx);
                 OMX_SetParameter(my_obj->omx_handle, buf_offset_idx, &buffer_offset);
             }
@@ -268,6 +298,7 @@ omx_jpeg_color_format map_jpeg_format(mm_jpeg_color_format color_fmt)
     case MM_JPEG_COLOR_FORMAT_RGBa:
         return OMX_RGBa;
     case MM_JPEG_COLOR_FORMAT_BITSTREAM:
+         CDBG("%s: For Bitstream encoding using H2V1",__func__);
         return OMX_JPEG_BITSTREAM_H2V1;
     default:
         return OMX_JPEG_COLOR_FORMAT_MAX;
@@ -401,6 +432,8 @@ int32_t mm_jpeg_omx_config_thumbnail(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* jo
         src_buf->src_dim.height != src_buf->out_dim.height) {
         thumbnail.scaling = 1;
     }
+    /* Use single buffer for livesnapshot case */
+    thumbnail.use_main_buf = job->encode_parm.buf_info.src_imgs.is_video_frame;
 
     /* set omx thumbnail info */
     OMX_GetExtensionIndex(my_obj->omx_handle, "omx.qcom.jpeg.exttype.thumbnail", &thumb_idx);
