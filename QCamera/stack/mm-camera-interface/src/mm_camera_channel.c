@@ -418,6 +418,12 @@ int32_t mm_channel_fsm_fn_stopped(mm_channel_t *my_obj,
             rc = mm_channel_prepare_snapshot(my_obj, sensor_idx);
         }
         break;
+    case MM_CHANNEL_EVT_UNPREPARE_SNAPSHOT_ZSL:
+        {
+            uint32_t sensor_idx = (uint32_t)in_val;
+            rc = mm_channel_unprepare_snapshot(my_obj, sensor_idx);
+        }
+        break;
     case MM_CHANNEL_EVT_DELETE:
         mm_channel_release(my_obj);
         rc = 0;
@@ -625,6 +631,12 @@ int32_t mm_channel_fsm_fn_active(mm_channel_t *my_obj,
         {
             uint32_t sensor_idx = (uint32_t)in_val;
             rc = mm_channel_prepare_snapshot(my_obj, sensor_idx);
+        }
+        break;
+    case MM_CHANNEL_EVT_UNPREPARE_SNAPSHOT_ZSL:
+        {
+            uint32_t sensor_idx = (uint32_t)in_val;
+            rc = mm_channel_unprepare_snapshot(my_obj, sensor_idx);
         }
         break;
     case MM_CHANNEL_EVT_SET_STREAM_PARM:
@@ -1290,6 +1302,13 @@ int32_t mm_channel_prepare_snapshot(mm_channel_t *my_obj, uint32_t sensor_idx)
 {
     return mm_camera_send_native_ctrl_timeout_cmd(my_obj->cam_obj,
                                                 CAMERA_PREPARE_SNAPSHOT,
+                                                0, NULL, 2000);
+}
+
+int32_t mm_channel_unprepare_snapshot(mm_channel_t *my_obj, uint32_t sensor_idx)
+{
+    return mm_camera_send_native_ctrl_timeout_cmd(my_obj->cam_obj,
+                                                CAMERA_UNPREPARE_SNAPSHOT_ZSL,
                                                 0, NULL, 2000);
 }
 

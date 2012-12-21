@@ -742,6 +742,30 @@ static int32_t mm_camera_intf_prepare_snapshot(
     return rc;
 }
 
+static int32_t mm_camera_intf_unprepare_snapshot(
+                                    uint32_t camera_handler,
+                                    uint32_t ch_id,
+                                    uint32_t sensor_idx)
+{
+    int32_t rc = -1;
+    mm_camera_obj_t * my_obj = NULL;
+
+    pthread_mutex_lock(&g_intf_lock);
+    my_obj = mm_camera_util_get_camera_by_handler(camera_handler);
+
+    if(my_obj) {
+        pthread_mutex_lock(&my_obj->cam_lock);
+        pthread_mutex_unlock(&g_intf_lock);
+        rc = mm_camera_unprepare_snapshot(my_obj, ch_id, sensor_idx);
+    } else {
+        pthread_mutex_unlock(&g_intf_lock);
+    }
+    CDBG("%s :X rc = %d",__func__,rc);
+    return rc;
+}
+
+
+
 static int32_t mm_camera_intf_set_stream_parm(
                                      uint32_t camera_handle,
                                      uint32_t ch_id,
@@ -1267,6 +1291,7 @@ static mm_camera_ops_t mm_camera_ops = {
     .start_focus = mm_camera_intf_start_focus,
     .abort_focus = mm_camera_intf_abort_focus,
     .prepare_snapshot = mm_camera_intf_prepare_snapshot,
+    .unprepare_snapshot = mm_camera_intf_unprepare_snapshot,
     .set_stream_parm = mm_camera_intf_set_stream_parm,
     .get_stream_parm = mm_camera_intf_get_stream_parm,
     .send_command = mm_camera_intf_send_cmd,

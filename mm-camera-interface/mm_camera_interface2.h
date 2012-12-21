@@ -215,6 +215,7 @@ typedef enum {
     // mm_camera_ops_parm_get_buffered_frame_t is used for MM_CAMERA_OPS_GET_BUFFERED_FRAME
     MM_CAMERA_OPS_GET_BUFFERED_FRAME,         // channel to dispatch buffered frame to app through call back
     MM_CAMERA_OPS_FOCUS,                      // change focus,isp3a_af_mode_t* used in val
+	MM_CAMERA_OPS_UNPREPARE_SNAPSHOT,		  // do the unprepare logic for prepare snap
     MM_CAMERA_OPS_MAX                         // max ops
 }mm_camera_ops_type_t;
 

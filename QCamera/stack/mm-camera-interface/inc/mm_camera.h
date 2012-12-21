@@ -288,6 +288,7 @@ typedef enum {
     MM_CHANNEL_EVT_DETACH_STREAM_FROM_REPRO_ISP,
     MM_CHANNEL_EVT_CLOSE_REPRO_ISP,
     MM_CHANNEL_EVT_REQUEST_SUPER_BUF_BY_FRAMEID,
+    MM_CHANNEL_EVT_UNPREPARE_SNAPSHOT_ZSL,
     MM_CHANNEL_EVT_MAX
 } mm_channel_evt_type_t;
 
@@ -557,6 +558,9 @@ extern int32_t mm_camera_abort_focus(mm_camera_obj_t *my_obj,
                                      uint32_t ch_id,
                                      uint32_t sensor_idx);
 extern int32_t mm_camera_prepare_snapshot(mm_camera_obj_t *my_obj,
+                                          uint32_t ch_id,
+                                          uint32_t sensor_idx);
+extern int32_t mm_camera_unprepare_snapshot(mm_camera_obj_t *my_obj,
                                           uint32_t ch_id,
                                           uint32_t sensor_idx);
 extern int32_t mm_camera_set_stream_parm(mm_camera_obj_t *my_obj,
