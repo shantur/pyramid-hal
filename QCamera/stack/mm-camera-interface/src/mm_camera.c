@@ -826,6 +826,11 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
         *((uint8_t *)p_value) =  my_obj->properties.yuv_output;
         CDBG("%s: isYUVSensor: %d\n", __func__, my_obj->properties.yuv_output);
         break;
+
+    case MM_CAMERA_PARM_BESTSHOT_RECONFIGURE:
+        *((int *)p_value) = my_obj->properties.bestshot_reconfigure;
+        break;
+
     default:
         /* needs to add more implementation */
         rc = -1;
