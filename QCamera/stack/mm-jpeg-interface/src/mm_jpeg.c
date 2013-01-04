@@ -142,7 +142,7 @@ int32_t mm_jpeg_omx_abort_job(mm_jpeg_obj *my_obj, mm_jpeg_job_entry* job_entry)
 }
 
 OMX_BOOL mm_jpeg_update_cbcr_offset(src_image_buffer_t *p_src_img,
-	mm_jpeg_color_format color_format, omx_jpeg_buffer_offset *p_buf_offset)
+    mm_jpeg_color_format color_format, omx_jpeg_buffer_offset *p_buf_offset)
 {
     OMX_BOOL update_start_offset = OMX_FALSE;
 
@@ -309,10 +309,20 @@ int32_t mm_jpeg_omx_config_user_preference(mm_jpeg_obj* my_obj, mm_jpeg_encode_j
     int32_t rc = 0;
     OMX_INDEXTYPE user_pref_idx;
     omx_jpeg_user_preferences user_preferences;
-
+    src_image_buffer_info* main_buf_info =
+        &job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_MAIN];
     memset(&user_preferences, 0, sizeof(user_preferences));
-    user_preferences.color_format =
-        map_jpeg_format(job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_MAIN].color_format);
+    if(main_buf_info->color_format == MM_JPEG_COLOR_FORMAT_BITSTREAM){
+        if(main_buf_info->subsampling_format == 0x21){
+            user_preferences.color_format = OMX_JPEG_BITSTREAM_H2V1;
+        }else{
+            user_preferences.color_format = OMX_JPEG_BITSTREAM_H2V2;
+        }
+    }else{
+        user_preferences.color_format =
+            map_jpeg_format(main_buf_info->color_format);
+    }
+    CDBG("%s: color_format",__func__, user_preferences.color_format);
     if (job->encode_parm.buf_info.src_imgs.src_img_num > 1) {
         user_preferences.thumbnail_color_format =
             map_jpeg_format(job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_THUMB].color_format);

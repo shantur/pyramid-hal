@@ -1675,10 +1675,14 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             p_value);
         break;
     case MM_CAMERA_PARM_WAVELET_DENOISE:
-        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+        {
+            uint8_t isYuvSensor = my_obj->properties.yuv_output;
+            if(!isYuvSensor) // Wavelet denoise only for Bayer sensor
+                rc = mm_camera_send_native_ctrl_cmd(my_obj,
                                             CAMERA_SET_PARM_WAVELET_DENOISE,
                                             sizeof(denoise_param_t),
                                             p_value);
+        }
         break;
     case MM_CAMERA_PARM_3D_DISPLAY_DISTANCE:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,

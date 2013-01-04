@@ -96,7 +96,7 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
     jpegLength = swapByteEndian(jpegLength);
     jpegFrameId = swapByteEndian(jpegFrameId);
     yuvFrameId = swapByteEndian(yuvFrameId);
-    ALOGE("jpegMode %d jpegCount %d jpegLength %d, jpegFrameId %d yuvFrameId %d",
+    ALOGE("jpegMode %d jpegCount %x jpegLength %d, jpegFrameId %d yuvFrameId %d",
           jpegMode, jpegCount, (int)jpegLength, (int)jpegFrameId, (int)yuvFrameId);
 
     jpeg_info->NV12_meta = NV12_meta;
@@ -121,7 +121,7 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
         ret = JPEG_RECEIVED;
     } else if (jpegMode == SPLIT_JPEG_MODE) {
         // Meta + splitted JPEG_1 or JPEG_2
-        ALOGD("%s: split jpeg case: jpegCount %d jpegLength %d, yuvFrameId %d ",
+        ALOGD("%s: split jpeg case: jpegCount %x jpegLength %d, yuvFrameId %d ",
             __func__, jpegCount, (int)jpegLength, (int)yuvFrameId);
         // if this is the first segment, alloc 16MB and copy, return JPEG_PENDING
         if (jpegCount == 0) {
@@ -161,8 +161,8 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
            qbuf_helper(jpeg_buf);
            ret = JPEG_RECEIVED;
         }
-     } else if (jpegMode == HDR_JPEG_MODE || jpegMode == LLS_JPEG_MODE) {
-        ALOGD("%s: Received %d mode, Count %d ", __func__, jpegMode,  jpegCount);
+     } else if (jpegMode >= HDR_JPEG_MODE && jpegMode <= BEST_PHOTO420_MODE) {
+        ALOGD("%s: Received %d mode, Count %x ", __func__, jpegMode,  jpegCount);
         if(mJpegSuperBuf != NULL){
             free(mJpegSuperBuf);
             mJpegSuperBuf = NULL;

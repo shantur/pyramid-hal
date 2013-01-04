@@ -132,7 +132,8 @@ typedef struct {
 
     /*flag if want to use user defined q tables*/
     int user_defined_tables;
-
+    /*Bitstream Subsampling format(H2V1/H2V2 etc.)*/
+    uint8_t subsampling_format;
 } src_image_buffer_info;
 
 typedef struct {
