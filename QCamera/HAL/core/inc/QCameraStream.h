@@ -51,6 +51,9 @@ extern "C" {
 #define SPLIT_JPEG_MODE         0x02
 #define HDR_JPEG_MODE           0x10
 #define LLS_JPEG_MODE           0x20
+#define RAW_JPEG_BIN_MODE       0x30
+#define BEST_PHOTO422_MODE      0x40
+#define BEST_PHOTO420_MODE      0x50
 #define COMBINED_BUF_SIZE       0x1000000
 #define FIRST_JPEG_SIZE         0x800000
 

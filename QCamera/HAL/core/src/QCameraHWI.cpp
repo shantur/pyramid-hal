@@ -220,8 +220,9 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
             {
                 ALOGD("%s: Is Raw snap %d Is HDR Mode %d", __func__,
                       pme->isRawSnapshot(), pme->mHdrMode);
-                if (pme->isRawSnapshot()||(pme->mIsYUVSensor &&
-                            (pme->mHdrMode || pme->mTakeLowlight))) {
+                if (pme->isRawSnapshot()||
+                    (pme->mIsYUVSensor &&
+                     (pme->mHdrMode || pme->mTakeLowlight || pme->mBestPhoto))){
                     /*raw picture*/
                     mm_camera_super_buf_t *super_buf =
                         (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
@@ -354,8 +355,8 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                     mm_camera_super_buf_t *super_buf =
                         (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     mm_camera_super_buf_t *super_buf2 = NULL;
-                    if ((pme->mIsYUVSensor  && !pme->mHdrMode) ||
-                            (pme->mIsYUVSensor  && !pme->mTakeLowlight)) {
+                    if (pme->mIsYUVSensor  && (!pme->mHdrMode ||
+                        !pme->mTakeLowlight || !pme->mBestPhoto)) {
                         ALOGD("%s: Deque thumb super buf", __func__);
                         super_buf2 = (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     }
@@ -447,11 +448,18 @@ uint16_t getSOSOffset(uint8_t *bs_ptr, uint32_t size, src_image_buffer_info *but
                 }else if(*nxt_byte== 0xDB){
                     //FF DB 00 84 (84 is length)
                     //then 00 01 01 01 (00 is luma table index)
-                    but_info->luma_qtable = bs_ptr+0x5; //bs_ptr is at FF
-                    but_info->chroma_qtable = bs_ptr+0x46; //0x40 = 64 bytes is size of luma table and 1 byte for chroma table index 01
+                    //bs_ptr is at FF
+                    but_info->luma_qtable = bs_ptr+0x5;
+                    //0x40 = 64 bytes is size of luma table and
+                    //1 byte for chroma table index 01
+                    but_info->chroma_qtable = bs_ptr+0x46;
                     ALOGD("luma table %x chroma table %x",
                         (uint32_t)but_info->luma_qtable,
                         (uint32_t)but_info->chroma_qtable);
+                }else if(*nxt_byte== 0xC0){
+                    //bs_ptr is at FF
+                    but_info->subsampling_format = *((uint8_t *)bs_ptr+0xB);
+                    ALOGD("Subsampling %x", but_info->subsampling_format);
                 }else if(*nxt_byte== 0xDA){
                     ALOGD("found at offset %d", offset);
                     offset += (jump+2);
@@ -921,7 +929,7 @@ int32_t QCameraHardwareInterface::createRdi()
     // JPEG bitstream: 0x800000
     mRdiWidth = 2048;
 
-    if(mIsYUVSensor && (mTakeLowlight || mHdrMode)) {
+    if(mIsYUVSensor && (mHdrMode || mTakeLowlight || mBestPhoto)){
         ALOGD("%s mHdrMode = %d Allocating 26MB buffer", __func__, mHdrMode);
         mRdiWidth = 6341;//2048;
     }
@@ -1307,6 +1315,7 @@ QCameraHardwareInterface(int cameraId, int mode)
 
     mHdrMode = false;
     mTakeLowlight = false;
+    mBestPhoto = false;
 
     property_get("camera.hal.fps", value, "0");
     mFps = atoi(value);
@@ -2049,6 +2058,23 @@ status_t QCameraHardwareInterface::startPreview()
     switch(mPreviewState) {
     case QCAMERA_HAL_PREVIEW_STOPPED:
     case QCAMERA_HAL_TAKE_PICTURE:
+        mRdiWidth = 2048;
+        mRdiHeight = 4101;
+        if(mIsYUVSensor &&
+           (mHdrMode || mTakeLowlight || mBestPhoto || isRawSnapshot())){
+        if(mPreviewState ==QCAMERA_HAL_TAKE_PICTURE) {
+                ALOGD("HDR/LLS/Raw Bayer Mode on: Stop RDI2");
+                /* dataProc Thread need to process "stop" as sync call
+                because abort jpeg job should be a sync call*/
+                mDataProcTh->sendCmd(CAMERA_CMD_TYPE_STOP_DATA_PROC, TRUE);
+                /* no need for notify thread as a sync call for stop cmd */
+                mNotifyTh->sendCmd(CAMERA_CMD_TYPE_STOP_DATA_PROC, FALSE);
+                mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
+                /*Place holder to trigger resume preview*/
+                mStreamRdi->streamOff(0);
+                mStreamRdi->deinitStream();
+             }
+        }
         mPreviewState = QCAMERA_HAL_PREVIEW_START;
         ALOGE("%s:  HAL::startPreview begin", __func__);
 
@@ -2258,7 +2284,6 @@ status_t QCameraHardwareInterface::startPreview2()
             mStreamRdi->deinitStream();
             return BAD_VALUE;
         }
-        ALOGE("%s: Starting RDI stream", __func__);
     }
     if (mIsYUVSensor) {
         ret = mStreamRdi->streamOn();
@@ -2730,7 +2755,7 @@ status_t  QCameraHardwareInterface::takePicture()
     Mutex::Autolock lock(mLock);
 
     if(mIsYUVSensor && (mHdrMode || mTakeLowlight)) {
-        ALOGV("%s: Restart only RDI stream for HDR/LLS mode", __func__);
+        ALOGV("%s: Restart only RDI2 stream for special modes", __func__);
         ret = restartRdiForHdr();
     }
 
@@ -3210,7 +3235,7 @@ void QCameraHardwareInterface::dumpFrameToFile(mm_camera_buf_def_t* newFrame,
             ALOGE("%s: writing to file w=%d h =%d\n", __func__, w, h);
             write(file_fd, (const void *)(newFrame->buffer), w * h);
             write(file_fd, (const void *)
-              (newFrame->buffer), w * h / 2 * main_422);
+              (newFrame->buffer) + w*h, w * h / 2 * main_422);
             close(file_fd);
             ALOGE("dump %s", buf);
           }
@@ -3905,8 +3930,7 @@ int32_t QCameraHardwareInterface::flipFrame(mm_camera_buf_def_t * frame,
       y_offset = planes[0].offset;
 
       //XXX -  For ZSL, this y_offset should not be added.
-      cbcr_offset =
-        (isZSLMode() ? 0 : y_offset) + planes[0].len + planes[1].offset;
+      cbcr_offset = planes[0].len + planes[1].offset;
     }
   }
 

@@ -204,15 +204,19 @@ static void *mm_camera_poll_fn(mm_camera_poll_thread_t *poll_cb)
         } else {
             /* in error case sleep 10 us and then continue. hard coded here */
             usleep(10);
-            CDBG("poll type %d\n", poll_cb->poll_type);
+            CDBG("ERROR case: but not sent yet, poll type %d\n",
+                                                    poll_cb->poll_type);
             if(poll_cb->poll_type == MM_CAMERA_POLL_TYPE_CH){
-	            CDBG_ERROR("%s: MM_CAMERA_CH_EVT_STREAMING_ERR", __func__);
-				CDBG_ERROR("%s: poll type = %d, num_fd = %d poll_cb = %p, my_obj addr = %p, timeout = %d\n",
-	                        __func__, poll_cb->poll_type, poll_cb->num_fds,poll_cb, poll_cb->my_obj, 
-	                        poll_cb->timeoutms);
-	            mm_camera_send_ch_event(poll_cb->my_obj, poll_cb->poll_entries[0].handler,
-	                                    poll_cb->poll_entries[0].handler,
-	                                    MM_CAMERA_CH_EVT_STREAMING_ERR);
+                CDBG_ERROR("%s: MM_CAMERA_CH_EVT_STREAMING_ERR", __func__);
+                CDBG_ERROR("%s: poll type = %d, num_fd = %d poll_cb = %p, "
+                           "my_obj addr = %p, timeout = %d\n",
+                            __func__, poll_cb->poll_type, poll_cb->num_fds,
+                            poll_cb, poll_cb->my_obj,
+                            poll_cb->timeoutms);
+                mm_camera_send_ch_event(poll_cb->my_obj,
+                                        poll_cb->poll_entries[0].handler,
+                                        poll_cb->poll_entries[0].handler,
+                                        MM_CAMERA_CH_EVT_STREAMING_ERR);
             }
             continue;
         }
@@ -234,9 +238,10 @@ static void *mm_camera_poll_thread(void *data)
 
     mm_camera_poll_sig_done(poll_cb);
     mm_camera_poll_set_state(poll_cb, MM_CAMERA_POLL_TASK_STATE_POLL);
-	CDBG("%s: Before sending to poll function, type = %d, poll_thread addr = %p, my_obj = %p, timeout = %d",
-		        __func__, poll_cb->poll_type, poll_cb, poll_cb->my_obj, poll_cb->timeoutms);
-		         
+    CDBG("%s: Before sending to poll function, type = %d, "
+         "poll_thread addr = %p, my_obj = %p, timeout = %d",
+                __func__, poll_cb->poll_type,
+                poll_cb, poll_cb->my_obj, poll_cb->timeoutms);
     ret = mm_camera_poll_fn(poll_cb);
     return ret;
 }
@@ -326,9 +331,12 @@ int32_t mm_camera_poll_thread_launch(mm_camera_poll_thread_t * poll_cb,
     //poll_cb->timeoutms = -1;  /* Infinite seconds */
     poll_cb->timeoutms = 5000;
 
-    CDBG("%s: poll_type = %d, read fd = %d, write fd = %d timeout = %d",
-        __func__, poll_cb->poll_type,
-        poll_cb->pfds[0], poll_cb->pfds[1],poll_cb->timeoutms);
+    CDBG_HIGH("%s: poll_type = %d, read fd = %d, write fd = %d timeout = %d, "
+                  "obj_address = %p, poll_cb = %p",
+                  __func__, poll_cb->poll_type,
+                  poll_cb->pfds[0], poll_cb->pfds[1],
+                  poll_cb->timeoutms, poll_cb->my_obj,
+                  poll_cb);
 
     pthread_mutex_init(&poll_cb->mutex, NULL);
     pthread_cond_init(&poll_cb->cond_v, NULL);

@@ -1613,9 +1613,10 @@ int32_t mm_stream_buf_done(mm_stream_t * my_obj,
 {
     int32_t rc = 0;
     CDBG("%s: E, inst_handle = 0x%x, my_handle = 0x%x, "
-         "image_mode = %d, fd = %d, state = %d",
+         "image_mode = %d, frame idx= %d ref_cnt = %d, state = %d",
          __func__, my_obj->inst_hdl, my_obj->my_hdl,
-         my_obj->ext_image_mode, my_obj->fd, my_obj->state);
+         my_obj->ext_image_mode, frame->frame_idx,
+         my_obj->buf_status[frame->buf_idx].buf_refcnt, my_obj->state);
 
     if (my_obj->is_local_buf) {
         /* special case for video-sized live snapshot
@@ -1626,15 +1627,17 @@ int32_t mm_stream_buf_done(mm_stream_t * my_obj,
     pthread_mutex_lock(&my_obj->buf_lock);
 
     if(my_obj->buf_status[frame->buf_idx].buf_refcnt == 0) {
-        CDBG("%s: Error Trying to free second time?(idx=%d) count=%d, ext_image_mode=%d\n",
-                   __func__, frame->buf_idx,
+        CDBG("%s: Error Trying to free second time?"
+                  "(idx=%d frame_idx=%d)count=%d,ext_image_mode=%d\n",
+                   __func__, frame->buf_idx, frame->frame_idx,
                    my_obj->buf_status[frame->buf_idx].buf_refcnt,
                    my_obj->ext_image_mode);
         rc = -1;
     }else{
         my_obj->buf_status[frame->buf_idx].buf_refcnt--;
         if (0 == my_obj->buf_status[frame->buf_idx].buf_refcnt) {
-            CDBG("<DEBUG> : Buf done for buffer:%d:%d", my_obj->ext_image_mode, frame->buf_idx);
+            CDBG("<DEBUG> : Buf done for buffer:%d:%d",
+                 my_obj->ext_image_mode, frame->buf_idx);
             rc = mm_stream_qbuf(my_obj, frame);
             if(rc < 0) {
                 CDBG_ERROR("%s: mm_camera_stream_qbuf(idx=%d) err=%d\n",
