@@ -1746,6 +1746,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             sizeof(exp_bracketing_t),
                                             p_value);
         break;
+
     case MM_CAMERA_PARM_FLIP_HINT:
         ALOGV("Sending flip hint");
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
@@ -1753,6 +1754,7 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             sizeof(flip_hint_t),
                                             p_value);
         break;
+
     case MM_CAMERA_PARM_STREAM_ERROR:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                                             CAMERA_SET_PARM_STREAM_ERROR,
@@ -1766,6 +1768,16 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             p_value);
 
         break;
+
+
+    case MM_CAMERA_PARM_FD_INFO:{
+        return mm_camera_send_native_ctrl_cmd(my_obj,
+                                              CAMERA_SET_PARM_FD_INFO,
+                                              sizeof(fd_info_t),p_value);
+        }
+         break;
+
+
     default:
         CDBG("%s: default: parm %d not supported\n", __func__, parm_type);
         break;

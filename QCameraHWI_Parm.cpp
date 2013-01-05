@@ -1360,6 +1360,10 @@ void QCameraHardwareInterface::initDefaultParameters()
        mParameters.set(QCameraParameters::KEY_QC_SINGLE_ISP_OUTPUT_ENABLED, "false");
     }
 
+    mFaceZoomEnabled = FALSE;
+    mParameters.set("display_mode","portrait");
+    mParameters.set("face_position","(-1,-1)");
+
     if (setParameters(mParameters) != NO_ERROR) {
         ALOGE("Failed to set default parameters?!");
     }
@@ -1381,10 +1385,10 @@ int QCameraHardwareInterface::setParameters(const char *parms)
     String8 str = String8(parms);
     param.unflatten(str);
     status_t ret = setParameters(param);
-	if(ret == NO_ERROR)
-		return 0;
-	else
-		return -1;
+    if(ret == NO_ERROR)
+        return 0;
+    else
+        return -1;
 }
 
 /**
@@ -1685,6 +1689,7 @@ status_t QCameraHardwareInterface::setZoom(const QCameraParameters& params)
     static const int ZOOM_STEP = 1;
     int32_t zoom_level = params.getInt("zoom");
     if(zoom_level >= 0 && zoom_level <= mMaxZoom-1) {
+        setFaceZoom(params);
         mParameters.set("zoom", zoom_level);
         int32_t zoom_value = ZOOM_STEP * zoom_level;
         bool ret = native_set_parms(MM_CAMERA_PARM_ZOOM,
@@ -4190,8 +4195,85 @@ status_t QCameraHardwareInterface::setNoDisplayMode(const QCameraParameters& par
   return NO_ERROR;
 }
 
+
 status_t QCameraHardwareInterface::setStreamFlipHint(const QCameraParameters& params) {
   return NO_ERROR; //TBD
+}
+
+status_t QCameraHardwareInterface::setFaceZoom(const QCameraParameters& params)
+{
+    status_t rc = NO_ERROR;
+    int i;
+
+    const char *str  = params.get("face_position");
+    const char *prev_str = mParameters.get("face_position");
+
+    ALOGV("%s : str = %s, prev = %s",__func__,str,prev_str);
+    int str_cmp = strcmp(str,prev_str);
+    if (str_cmp == 0) {
+        ALOGE("%s: Face Zoom Enabled Already",__func__);
+        return NO_ERROR;
+    }
+
+    if (mFaceZoomEnabled) {
+        goto cancelzoom;
+    }
+    if (str != NULL) {
+        int value[2];
+        int x, y;
+        fd_rect temp;
+        mParameters.set("face_position",str);
+        parseNDimVector(str, value, 2);
+        ALOGD("Face Zoom: Centre values -(%d,%d)",value[0],value[1]);
+        if (value[0] == -1 || value[1] == -1) {
+            goto cancelzoom;
+        }
+        x = ((value[0] + 1000) * mDimension.display_width)/2000;
+        y = ((value[1] + 1000) * mDimension.display_height)/2000;
+        ALOGD("Face Zoom: Centre mapped to display = %d, %d",x,y);
+
+        for (i=0; i < MAX_ROI; i++) {
+            if ((x >= mFace_info[i].face_rect.x) && (x <= (mFace_info[i].face_rect.x + mFace_info[i].face_rect.dx))
+                && (y >= mFace_info[i].face_rect.y) && (y <= (mFace_info[i].face_rect.y + mFace_info[i].face_rect.dy)))
+            {
+                ALOGV("Face Zoom: Found Face with matching center");
+                const char *str_val  = params.get("display_mode");
+                if (str_val != NULL) {
+                    if(!strcmp(str_val, "landscape")){
+                        mFace_info[i].display_mode = 1;
+                    }else{
+                        mFace_info[i].display_mode = 0;
+                    }
+                }else{
+                    mFace_info[i].display_mode = 0;
+                }
+                mFace_info[i].zoom_enabled = true;
+                rc = native_set_parms(MM_CAMERA_PARM_FD_INFO, sizeof(fd_info_t),(void *)&mFace_info[i]);
+                if (rc == NO_ERROR) {
+                    mFaceZoomEnabled = true;
+                }else{
+                    return BAD_VALUE;
+                }
+                break;
+
+            }
+        }
+        if (i == MAX_ROI) {
+            ALOGE("%s: Could not find face for position set",__func__);
+        }
+        return NO_ERROR;
+    }
+
+cancelzoom:
+    ALOGV("Face Zoom: Cancel Face Zoom");
+    fd_info_t temp;
+    memset(&temp,0,sizeof(fd_info_t)) ;
+    temp.zoom_enabled = false;
+    mParameters.set("face_position","(-1,-1)");
+    native_set_parms(MM_CAMERA_PARM_FD_INFO, sizeof(fd_info_t),(void *)&temp);
+    mFaceZoomEnabled = false;
+    return NO_ERROR;
+
 }
 
 }; /*namespace android */

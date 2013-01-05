@@ -580,6 +580,7 @@ private:
     status_t setGpsLocation(const QCameraParameters& params);
     status_t setRotation(const QCameraParameters& params);
     status_t setZoom(const QCameraParameters& params);
+    status_t setFaceZoom(const QCameraParameters& params);
     status_t setFocusMode(const QCameraParameters& params);
     status_t setBrightness(const QCameraParameters& params);
     status_t setSkinToneEnhancement(const QCameraParameters& params);
@@ -828,7 +829,9 @@ private:
      QCameraHalHeap_t     mJpegMemory;
      QCameraHalHeap_t     mRawMemory;
      camera_frame_metadata_t mMetadata;
-     camera_face_t           mFace[MAX_ROI];
+     camera_face_t        mFace[MAX_ROI];
+     fd_info_t            mFace_info[MAX_ROI];
+     bool                 mFaceZoomEnabled;
      preview_format_info_t  mPreviewFormatInfo;
      friend void liveshot_callback(mm_camera_ch_data_buf_t *frame,void *user_data);
 
