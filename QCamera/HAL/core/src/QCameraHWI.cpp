@@ -612,6 +612,9 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         dumpFrameToFile(thumb_frame, HAL_DUMP_FRM_THUMBNAIL);
     }
 
+    //Intialize the Exif data to be passed to the encoder.
+    initExifData();
+
     int jpeg_quality = getJpegQuality();
     if (jpeg_quality <= 0) {
         jpeg_quality = 85;

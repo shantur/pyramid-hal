@@ -831,6 +831,12 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
         *((int *)p_value) = my_obj->properties.bestshot_reconfigure;
         break;
 
+    case MM_CAMERA_PARAM_EXPOSURE_TIME:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                            CAMERA_GET_PARAM_EXPOSURE_TIME,
+                                            sizeof(float),
+                                            p_value);
+        break;
     default:
         /* needs to add more implementation */
         rc = -1;
