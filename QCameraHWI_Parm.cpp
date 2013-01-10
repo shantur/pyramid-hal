@@ -168,8 +168,11 @@ static camera_size_type default_picture_sizes[] = {
   { 800, 600}, //SVGA
   { 800, 480}, // WVGA
   { 640, 480}, // VGA
+  { 352, 288}, //CIF
   { 320, 240}, // QVGA
+  { 176, 144} // QCIF
 };
+
 
 static int iso_speed_values[] = {
     0, 1, 100, 200, 400, 800, 1600
