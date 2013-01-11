@@ -2722,6 +2722,18 @@ int QCameraHardwareInterface::getISOSpeedValue()
     return iso_value;
 }
 
+float QCameraHardwareInterface::getExposureTime()
+{
+    float expTime = 0;
+    int rc = 0;
+
+    rc = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle,
+      MM_CAMERA_PARAM_EXPOSURE_TIME, &expTime);
+    if (rc != NO_ERROR) {
+       ALOGE("%s %d: Error getting AEC Exposure Time", __func__, __LINE__);
+    }
+    return expTime;
+}
 
 status_t QCameraHardwareInterface::setJpegQuality(const QCameraParameters& params) {
     status_t rc = NO_ERROR;
@@ -3807,6 +3819,10 @@ void QCameraHardwareInterface::addExifTag(exif_tag_id_t tagid, exif_tag_type_t t
         mExifData[index].tag_entry.data._rats = (rat_t *)data;
     if((type == EXIF_RATIONAL) && (count == 1))
         mExifData[index].tag_entry.data._rat = *(rat_t *)data;
+    else if((type == EXIF_SRATIONAL) && (count > 1))
+        mExifData[index].tag_entry.data._rats = (rat_t *)data;
+    else if((type == EXIF_SRATIONAL) && (count == 1))
+        mExifData[index].tag_entry.data._rat = *(rat_t *)data;
     else if(type == EXIF_ASCII)
         mExifData[index].tag_entry.data._ascii = (char *)data;
     else if(type == EXIF_BYTE)
@@ -3832,6 +3848,7 @@ void QCameraHardwareInterface::initExifData(){
     }
     addExifTag(EXIFTAGID_FOCAL_LENGTH, EXIF_RATIONAL, 1, 1, (void *)&(mExifValues.focalLength));
     addExifTag(EXIFTAGID_ISO_SPEED_RATING,EXIF_SHORT,1,1,(void *)&(mExifValues.isoSpeed));
+    addExifTag(EXIFTAGID_SHUTTER_SPEED, EXIF_SRATIONAL, 1, 1, (void *)&(mExifValues.shutterSpeed));
 
     if(mExifValues.mGpsProcess) {
         addExifTag(EXIFTAGID_GPS_PROCESSINGMETHOD, EXIF_ASCII,
@@ -3906,6 +3923,16 @@ void QCameraHardwareInterface::setExifTags()
 
     //Set ISO Speed
     mExifValues.isoSpeed = getISOSpeedValue();
+
+    //Set Shutter Speed
+    float exposureTime = getExposureTime();
+    if (exposureTime > 0) {
+        float fShutterSpeed =  -1 * ((float)log10(exposureTime)/(float)log10(2));
+        int iShutterSpeed = (int)fShutterSpeed;
+        mExifValues.shutterSpeed = getRational(iShutterSpeed, SHUTTER_SPEED_PRECISION);
+    } else {
+      mExifValues.shutterSpeed =  getRational(0, SHUTTER_SPEED_PRECISION);
+    }
 
     //set gps tags
     setExifTagsGPS();
