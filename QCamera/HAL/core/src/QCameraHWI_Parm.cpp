@@ -4417,5 +4417,13 @@ cancelzoom:
     return NO_ERROR;
 
 }
-
+#if 0 //Support for external DIS solution ,place holder
+status_t QCameraHardwareInterface::setVdis(const QCameraParameters &params)
+{
+    uint32_t value = external_dis_flag && mRecordingHint ;
+    ALOGE("%s: external DIS : %d", __func__, value);
+    native_set_parms(MM_CAMERA_PARM_EXTERNAL_DIS_ENABLE, sizeof(value),
+                                           (void *)&value);
+}
+#endif
 }; /*namespace android */
