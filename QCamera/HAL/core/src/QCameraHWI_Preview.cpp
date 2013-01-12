@@ -836,6 +836,25 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
     } else {
         ALOGE("%s: buffer to be enqueued is not locked", __FUNCTION__);
   }
+
+
+#ifdef USE_ION
+  struct ion_flush_data cache_inv_data;
+  int ion_fd;
+  ion_fd = mHalCamCtrl->mPreviewMemory.main_ion_fd[0];
+  cache_inv_data.vaddr = (void *)frame->bufs[0]->buffer;
+  cache_inv_data.fd = frame->bufs[0]->fd;
+  cache_inv_data.handle = mHalCamCtrl->mPreviewMemory.ion_info_fd[0].handle;
+  cache_inv_data.length = frame->bufs[0]->frame_len;
+
+  if (mHalCamCtrl->cache_ops(ion_fd, &cache_inv_data, ION_IOC_CLEAN_CACHES) < 0)
+    ALOGE("%s: Cache clean for Preview buffer %p fd = %d failed", __func__,
+      cache_inv_data.vaddr, cache_inv_data.fd);
+  if (mHalCamCtrl->cache_ops(ion_fd, &cache_inv_data,  ION_IOC_CLEAN_INV_CACHES) < 0)
+    ALOGE("%s: Cache clean for Preview buffer %p fd = %d failed", __func__,
+      cache_inv_data.vaddr, cache_inv_data.fd);
+#endif
+
   if(mHFRFrameSkip == 1)
   {
       ALOGE("In HFR Frame skip");
