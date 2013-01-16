@@ -501,6 +501,7 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
         }
         break;
     }
+    if(NULL != data) data->release(data);
 }
 
 /*void QCameraStream_preview::notifyROIEvent(fd_roi_t roi) {
