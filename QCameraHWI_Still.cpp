@@ -289,7 +289,6 @@ receiveCompleteJpegPicture(jpeg_event_t event)
         ALOGV("<DEBUG>: Calling buf done for snapshot buffer");
         cam_evt_buf_done(mCameraId, mCurrentFrameEncoded);
     }
-    mHalCamCtrl->dumpFrameToFile(mHalCamCtrl->mJpegMemory.camera_memory[0]->data, mJpegOffset, (char *)"debug", (char *)"jpg", 0);
 
 end:
     msg_type = CAMERA_MSG_COMPRESSED_IMAGE;
