@@ -1077,13 +1077,14 @@ int32_t get_buffer_hook(uint32_t camera_handle,
                         uint8_t *initial_reg_flag,
                         mm_camera_buf_def_t  *bufs)
 {
+    int ret = MM_CAMERA_OK;
     QCameraHardwareInterface *pme=(QCameraHardwareInterface *)user_data;
-    pme->getBuf(camera_handle, ch_id, stream_id,
+    ret = pme->getBuf(camera_handle, ch_id, stream_id,
                 user_data, frame_offset_info,
                 num_bufs,initial_reg_flag,
                 bufs);
 
-    return 0;
+    return ret;
 }
 
 
@@ -1094,11 +1095,12 @@ int32_t put_buffer_hook(uint32_t camera_handle,
                         void *user_data, uint8_t num_bufs,
                         mm_camera_buf_def_t *bufs)
 {
+    int ret = MM_CAMERA_OK;
     QCameraHardwareInterface *pme=(QCameraHardwareInterface *)user_data;
-    pme->putBuf(camera_handle, ch_id, stream_id,
+    ret = pme->putBuf(camera_handle, ch_id, stream_id,
                 user_data, num_bufs, bufs);
 
-    return 0;
+    return ret;
 }
 
 
