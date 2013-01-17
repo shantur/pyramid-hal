@@ -192,6 +192,8 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
     QCameraHardwareInterface *pme = (QCameraHardwareInterface *)data;
     QCameraCmdThread *cmdThread = pme->mNotifyTh;
     uint8_t isEncoding = FALSE;
+    uint32_t numOfSnapshotExpected = 0;
+    uint32_t numOfSnapshotRcvd = 0;
 
     ALOGD("%s: E", __func__);
     do {
@@ -211,10 +213,14 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
         case CAMERA_CMD_TYPE_START_DATA_PROC:
             /* init flag to FALSE */
             isEncoding = FALSE;
+            numOfSnapshotExpected = pme->getNumOfSnapshots();
+            numOfSnapshotRcvd = 0;
             break;
         case CAMERA_CMD_TYPE_STOP_DATA_PROC:
             /* set flag to FALSE */
             isEncoding = FALSE;
+            numOfSnapshotExpected = 0;
+            numOfSnapshotRcvd = 0;
             break;
         case CAMERA_CMD_TYPE_DO_NEXT_JOB:
             {
@@ -237,6 +243,11 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                         super_buf = NULL;
                     } else {
                         ALOGE("%s: Superbuf was null", __func__);
+                    }
+                    numOfSnapshotRcvd++;
+                    if (numOfSnapshotExpected > 0 &&
+                        numOfSnapshotExpected == numOfSnapshotRcvd) {
+                        pme->cancelPictureInternal();
                     }
 
                 } else{
@@ -267,6 +278,7 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                             jpeg_data->out_data = NULL;
                         }
                         free(jpeg_data);
+                        numOfSnapshotRcvd++;
                     }
                     else
                     {
@@ -282,6 +294,10 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                         isEncoding = TRUE;
                         /* notify processData thread to do next encoding job */
                         pme->mDataProcTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
+                    }
+                    if (numOfSnapshotExpected > 0 &&
+                        numOfSnapshotExpected == numOfSnapshotRcvd) {
+                        pme->cancelPictureInternal();
                     }
                 }
             }
@@ -2081,7 +2097,12 @@ status_t QCameraHardwareInterface::startPreview()
                 mStreamRdi->streamOff(0);
                 mStreamRdi->deinitStream();
              }
+        } else {
+            if(mPreviewState == QCAMERA_HAL_TAKE_PICTURE) {
+                cancelPictureInternal();
+            }
         }
+
         mPreviewState = QCAMERA_HAL_PREVIEW_START;
         ALOGE("%s:  HAL::startPreview begin", __func__);
 
