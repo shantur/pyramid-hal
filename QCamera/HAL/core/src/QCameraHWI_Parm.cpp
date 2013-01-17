@@ -1497,7 +1497,6 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     //Update Exiftag values.
     setExifTags();
 
-   final_rc = NO_ERROR; //temp code for test
    setStreamFlipHint(params);
 
    if (mInitSetting == true)
