@@ -285,6 +285,7 @@ public:
     bool enqueue(void *data);
     void flush();
     void* dequeue();
+    int getSize();
 private:
     void init();
     void deinit();
