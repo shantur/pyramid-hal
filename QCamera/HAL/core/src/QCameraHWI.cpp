@@ -268,6 +268,15 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                         }
                         free(jpeg_data);
                     }
+                    else
+                    {
+                      if (pme->mSuperBufQueue.getSize() > 0) {
+                         ALOGE("%s: Super Buffer Queue is not Empty", __func__);
+                         isEncoding = FALSE;
+                      } else {
+                          ALOGD("%s: JEPG Data is NULL", __func__);
+                      }
+                    }
 
                     if (FALSE == isEncoding) {
                         isEncoding = TRUE;
@@ -4222,6 +4231,15 @@ void* QCameraQueue::dequeue()
     }
 
     return data;
+}
+
+int QCameraQueue::getSize()
+{
+    int size = 0;
+    pthread_mutex_lock(&mlock);
+    size = msize;
+    pthread_mutex_unlock(&mlock);
+    return size;
 }
 
 void QCameraQueue::flush(){
