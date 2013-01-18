@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011-2012 The Linux Foundation. All rights reserved.
+** Copyright (c) 2011-2013 The Linux Foundation. All rights reserved.
 **
 ** Not a Contribution, Apache license notifications and license are retained
 ** for attribution purposes only.
@@ -27,7 +27,6 @@
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
 #include <gralloc_priv.h>
-#include <genlock.h>
 
 #define UNLIKELY(exp) __builtin_expect(!!(exp), 0)
 

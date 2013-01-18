@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011-2012 The Linux Foundation. All rights reserved.
+** Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -98,8 +98,7 @@ typedef enum {
 
 enum {
   BUFFER_NOT_OWNED,
-  BUFFER_UNLOCKED,
-  BUFFER_LOCKED,
+  BUFFER_OWNED,
 };
 
 typedef enum {
