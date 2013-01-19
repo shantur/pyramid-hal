@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2012 The Linux Foundation. All rights reserved.
+** Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
 **
 ** Not a Contribution, Apache license notifications and license are retained
 ** for attribution purposes only.
@@ -243,6 +243,7 @@ static const str_map scenemode[] = {
     { QCameraParameters::SCENE_MODE_BACKLIGHT,      CAMERA_BESTSHOT_BACKLIGHT },
     { QCameraParameters::SCENE_MODE_FLOWERS,        CAMERA_BESTSHOT_FLOWERS },
     { QCameraParameters::SCENE_MODE_AR,             CAMERA_BESTSHOT_AR },
+    { QCameraParameters::SCENE_MODE_HDR,            CAMERA_BESTSHOT_OFF },
 };
 
 static const str_map scenedetect[] = {
@@ -2100,7 +2101,8 @@ status_t QCameraHardwareInterface::setFocusMode(const QCameraParameters& params)
 status_t QCameraHardwareInterface::setSceneMode(const QCameraParameters& params)
 {
     ALOGE("%s",__func__);
-    uint8_t supported;
+    uint8_t supported, len;
+
     mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
                                           MM_CAMERA_PARM_BESTSHOT_MODE,&supported,&supported);
     if(!supported) {
@@ -2108,12 +2110,33 @@ status_t QCameraHardwareInterface::setSceneMode(const QCameraParameters& params)
         return NO_ERROR;
     }
     const char *str = params.get(QCameraParameters::KEY_SCENE_MODE);
+    const char *oldstr = mParameters.get(QCameraParameters::KEY_SCENE_MODE);
+
     ALOGE("Scene Mode string : %s",str);
 
-    if (str != NULL) {
+    if (str != NULL && oldstr != NULL) {
         int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
         ALOGE("Setting Scenemode value = %d",value );
         if (value != NOT_FOUND) {
+            /* Check to see if there was a change of scene mode */
+            if(strncmp(str, oldstr, QCameraParameters::MAX_STR_LENGTH)) {
+                ALOGI("%s: valued changed from %s to %s",__func__, oldstr, str);
+                /* Check if we are either transitioning to/from HDR state
+                 * if yes, restart preview. */
+                len = strnlen(QCameraParameters::SCENE_MODE_HDR,
+                              QCameraParameters::MAX_STR_LENGTH);
+                if(!strncmp(str, QCameraParameters::SCENE_MODE_HDR, len)
+                || !strncmp(oldstr, QCameraParameters::SCENE_MODE_HDR, len)) {
+                    ALOGI("Changed between HDR/non-HDR states");
+                    /* Restart only if preview already running*/
+                    if (mPreviewState == QCAMERA_HAL_PREVIEW_STARTED) {
+                        ALOGI("Preview in progress,restarting for HDR transition");
+                        mParameters.set(QCameraParameters::KEY_SCENE_MODE, str);
+                        mRestartPreview = 1;
+                        pausePreviewForZSL();
+                    }
+                }
+            }
             mParameters.set(QCameraParameters::KEY_SCENE_MODE, str);
             bool ret = native_set_parms(MM_CAMERA_PARM_BESTSHOT_MODE, sizeof(value),
                                        (void *)&value);
@@ -3086,6 +3109,8 @@ status_t QCameraHardwareInterface::setFaceDetection(const char *str)
 status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
 {
     uint8_t supported;
+    const char *str = NULL;
+
     mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
                                           MM_CAMERA_PARM_HDR,&supported,&supported);
     if(mIsYUVSensor) {
@@ -3106,7 +3131,12 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
         }
         return NO_ERROR;
     }
-    const char *str = params.get(QCameraParameters::KEY_QC_AE_BRACKET_HDR);
+    const char *str1 = params.get(QCameraParameters::KEY_SCENE_MODE);
+    if (!strncmp(str1, QCameraParameters::SCENE_MODE_HDR,
+           QCameraParameters::MAX_STR_LENGTH))
+        str = QCameraParameters::AE_BRACKET_HDR;
+    else
+        str = params.get(QCameraParameters::KEY_QC_AE_BRACKET_HDR);
 
     if (str != NULL) {
         int value = attr_lookup(hdr_bracket,
@@ -3165,9 +3195,13 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
                 }
                 break;
         }
-
-        /* save the value*/
-        mParameters.set(QCameraParameters::KEY_QC_AE_BRACKET_HDR, str);
+        str1 = params.get(QCameraParameters::KEY_SCENE_MODE);
+        if (strncmp(str1, QCameraParameters::SCENE_MODE_HDR,
+                QCameraParameters::MAX_STR_LENGTH)) {
+            /* Save the AE Bracket value only if user did not
+             * select HDR from Scene mode */
+            mParameters.set(QCameraParameters::KEY_QC_AE_BRACKET_HDR, str);
+        }
     }
     return NO_ERROR;
 }
