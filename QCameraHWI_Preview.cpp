@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2011-2012 The Linux Foundation. All rights reserved.
+** Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@
 #include <sys/mman.h>
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
-#include <genlock.h>
 #include <gralloc_priv.h>
 
 #define UNLIKELY(exp) __builtin_expect(!!(exp), 0)
@@ -162,18 +161,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
                 ((struct private_handle_t *)(*mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]))->size,  mHalCamCtrl->mPreviewMemory.stride[cnt]);
                     err = mPreviewWindow->lock_buffer(this->mPreviewWindow,
                                        mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
-                    // lock the buffer using genlock
-                    ALOGE("%s: camera call genlock_lock, hdl=%p", __FUNCTION__, (*mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]));
-                    if (GENLOCK_NO_ERROR != genlock_lock_buffer((native_handle_t *)(*mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]),
-                                                      GENLOCK_WRITE_LOCK, GENLOCK_MAX_TIMEOUT)) {
-                       ALOGE("%s: genlock_lock_buffer(WRITE) failed", __FUNCTION__);
-                       mHalCamCtrl->mPreviewMemory.local_flag[cnt] = BUFFER_UNLOCKED;
-	                //mHalCamCtrl->mPreviewMemoryLock.unlock();
-                       //return -EINVAL;
-                   } else {
-                     ALOGE("%s: genlock_lock_buffer hdl =%p", __FUNCTION__, *mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
-                     mHalCamCtrl->mPreviewMemory.local_flag[cnt] = BUFFER_LOCKED;
-                   }
+                    mHalCamCtrl->mPreviewMemory.local_flag[cnt] = BUFFER_OWNED;
 		} else {
           mHalCamCtrl->mPreviewMemory.local_flag[cnt] = BUFFER_NOT_OWNED;
           ALOGE("%s: dequeue_buffer idx = %d err = %d", __func__, cnt, err);
@@ -186,18 +174,7 @@ status_t QCameraStream_preview::getBufferFromSurface() {
                     strerror(-err), -err);
             ret = UNKNOWN_ERROR;
 			for(int i = 0; i < cnt; i++) {
-                if (BUFFER_LOCKED == mHalCamCtrl->mPreviewMemory.local_flag[i]) {
-                      ALOGE("%s: camera call genlock_unlock", __FUNCTION__);
-                     if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t *)
-                                                  (*(mHalCamCtrl->mPreviewMemory.buffer_handle[i])))) {
-                        ALOGE("%s: genlock_unlock_buffer failed: hdl =%p", __FUNCTION__, (*(mHalCamCtrl->mPreviewMemory.buffer_handle[i])) );
-                         //mHalCamCtrl->mPreviewMemoryLock.unlock();
-                        //return -EINVAL;
-                     } else {
-                       mHalCamCtrl->mPreviewMemory.local_flag[i] = BUFFER_UNLOCKED;
-                     }
-                }
-                if( mHalCamCtrl->mPreviewMemory.local_flag[i] != BUFFER_NOT_OWNED) {
+                            if( mHalCamCtrl->mPreviewMemory.local_flag[i] != BUFFER_NOT_OWNED) {
                   err = mPreviewWindow->cancel_buffer(mPreviewWindow,
                                           mHalCamCtrl->mPreviewMemory.buffer_handle[i]);
                 }
@@ -268,20 +245,6 @@ status_t QCameraStream_preview::putBufferToSurface() {
             ALOGE("%s: ion free failed\n", __func__);
         close(mHalCamCtrl->mPreviewMemory.main_ion_fd[cnt]);
 #endif
-            if (BUFFER_LOCKED == mHalCamCtrl->mPreviewMemory.local_flag[cnt]) {
-                ALOGD("%s: camera call genlock_unlock", __FUNCTION__);
-	        if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t *)
-                                                    (*(mHalCamCtrl->mPreviewMemory.buffer_handle[cnt])))) {
-                    ALOGE("%s: genlock_unlock_buffer failed, handle =%p", __FUNCTION__, (*(mHalCamCtrl->mPreviewMemory.buffer_handle[cnt])));
-                    continue;
-	                //mHalCamCtrl->mPreviewMemoryLock.unlock();
-                    //return -EINVAL;
-                } else {
-
-                    ALOGD("%s: genlock_unlock_buffer, handle =%p", __FUNCTION__, (*(mHalCamCtrl->mPreviewMemory.buffer_handle[cnt])));
-                    mHalCamCtrl->mPreviewMemory.local_flag[cnt] = BUFFER_UNLOCKED;
-                }
-            }
              if( mHalCamCtrl->mPreviewMemory.local_flag[cnt] != BUFFER_NOT_OWNED) {
                err = mPreviewWindow->cancel_buffer(mPreviewWindow, mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]);
                ALOGD("%s: cancel_buffer: hdl =%p", __func__,  (*mHalCamCtrl->mPreviewMemory.buffer_handle[cnt]));
@@ -882,22 +845,6 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
 
   ALOGI("Enqueue buf handle %p\n",
   mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]);
-  ALOGD("%s: camera call genlock_unlock", __FUNCTION__);
-    if (BUFFER_LOCKED == mHalCamCtrl->mPreviewMemory.local_flag[frame->def.idx]) {
-      ALOGD("%s: genlock_unlock_buffer hdl =%p", __FUNCTION__, (*mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]));
-        if (GENLOCK_FAILURE == genlock_unlock_buffer((native_handle_t*)
-	            (*mHalCamCtrl->mPreviewMemory.buffer_handle[frame->def.idx]))) {
-            ALOGE("%s: genlock_unlock_buffer failed", __FUNCTION__);
-	        //mHalCamCtrl->mPreviewMemoryLock.unlock();
-            //return -EINVAL;
-        } else {
-            mHalCamCtrl->mPreviewMemory.local_flag[frame->def.idx] = BUFFER_UNLOCKED;
-        }
-    } else {
-        ALOGE("%s: buffer to be enqueued is not locked", __FUNCTION__);
-	    //mHalCamCtrl->mPreviewMemoryLock.unlock();
-        //return -EINVAL;
-    }
 
 #ifdef USE_ION
   struct ion_flush_data cache_inv_data;
@@ -962,25 +909,12 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
     ALOGD("%s: dequed buf hdl =%p", __func__, *buffer_handle);
     for(i = 0; i < mHalCamCtrl->mPreviewMemory.buffer_count; i++) {
         if(mHalCamCtrl->mPreviewMemory.buffer_handle[i] == buffer_handle) {
-          mHalCamCtrl->mPreviewMemory.local_flag[i] = BUFFER_UNLOCKED;
+          mHalCamCtrl->mPreviewMemory.local_flag[i] = BUFFER_OWNED;
           break;
         }
     }
      if (i < mHalCamCtrl->mPreviewMemory.buffer_count ) {
       err = this->mPreviewWindow->lock_buffer(this->mPreviewWindow, buffer_handle);
-      ALOGD("%s: camera call genlock_lock: hdl =%p", __FUNCTION__, *buffer_handle);
-      if (GENLOCK_FAILURE == genlock_lock_buffer((native_handle_t*)(*buffer_handle), GENLOCK_WRITE_LOCK,
-                                                 GENLOCK_MAX_TIMEOUT)) {
-            ALOGE("%s: genlock_lock_buffer(WRITE) failed", __FUNCTION__);
-	    //mHalCamCtrl->mPreviewMemoryLock.unlock();
-           // return -EINVAL;
-      } else  {
-        mHalCamCtrl->mPreviewMemory.local_flag[i] = BUFFER_LOCKED;
-
-        if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mNotifyBuffer[i])) {
-            ALOGE("BUF DONE FAILED");
-        }
-      }
      }
   } else
       ALOGE("%s: error in dequeue_buffer, enqueue_buffer idx = %d, no free buffer now", __func__, frame->def.idx);
