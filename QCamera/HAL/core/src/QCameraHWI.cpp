@@ -3740,7 +3740,8 @@ status_t QCameraHardwareInterface::initHistogramBuffers()
         map_buf.fd = mHistServer.fd[cnt];
         map_buf.frame_idx = cnt;
         map_buf.size = mHistServer.size;
-        map_buf.ext_mode = -1;
+        map_buf.ext_mode = 0;
+        map_buf.is_hist = TRUE;
         mCameraHandle->ops->send_command(mCameraHandle->camera_handle,
                                          MM_CAMERA_CMD_TYPE_NATIVE,
                                          NATIVE_CMD_ID_SOCKET_MAP,
@@ -3768,7 +3769,8 @@ status_t QCameraHardwareInterface::deInitHistogramBuffers()
         if(mStatsMapped[i] != NULL) {
             mStatsMapped[i]->release(mStatsMapped[i]);
         }
-
+        unmap_buf.ext_mode = 0;
+        unmap_buf.is_hist = TRUE;
         unmap_buf.frame_idx = i;
         mCameraHandle->ops->send_command(mCameraHandle->camera_handle,
                                          MM_CAMERA_CMD_TYPE_NATIVE,
