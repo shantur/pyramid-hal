@@ -29,6 +29,7 @@
 #include <gralloc_priv.h>
 
 #define UNLIKELY(exp) __builtin_expect(!!(exp), 0)
+#define LIKELY(exp) __builtin_expect(!!(exp), 1)
 
 /* QCameraHWI_Raw class implementation goes here*/
 /* following code implement the RDI logic of this class*/
@@ -265,39 +266,91 @@ void QCameraStream_Rdi::dumpFrameToFile(mm_camera_buf_def_t* newFrame)
     char buf[32];
     int file_fd;
     int i;
-    char *ext = "yuv";
-    int w,h;
+    char *ext = "raw";
+    int w, h;
     static int count = 0;
     char *name = "rdi";
-
+    unsigned int size;
     w = mHalCamCtrl->mRdiWidth;
     h = mHalCamCtrl->mRdiHeight;
 
-    if ( newFrame != NULL) {
+    if(LIKELY(count >= 10))
+        return;
+
+    if (newFrame != NULL) {
         char * str;
-        snprintf(buf, sizeof(buf), "/data/%s_%d.%s", name,count,ext);
+        size = w*h; /* buffer size without padding */
+        snprintf(buf, sizeof(buf), "/data/%s_%d_%d_%d.%s", name, w, h, count,ext);
         file_fd = open(buf, O_RDWR | O_CREAT, 0777);
         if (file_fd < 0) {
             ALOGE("%s: cannot open file\n", __func__);
         } else {
+            ALOGE("dumping RDI frame to file %s: size = %ld", buf, size);
             void* y_off = newFrame->buffer + newFrame->planes[0].data_offset;
-            write(file_fd, (const void *)(y_off), newFrame->planes[0].length);
+            write(file_fd, (const void *)(y_off), size);
             close(file_fd);
         }
         count++;
     }
 }
 
+status_t QCameraStream_Rdi::processVisionModeFrame(
+    mm_camera_super_buf_t *frame) {
+
+    status_t rc = NO_ERROR;
+    camera_data_callback pcb;
+    camera_memory_t *data = NULL;
+    camera_frame_metadata_t *metadata = NULL;
+    uint32_t msgType=0x00;
+
+    ALOGE("%s: E", __func__);
+    /* Show preview FPS for debug*/
+    if (UNLIKELY(mHalCamCtrl->mDebugFps)) {
+        mHalCamCtrl->debugShowPreviewFPS();
+    }
+
+    Mutex::Autolock lock(mStopCallbackLock);
+
+    mHalCamCtrl->mCallbackLock.lock();
+    pcb = mHalCamCtrl->mDataCb;
+    mHalCamCtrl->mCallbackLock.unlock();
+
+    ALOGV("%s: MessageEnabled = 0x%x", __func__, mHalCamCtrl->mMsgEnabled);
+
+    if(pcb != NULL) {
+        if (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
+            msgType |=  CAMERA_MSG_PREVIEW_FRAME;
+            data = mHalCamCtrl->mRdiMemory.camera_memory[frame->\
+                bufs[0]->buf_idx];
+        }
+        if (msgType) {
+            mStopCallbackLock.unlock();
+            if (mActive) {
+                ALOGV("sending data callback for vision mode");
+                pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
+            }
+        }
+    }
+    return rc;
+}
+
 status_t QCameraStream_Rdi::processRdiFrame(
   mm_camera_super_buf_t *frame)
 {
-    ALOGV("%s",__func__);
+    ALOGV("%s: E",__func__);
     int err = 0;
     int msgType = 0;
     int i;
-    status_t status, ret= NO_ERROR;
+    status_t status = NO_ERROR, ret = NO_ERROR;
     camera_data_callback pcb;
     uint8_t * jpeg_info;
+
+    if(mHalCamCtrl->mVisionModeFlag) {
+        dumpFrameToFile(frame->bufs[0]);
+        this->processVisionModeFrame(frame);
+        qbuf_helper(frame);
+        return NO_ERROR;
+    }
     jpeg_info = (uint8_t *)(frame->bufs[0]->buffer);
     if (jpeg_info == NULL) {
         ALOGE("%s: Error: Received null jpeg_info", __func__);

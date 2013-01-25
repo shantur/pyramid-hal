@@ -1359,6 +1359,8 @@ void QCameraHardwareInterface::initDefaultParameters()
       create_values_str(hdr_bracket, sizeof(hdr_bracket)/sizeof(str_map) ));
 
     mParameters.set("no-display-mode", 0);
+    mParameters.set(QCameraParameters::KEY_QC_VISION_MODE, 0);
+    mParameters.set(QCameraParameters::KEY_QC_VISION_AE, 1);
     mParameters.set("zoom", 0);
 
     int mNuberOfVFEOutputs;
@@ -1418,10 +1420,11 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     status_t rc, final_rc = NO_ERROR;
 
     if ((rc = setCameraMode(params)))                   final_rc = rc;
+    if ((rc = setVisionMode(params)))                   final_rc = rc;
+    if ((rc = setVisionAE(params)))                     final_rc = rc;
 //    if ((rc = setChannelInterfaceMask(params)))         final_rc = rc;
     if ((rc = setPowerMode(params)))                    final_rc = rc;
     if ((rc = setNoDisplayMode(params)))                final_rc = rc;
-    if ((rc = setIntelligentMode(params)))                final_rc = rc;
     if ((rc = setPreviewSize(params)))                  final_rc = rc;
     if ((rc = setVideoSize(params)))                    final_rc = rc;
     if ((rc = setPictureSize(params)))                  final_rc = rc;
@@ -4114,29 +4117,85 @@ status_t QCameraHardwareInterface::setNoDisplayMode(const QCameraParameters& par
   return NO_ERROR;
 }
 
-/* setIntelligentMode enables camera in low display and low power configuration if supported
-* by sensor*/
-status_t QCameraHardwareInterface::setIntelligentMode(const QCameraParameters& params)
+status_t QCameraHardwareInterface::setVisionMode(const
+    QCameraParameters& params)
 {
-    int val = params.getInt("intelligent-mode");
-    int old_val = mParameters.getInt("intelligent-mode");
-    bool ret = true;
+    int val=0;
+    /* if this property is set, front camera will always
+     * run in vision mode */
+    char prop[PROPERTY_VALUE_MAX];
+    memset(prop, 0, sizeof(prop));
+    property_get("persist.camera.visionmode", prop, "0");
+    val = atoi(prop);
+
+    if(val == 0)
+        val = params.getInt(QCameraParameters::KEY_QC_VISION_MODE);
+    int old_val = mParameters.getInt(QCameraParameters::KEY_QC_VISION_MODE);
+    int ret = NO_ERROR;
+
+    ALOGD("%s: vision_mode=%d : E", __func__, val);
+    if(HAL_currentCameraId != FRONT_CAMERA) {
+        ALOGD("%s: vision mode not availble for back camera, setparam "
+              "will be ignored", __func__);
+        return NO_ERROR;
+    }
+
     if ((val == old_val) && (mInitSetting == false)) {
         ALOGE("%s: same mode: %d", __func__, val);
         return NO_ERROR;
     }
-    ALOGV("%s: intelligent-mode: %d", __func__, val);
-    if (val == 1)
-        mNoDisplayMode = true;
-    else
-        mNoDisplayMode = false;
-    mLowPowerMode = mNoDisplayMode;
-    ret = native_set_parms(MM_CAMERA_PARM_INTELLIGENT_MODE, sizeof(int), (void *)&mLowPowerMode);
-    if (!ret)
-      return UNKNOWN_ERROR;
-    mParameters.set("intelligent-mode", val);
-    return NO_ERROR;
+
+    if(false == native_set_parms(MM_CAMERA_PARM_VISION_MODE,
+        sizeof(int), (void *)&val)) {
+        ret = BAD_VALUE;
+        ALOGE("%s: failed", __func__);
+    } else {
+        ALOGE("%s: vision mode set to %d", __func__, val);
+        mParameters.set(QCameraParameters::KEY_QC_VISION_MODE, val);
+        mNoDisplayMode = (val)? 1 : 0;
+        mVisionModeFlag = (val)? true : false;
+    }
+    return ret;
 }
+
+/* setVisionAE : Parameter used for vision mode ae control */
+status_t QCameraHardwareInterface::setVisionAE(const QCameraParameters& params)
+{
+	int val = params.getInt(QCameraParameters::KEY_QC_VISION_AE);
+    	int old_val = mParameters.getInt(QCameraParameters::KEY_QC_VISION_AE);
+    	int ret = NO_ERROR;
+
+	if(mVisionModeFlag == false) {
+		ALOGV("%s: this parameter is not availble for non-vision mode");
+		return NO_ERROR;
+	}
+	ALOGE("%s: val=%d : E", __func__, val);
+	if(val > 2 || val < 1) {
+		ALOGE("%s: error: Invalid value for parameter \"%s\": val=%d",
+				__func__, QCameraParameters::KEY_QC_VISION_AE, val);
+		return BAD_VALUE;
+	}
+
+	if ((val == old_val) && (mInitSetting == false)) {
+        	ALOGE("%s: same mode: %d", __func__, val);
+        	return NO_ERROR;
+    	}
+
+    /* val=1: normal AE mode --> set 0 in kernel
+     * val=2: backlight AE mode --> set 1 in kernel */
+    int vision_ae = val-1;
+
+    if(false == native_set_parms(MM_CAMERA_PARM_VISION_AE,
+				sizeof(int), (void *)&vision_ae)) {
+		ret = BAD_VALUE;
+		ALOGE("%s: failed", __func__);
+	} else {
+		ALOGE("%s: vision_ae set to %d", __func__, vision_ae);
+		mParameters.set(QCameraParameters::KEY_QC_VISION_AE, val);
+	}
+    return ret;
+}
+
 
 status_t QCameraHardwareInterface::setRDIMode(const QCameraParameters& params)
 {

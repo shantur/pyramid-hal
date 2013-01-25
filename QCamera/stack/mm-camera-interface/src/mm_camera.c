@@ -1777,15 +1777,20 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             sizeof(uint32_t),
                                             p_value);
         break;
-    case MM_CAMERA_PARM_INTELLIGENT_MODE:
+    case MM_CAMERA_PARM_VISION_MODE:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
-                                            CAMERA_SET_INTELLIGENT_MODE,
+                                            CAMERA_SET_VISION_MODE,
                                             sizeof(int),
                                             p_value);
 
         break;
+    case MM_CAMERA_PARM_VISION_AE:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                            CAMERA_SET_VISION_AE,
+                                            sizeof(int),
+                                            p_value);
 
-
+        break;
     case MM_CAMERA_PARM_FD_INFO:{
         return mm_camera_send_native_ctrl_cmd(my_obj,
                                               CAMERA_SET_PARM_FD_INFO,

@@ -20,7 +20,6 @@
 /*#error uncomment this for compiler test!*/
 
 #define ALOG_NIDEBUG 0
-
 #define LOG_TAG "QCameraHWI"
 #include <utils/Log.h>
 #include <utils/threads.h>
@@ -31,6 +30,9 @@
 
 #include "QCameraHAL.h"
 #include "QCameraHWI.h"
+
+#define VISION_MODE_IMG_WIDTH   176
+#define VISION_MODE_IMG_HEIGHT  104
 
 /* QCameraHardwareInterface class implementation goes here*/
 /* following code implement the contol logic of this class*/
@@ -928,36 +930,51 @@ static void HAL_event_cb(uint32_t camera_handle, mm_camera_event_t *evt, void *u
 int32_t QCameraHardwareInterface::createRdi()
 {
     int32_t ret = MM_CAMERA_OK;
+    uint8_t numBuf = 0;
+    uint32_t imgFormat = 0;
     // JPEG info: 16 bytes
     // JPEG Meta: 4K
     // YUV Meta: 4K
     // JPEG bitstream: 0x800000
-    mRdiWidth = 2048;
 
-    if(mIsYUVSensor && (mHdrMode || mTakeLowlight || mBestPhoto)){
-        ALOGD("%s mHdrMode = %d Allocating 26MB buffer", __func__, mHdrMode);
-        mRdiWidth = 6341;//2048;
+    ALOGV("%s : E",__FUNCTION__);
+
+    if(mVisionModeFlag == true) {
+        mRdiWidth = VISION_MODE_IMG_WIDTH;
+        mRdiHeight = VISION_MODE_IMG_HEIGHT;
+        imgFormat = CAMERA_BAYER_SBGGR10;
+        numBuf = 7;
+    } else {
+        mRdiWidth = 2048;
+        if (mIsYUVSensor && (mHdrMode || mTakeLowlight || mBestPhoto)) {
+            ALOGE("%s mHdrMode = %d Allocating 26MB buffer",
+                __FUNCTION__, mHdrMode);
+            mRdiWidth = 6341;//2048;
+        }
+        mRdiHeight = 4101;
+        imgFormat = CAMERA_RDI;
+        numBuf = 7;
     }
-    mRdiHeight = 4101;
+    ALOGD("Creating RDI Stream:w=%d, h=%d, fmt=%d, numbuf=%d",
+        mRdiWidth, mRdiHeight, imgFormat, numBuf);
 
-    ALOGV("%s : BEGIN",__func__);
     mStreamRdi = QCameraStream_Rdi::createInstance(mCameraHandle->camera_handle,
                                                    mChannelId,
                                                    mRdiWidth/*Width*/,
                                                    mRdiHeight/*Height*/,
-                                                   CAMERA_RDI/*Format*/,
-                                                   7/*NumBuffers*/,
+                                                   imgFormat/*Format*/,
+                                                   numBuf/*NumBuffers*/,
                                                    mCameraHandle,
                                                    MM_CAMERA_RDI2,
                                                    myMode);
     if (!mStreamRdi) {
-        ALOGE("%s: error - can't creat RDI stream!", __func__);
+        ALOGE("%s: error - can't create RDI stream!", __func__);
         return BAD_VALUE;
     }
 
     /* Store HAL object in RDI stream Object */
     mStreamRdi->setHALCameraControl(this);
-    ALOGV("%s : END",__func__);
+    ALOGV("%s : X",__func__);
     return ret;
 }
 
@@ -1301,6 +1318,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     mPostPreviewHeap(NULL),
     mExifTableNumEntries(0),
     mNoDisplayMode(0),
+    mVisionModeFlag(0),
     mIsYUVSensor(0),
     mPowerModule(0),
     mSupportedFpsRanges(NULL),
@@ -1429,7 +1447,8 @@ QCameraHardwareInterface(int cameraId, int mode)
         ALOGE("%s X: Failed to create Record Object",__func__);
         return;
     }
-    //Rdi
+    // Rdi: used for yuv sensor or vision mode only
+    // for vision mode, we create RDI at startPreview2
     if (mIsYUVSensor) {
         result = createRdi();
         if (result != MM_CAMERA_OK) {
@@ -2120,9 +2139,37 @@ status_t QCameraHardwareInterface::startPreview2()
     mm_camera_bundle_attr_t attr;
 
     if (mPreviewState == QCAMERA_HAL_PREVIEW_STARTED) { //isPreviewRunning()){
-        ALOGE("%s:Preview already started  mPreviewState = %d!", __func__, mPreviewState);
+        ALOGE("%s:Preview already started  mPreviewState = %d!", __func__,
+            mPreviewState);
         ALOGE("%s: X", __func__);
         return NO_ERROR;
+    }
+
+    //Special case for vision mode preview using RDI
+    if(mVisionModeFlag == true) {
+        ALOGD("%s: vision mode startpreview size = %dx%d", __func__,
+            mRdiWidth, mRdiHeight);
+        int32_t rc = 0;
+        if(mStreamRdi == NULL) {
+            rc = this->createRdi();
+            if (rc != MM_CAMERA_OK) {
+                ALOGE("%s X: Failed to create Rdi object", __FUNCTION__);
+                    return BAD_VALUE;
+            }
+        }
+        this->setDimension();
+        ret = mStreamRdi->initStream(FALSE, TRUE);
+        if (MM_CAMERA_OK != ret) {
+            ALOGE("%s: X: error- cannot init RDI; rc=%d", __func__, ret);
+            return BAD_VALUE;
+        }
+        ret = mStreamRdi->streamOn();
+        if (MM_CAMERA_OK != ret) {
+            ALOGE("%s: X: error- cannot start rdi stream rc=%d", __func__, ret);
+            return BAD_VALUE;
+        }
+        ALOGD("%s: X: Vision Mode", __func__);
+        return ret;
     }
 
     /* config the parmeters and see if we need to re-init the stream*/
@@ -2363,6 +2410,17 @@ void QCameraHardwareInterface::stopPreviewInternal()
 {
     ALOGI("stopPreviewInternal: E");
     status_t ret = NO_ERROR;
+    if(mVisionModeFlag == true) {
+        ALOGD("%s: vision mode stop preview", __func__);
+        if(mStreamRdi) {
+            mStreamRdi->streamOff(0);
+            mStreamRdi->deinitStream();
+        } else {
+            ALOGE("%s: ERROR: mStreamRdi=NULL", __func__);
+        }
+        ALOGD("%s: vision mode : X", __func__);
+        return;
+    }
 
     if(!mStreamDisplay) {
         ALOGE("mStreamDisplay is null");

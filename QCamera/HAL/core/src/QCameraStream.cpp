@@ -264,7 +264,6 @@ status_t QCameraStream::setFormat()
                     mHalCamCtrl->mRdiWidth,
                     mHalCamCtrl->mRdiHeight,
                     mFormat);
-            mFormat = CAMERA_RDI;//CAMERA_YUV_422_YUYV;
             break;
         default:
             break;

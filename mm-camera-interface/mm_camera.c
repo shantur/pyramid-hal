@@ -404,9 +404,9 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_FLIP_HINT, sizeof(flip_hint_t), (void *)parm->p_value);
 
-    case MM_CAMERA_PARM_INTELLIGENT_MODE:
+    case MM_CAMERA_PARM_VISION_MODE:
       rc = mm_camera_send_native_ctrl_cmd(my_obj,
-                        CAMERA_SET_INTELLIGENT_MODE,
+                        CAMERA_SET_VISION_MODE,
                         sizeof(int),
                         (void *)parm->p_value);
 

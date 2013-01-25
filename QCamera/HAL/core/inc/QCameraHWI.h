@@ -728,7 +728,8 @@ private:
     status_t setPowerMode(const QCameraParameters& params);
     void takePicturePrepareHardware( );
     status_t setNoDisplayMode(const QCameraParameters& params);
-    status_t setIntelligentMode(const QCameraParameters& params);
+    status_t setVisionMode(const QCameraParameters& params);
+    status_t setVisionAE(const QCameraParameters& params);
     status_t setDimension();
     status_t setRDIMode(const QCameraParameters& params);
 
@@ -968,6 +969,7 @@ private:
      int                    mExifTableNumEntries;            //NUmber of entries in mExifData
      int                 mNoDisplayMode;
      int                 mLowPowerMode;
+     bool                mVisionModeFlag;
      QCameraQueue mSuperBufQueue;     /* queue for raw super buf */
      QCameraQueue mJpegDataQueue;     /* queue for encoded jpeg frame */
      QCameraCmdThread *mNotifyTh;     /* thread for data notify */
