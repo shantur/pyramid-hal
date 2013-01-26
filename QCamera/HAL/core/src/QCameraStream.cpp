@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2012 The Linux Foundation. All rights reserved.
+** Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
 **
 ** Not a Contribution, Apache license notifications and license are retained
 ** for attribution purposes only.
@@ -39,13 +39,13 @@ namespace android {
 void stream_cb_routine(mm_camera_super_buf_t *bufs,
                        void *userdata)
 {
-    ALOGD("%s E ", __func__);
+    ALOGV("%s E ", __func__);
     QCameraStream *p_obj=(QCameraStream*) userdata;
-    ALOGD("DEBUG4:ExtMode:%d,buffer %x streamid:%d frame Idx:%d",p_obj->mExtImgMode, bufs->bufs[0]->buffer, bufs->bufs[0]->stream_id, bufs->bufs[0]->frame_idx);
+    ALOGV("DEBUG4:ExtMode:%d,buffer %x streamid:%d frame Idx:%d",p_obj->mExtImgMode, bufs->bufs[0]->buffer, bufs->bufs[0]->stream_id, bufs->bufs[0]->frame_idx);
     switch(p_obj->mExtImgMode)
     {
         case MM_CAMERA_PREVIEW:
-            ALOGE("%s : callback for MM_CAMERA_PREVIEW", __func__);
+            ALOGV("%s : callback for MM_CAMERA_PREVIEW", __func__);
             ((QCameraStream_preview *)p_obj)->processPreviewFrame(bufs);
             break;
         case MM_CAMERA_VIDEO:
@@ -64,7 +64,7 @@ void stream_cb_routine(mm_camera_super_buf_t *bufs,
             break;
 
     }
-    ALOGD("%s X ", __func__);
+    ALOGV("%s X ", __func__);
 }
 
 void QCameraStream::dataCallback(mm_camera_super_buf_t *bufs)

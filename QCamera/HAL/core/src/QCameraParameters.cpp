@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, The Linux Foundation. All rights reserved.
+Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -35,6 +35,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "QCameraParameters.h"
 
 namespace android {
+const int QCameraParameters::MAX_STR_LENGTH = 50;
 // Parameter keys to communicate between camera application and driver.
 const char QCameraParameters::KEY_QC_SUPPORTED_HFR_SIZES[] = "hfr-size-values";
 const char QCameraParameters::KEY_QC_PREVIEW_FRAME_RATE_MODE[] = "preview-frame-rate-mode";
@@ -96,6 +97,7 @@ const char QCameraParameters::SCENE_MODE_ASD[] = "asd";   // corresponds to CAME
 const char QCameraParameters::SCENE_MODE_BACKLIGHT[] = "backlight";
 const char QCameraParameters::SCENE_MODE_FLOWERS[] = "flowers";
 const char QCameraParameters::SCENE_MODE_AR[] = "AR";
+const char QCameraParameters::SCENE_MODE_HDR[] = "hdr";
 
 // Values for auto scene detection settings.
 const char QCameraParameters::SCENE_DETECT_OFF[] = "off";
