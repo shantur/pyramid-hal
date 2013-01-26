@@ -360,6 +360,7 @@ public:
     virtual ~QCameraStream_Rdi();
     status_t initRdiBuffers();
     status_t processRdiFrame (mm_camera_super_buf_t *data);
+    status_t processVisionModeFrame(mm_camera_super_buf_t *frame);
     friend class QCameraHardwareInterface;
 
 private:

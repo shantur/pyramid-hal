@@ -108,6 +108,8 @@ public:
 
 
     static const char KEY_QC_POWER_MODE[];
+    static const char KEY_QC_VISION_MODE[];
+    static const char KEY_QC_VISION_AE[];
 
     static const char KEY_QC_ZSL[];
     static const char KEY_QC_SUPPORTED_ZSL_MODES[];
