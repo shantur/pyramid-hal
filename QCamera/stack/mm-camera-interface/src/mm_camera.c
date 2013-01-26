@@ -645,9 +645,6 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
                  dim->width, dim->height);
         }
         break;
-    case MM_CAMERA_PARM_PREVIEW_FORMAT:
-        *((int *)p_value) = my_obj->properties.preview_format;
-        break;
     case MM_CAMERA_PARM_PREVIEW_SIZES_CNT:
         *((int *)p_value) = my_obj->properties.preview_sizes_cnt;
         break;
@@ -1728,12 +1725,6 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
     case MM_CAMERA_PARM_RECORDING_HINT:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                                             CAMERA_SET_RECORDING_HINT,
-                                            sizeof(uint32_t),
-                                            p_value);
-        break;
-    case MM_CAMERA_PARM_PREVIEW_FORMAT:
-        rc = mm_camera_send_native_ctrl_cmd(my_obj,
-                                            CAMERA_SET_PARM_PREVIEW_FORMAT,
                                             sizeof(uint32_t),
                                             p_value);
         break;

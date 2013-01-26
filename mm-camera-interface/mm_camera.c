@@ -370,10 +370,6 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj, mm_camera_parm_t *p
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_RECORDING_HINT, sizeof(uint32_t), (void *)parm->p_value);
 
-    case MM_CAMERA_PARM_PREVIEW_FORMAT:
-      return mm_camera_send_native_ctrl_cmd(my_obj,
-                  CAMERA_SET_PARM_PREVIEW_FORMAT, sizeof(uint32_t), (void *)parm->p_value);
-
     case MM_CAMERA_PARM_DIS_ENABLE:
       return mm_camera_send_native_ctrl_cmd(my_obj,
                   CAMERA_SET_DIS_ENABLE, sizeof(uint32_t), (void *)parm->p_value);
@@ -553,9 +549,6 @@ int32_t mm_camera_get_parm(mm_camera_obj_t * my_obj,
         break;
     case MM_CAMERA_PARM_RAW_SNAPSHOT_FMT:
         *((cam_format_t *)parm->p_value) = my_obj->properties.pxlcode;
-        break;
-    case MM_CAMERA_PARM_PREVIEW_FORMAT:
-        *((int *)parm->p_value) = my_obj->properties.preview_format;
         break;
     case MM_CAMERA_PARM_PREVIEW_SIZES_CNT:
         *((int *)parm->p_value) = my_obj->properties.preview_sizes_cnt;

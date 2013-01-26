@@ -231,16 +231,7 @@ status_t QCameraStream::setFormat()
     switch(mExtImgMode)
     {
     case MM_CAMERA_PREVIEW:
-            /* Get mFormat */
-        ALOGE("%s, Before setting Format - %d",__func__, mFormat);
-            rc = p_mm_ops->ops->get_parm(p_mm_ops->camera_handle,
-                                MM_CAMERA_PARM_PREVIEW_FORMAT,
-                                &mFormat);
-            if (MM_CAMERA_OK != rc) {
-                ALOGE("%s: error - can't get preview format!", __func__);
-                ALOGD("%s: X", __func__);
-                return rc;
-            }
+            mFormat = mHalCamCtrl->mPreviewFormat;
             break;
         case MM_CAMERA_VIDEO:
             break;
