@@ -513,6 +513,17 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
        ALOGE("%s : Main frame is NULL", __func__);
        return ret;
     }
+   // send upperlayer callback for raw image (data or notify, not both)
+
+
+     if (mNotifyCb && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE_NOTIFY)) {
+         mNotifyCb(CAMERA_MSG_RAW_IMAGE_NOTIFY, 0, 0, mCallbackCookie);
+     }
+
+     if(mDataCb && (mMsgEnabled & CAMERA_MSG_RAW_IMAGE)) {
+         mDataCb(CAMERA_MSG_RAW_IMAGE, mSnapshotMemory.camera_memory[main_frame->buf_idx],
+                 0, NULL, mCallbackCookie);
+     }
 
     camera_jpeg_encode_cookie_t *cookie =
         (camera_jpeg_encode_cookie_t *)malloc(sizeof(camera_jpeg_encode_cookie_t));
