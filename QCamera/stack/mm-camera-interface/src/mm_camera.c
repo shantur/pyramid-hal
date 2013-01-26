@@ -1738,6 +1738,12 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             sizeof(uint32_t),
                                             p_value);
         break;
+    case MM_CAMERA_PARM_EXTERNAL_DIS_ENABLE:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                            CAMERA_SET_EXTERNAL_DIS_ENABLE,
+                                            sizeof(uint32_t),
+                                            p_value);
+        break;
     case MM_CAMERA_PARM_FULL_LIVESHOT:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                                             CAMERA_SET_FULL_LIVESHOT,
