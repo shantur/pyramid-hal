@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -346,7 +346,7 @@ int32_t mm_camera_open(mm_camera_obj_t *my_obj)
     /* launch event poll thread
      * we will add evt fd into event poll thread upon user first register for evt */
     CDBG("%s : Launch evt Poll Thread in Cam Open",__func__);
-	my_obj->evt_poll_thread.my_obj = my_obj;
+    my_obj->evt_poll_thread.my_obj = my_obj;
     mm_camera_poll_thread_launch(&my_obj->evt_poll_thread,
                                  MM_CAMERA_POLL_TYPE_EVT);
 
@@ -837,6 +837,15 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
                                             sizeof(float),
                                             p_value);
         break;
+
+    case MM_CAMERA_PARAM_ISO_AUTO_VALUE:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                        CAMERA_GET_PARAM_ISO_AUTO_VALUE,
+                                        sizeof(float),
+                                        p_value);
+    CDBG_ERROR("%s MM_CAMERA_PARAM_REAL_GAIN, rc = %d",__func__, rc );
+    break;
+
     default:
         /* needs to add more implementation */
         rc = -1;

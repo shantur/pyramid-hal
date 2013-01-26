@@ -1,5 +1,5 @@
 /*
-** Copyright (c) 2012 The Linux Foundation. All rights reserved.
+** Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
 **
 ** Not a Contribution, Apache license notifications and license are retained
 ** for attribution purposes only.
@@ -2754,9 +2754,27 @@ int QCameraHardwareInterface::getJpegRotation(void) {
 
 int QCameraHardwareInterface::getISOSpeedValue()
 {
+
+    ALOGV("%s, E",__func__);
     const char *iso_str = mParameters.get(QCameraParameters::KEY_QC_ISO_MODE);
     int iso_index = attr_lookup(iso, sizeof(iso) / sizeof(str_map), iso_str);
     int iso_value = iso_speed_values[iso_index];
+    int rc = 0;
+    if (iso_value == 0 ) { // ISO_AUTO case
+      rc = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle,
+           MM_CAMERA_PARAM_ISO_AUTO_VALUE, &iso_value);
+
+      if (rc != NO_ERROR) {
+         ALOGE("%s %d: Error getting AEC ISO AUTO Value", __func__, __LINE__);
+      }
+      for (int i = 0;i < (sizeof(iso_speed_values)/ sizeof(int)); i++) {
+          if (iso_value <= iso_speed_values[i]) {
+              iso_value = iso_speed_values[i];
+              break;
+          }
+      }
+    }
+    ALOGI("%s, iso_value - %d", __func__, iso_value);
     return iso_value;
 }
 
@@ -3092,8 +3110,8 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
     mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
                                           MM_CAMERA_PARM_HDR,&supported,&supported);
     if(mIsYUVSensor) {
-		ALOGE("%s: Skipping fr JPEG SoC", __func__);
-		return NO_ERROR;
+        ALOGE("%s: Skipping fr JPEG SoC", __func__);
+        return NO_ERROR;
      }
     if(!supported || (myMode & CAMERA_ZSL_MODE)) {
         ALOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
