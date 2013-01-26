@@ -1235,10 +1235,6 @@ int32_t mm_stream_init_bufs(mm_stream_t * my_obj)
     }
 
     my_obj->buf_num = my_obj->hal_requested_num_bufs;
-    if (mm_camera_util_get_pp_mask(my_obj->ch_obj->cam_obj) > 0) {
-        /* reserve extra one buf for pp */
-        my_obj->buf_num++;
-    }
 
     my_obj->buf =
         (mm_camera_buf_def_t*)malloc(sizeof(mm_camera_buf_def_t) * my_obj->buf_num);
