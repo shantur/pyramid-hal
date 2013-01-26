@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -469,6 +469,7 @@ typedef enum {
     MM_CAMERA_PARM_FD_INFO,
     MM_CAMERA_PARAM_EXPOSURE_TIME,
     MM_CAMERA_PARM_EXTERNAL_DIS_ENABLE,
+    MM_CAMERA_PARAM_ISO_AUTO_VALUE,
     MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
@@ -628,6 +629,7 @@ typedef enum {
   CAMERA_SET_PARM_FD_INFO,
   CAMERA_GET_PARAM_EXPOSURE_TIME,
   CAMERA_SET_EXTERNAL_DIS_ENABLE,
+  CAMERA_GET_PARAM_ISO_AUTO_VALUE,
   CAMERA_CTRL_PARM_MAX
 } cam_ctrl_type;
 
