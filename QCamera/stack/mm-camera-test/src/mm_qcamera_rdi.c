@@ -152,9 +152,12 @@ static void mm_app_rdi_notify_cb(mm_camera_super_buf_t *bufs,
 
     CDBG("%s: BEGIN - length=%d, frame idx = %d\n", __func__, frame->frame_len, frame->frame_idx);
 
-    if (rdi_op_mode == MM_CAMERA_OP_MODE_VIDEO)
+    if (rdi_op_mode == MM_CAMERA_OP_MODE_VIDEO) {
+      // for 8bpp
       dumpFrameToFile(frame,pme->dim.rdi0_width,pme->dim.rdi0_height,"rdi_p", 1,"raw");
-    else {
+      // for 10bpp
+      //  dumpFrameToFile(frame,pme->dim.rdi0_width*1.25,pme->dim.rdi0_height,"rdi_p", 1, "raw");
+    } else {
       rdi_counter++;
       if (rdi_counter <=5)
         dumpRdi(frame,pme->dim.rdi0_width,pme->dim.rdi0_height,"rdi_s", 1);
