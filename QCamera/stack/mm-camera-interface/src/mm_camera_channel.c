@@ -264,6 +264,7 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
                     cb_node->u.superbuf.num_bufs = node->num_of_bufs;
                     for (i=0; i<node->num_of_bufs; i++) {
                         cb_node->u.superbuf.bufs[i] = node->super_buf[i].buf;
+                        cb_node->u.superbuf.bufs[i]->p_mobicat_info = NULL;
                     }
                     cb_node->u.superbuf.camera_handle = ch_obj->cam_obj->my_hdl;
                     cb_node->u.superbuf.ch_id = ch_obj->my_hdl;
