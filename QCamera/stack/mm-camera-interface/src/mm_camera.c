@@ -716,7 +716,7 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
                                             sizeof(focus_distances_info_t),
                                             p_value);
         break;
-    case MM_CAMERA_PARM_QUERY_FALSH4SNAP:
+    case MM_CAMERA_PARM_QUERY_FLASH4SNAP:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                                             CAMERA_QUERY_FLASH_FOR_SNAPSHOT,
                                             sizeof(int),
@@ -1298,6 +1298,30 @@ int32_t mm_camera_prepare_snapshot(mm_camera_obj_t *my_obj,
     return rc;
 }
 
+
+int32_t mm_camera_unprepare_snapshot(mm_camera_obj_t *my_obj,
+                                   uint32_t ch_id,
+                                   uint32_t sensor_idx)
+{
+    int32_t rc = -1;
+    mm_channel_t * ch_obj =
+        mm_camera_util_get_channel_by_handler(my_obj, ch_id);
+
+    if (NULL != ch_obj) {
+        pthread_mutex_lock(&ch_obj->ch_lock);
+        pthread_mutex_unlock(&my_obj->cam_lock);
+
+        rc = mm_channel_fsm_fn(ch_obj,
+                               MM_CHANNEL_EVT_UNPREPARE_SNAPSHOT_ZSL,
+                               (void *)sensor_idx,
+                               NULL);
+    } else {
+        pthread_mutex_unlock(&my_obj->cam_lock);
+    }
+
+    return rc;
+}
+
 int32_t mm_camera_set_stream_parm(mm_camera_obj_t *my_obj,
                                   uint32_t ch_id,
                                   uint32_t s_id,
@@ -1789,14 +1813,12 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             CAMERA_SET_VISION_MODE,
                                             sizeof(int),
                                             p_value);
-
         break;
     case MM_CAMERA_PARM_VISION_AE:
         rc = mm_camera_send_native_ctrl_cmd(my_obj,
                                             CAMERA_SET_VISION_AE,
                                             sizeof(int),
                                             p_value);
-
         break;
     case MM_CAMERA_PARM_FD_INFO:{
         return mm_camera_send_native_ctrl_cmd(my_obj,
@@ -1810,6 +1832,13 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                            sizeof(mm_cam_mobicat_info_t),
                                            p_value);
         break;
+       break;
+    case MM_CAMERA_PARM_ZSL_FLASH:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                              CAMERA_SET_ZSL_FLASH,
+                                              sizeof(int),
+                                              p_value);
+       break;
     default:
         CDBG("%s: default: parm %d not supported\n", __func__, parm_type);
         break;

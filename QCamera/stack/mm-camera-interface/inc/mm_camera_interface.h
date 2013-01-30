@@ -58,6 +58,7 @@ typedef enum {
     MM_CAMERA_OPS_RAW_CAPTURE,
     MM_CAMERA_OPS_ENCODE, /*15*/
     MM_CAMERA_OPS_ZSL_STREAMING_CB,
+    MM_CAMERA_OPS_UNPREPARE_SNAPSHOT,
     /* add new above*/
     MM_CAMERA_OPS_MAX
 }mm_camera_ops_type_t;
@@ -365,6 +366,12 @@ typedef struct {
     int32_t (*prepare_snapshot) (uint32_t camera_handle,
                                  uint32_t ch_id,
                                  uint32_t sensor_idx);
+    /* unprepare hardware unlock AEC and turn off LED flash
+     * by default sensor_idx=0 */
+    int32_t (*unprepare_snapshot) (uint32_t camera_handle,
+                                 uint32_t ch_id,
+                                 uint32_t sensor_idx);
+
     /* set a parm current value of a stream */
     int32_t (*set_stream_parm) (uint32_t camera_handle,
                                 uint32_t ch_id,

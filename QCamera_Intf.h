@@ -44,7 +44,7 @@
 #define CEILING4(X)  (((X) + 0x0003) & 0xFFFC)
 #define CEILING2(X)  (((X) + 0x0001) & 0xFFFE)
 
-#define MAX_ROI 2
+#define MAX_ROI 4
 #define MAX_NUM_PARM 5
 #define MAX_NUM_OPS 2
 #define VIDEO_MAX_PLANES 8
@@ -388,7 +388,7 @@ typedef enum {
     MM_CAMERA_PARM_CAMERA_ID,
     MM_CAMERA_PARM_CAMERA_INFO,
     MM_CAMERA_PARM_PREVIEW_SIZE, /*35*/
-    MM_CAMERA_PARM_QUERY_FALSH4SNAP,
+    MM_CAMERA_PARM_QUERY_FLASH4SNAP,
     MM_CAMERA_PARM_FOCUS_DISTANCES,
     MM_CAMERA_PARM_BUFFER_INFO,
     MM_CAMERA_PARM_JPEG_ROTATION,
@@ -469,6 +469,7 @@ typedef enum {
     MM_CAMERA_PARAM_EXPOSURE_TIME,
     MM_CAMERA_PARM_EXTERNAL_DIS_ENABLE,
     MM_CAMERA_PARAM_ISO_AUTO_VALUE,
+    MM_CAMERA_PARM_ZSL_FLASH,
     MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
@@ -607,6 +608,7 @@ typedef enum {
   CAMERA_SET_3A_CONVERGENCE,
   CAMERA_SET_PREVIEW_HFR, /*120*/
   CAMERA_GET_MAX_DIMENSION,
+  CAMERA_SET_ZSL_FLASH,
   CAMERA_GET_MAX_NUM_FACES_DECT,
   CAMERA_SET_CHANNEL_STREAM,
   CAMERA_GET_CHANNEL_STREAM,
@@ -628,6 +630,7 @@ typedef enum {
   CAMERA_GET_PARAM_EXPOSURE_TIME,
   CAMERA_SET_EXTERNAL_DIS_ENABLE,
   CAMERA_GET_PARAM_ISO_AUTO_VALUE,
+  CAMERA_UNPREPARE_SNAPSHOT_ZSL,
   CAMERA_CTRL_PARM_MAX
 } cam_ctrl_type;
 
@@ -1008,11 +1011,17 @@ struct fd_roi_t {
   } d;
 };
 
+struct zsl_flash_t {
+    uint32_t frame_idx[5];
+    uint8_t valid_entires;
+};
+
 typedef struct  {
   uint32_t event_id;
   union {
     mm_camera_histo_mem_info_t histo_mem_info;
     struct fd_roi_t roi;
+    struct zsl_flash_t zsl_flash_info;
   } e;
 } mm_camera_info_event_t;
 

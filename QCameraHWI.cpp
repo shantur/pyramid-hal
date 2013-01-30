@@ -160,6 +160,7 @@ QCameraHardwareInterface(int cameraId, int mode)
                     mPreviewSizeCount(13),
                     mVideoSizeCount(0),
                     mAutoFocusRunning(false),
+	                mPrepareSnapshot(false),
                     mNeedToUnlockCaf(false),
                     mHasAutoFocusSupport(false),
                     mInitialized(false),
@@ -896,6 +897,9 @@ void  QCameraHardwareInterface::processInfoEvent(
         case MM_CAMERA_INFO_EVT_ROI:
             roiEvent(event->e.roi, app_cb);
             break;
+        case MM_CAMERA_INFO_FLASH_FRAME_IDX:
+            zslFlashEvent(event->e.zsl_flash_info, app_cb);
+            break;
         default:
             break;
     }
@@ -942,6 +946,17 @@ void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
     }
     ALOGI("processEvent: X");
     return;
+}
+
+
+void QCameraHardwareInterface::zslFlashEvent(struct zsl_flash_t evt, app_notify_cb_t *) {
+    ALOGE("%s: E", __func__);
+    ALOGE("flashEvent: numFrames = %d, frameId[0] = %d", evt.valid_entires, evt.frame_idx[0]);
+    status_t ret = mStreamSnap->takePictureZSL();
+    if (ret != MM_CAMERA_OK) {
+        ALOGE("%s: Error taking ZSL snapshot!", __func__);
+    }
+    ALOGE("%s: X", __func__);
 }
 
 bool QCameraHardwareInterface::preview_parm_config (cam_ctrl_dimension_t* dim,
@@ -1514,6 +1529,16 @@ status_t QCameraHardwareInterface::cancelPictureInternal()
 {
     ALOGI("cancelPictureInternal: E");
     status_t ret = MM_CAMERA_OK;
+
+    /* Un Prepare snapshot*/
+	if(mPrepareSnapshot==true){
+      cam_ops_action(mCameraId,
+                    TRUE,
+                    MM_CAMERA_OPS_UNPREPARE_SNAPSHOT,
+                    this);
+      mPrepareSnapshot = false;
+    }
+
     if(mCameraState != CAMERA_STATE_READY) {
         if(mStreamSnap) {
             mStreamSnap->stop();
@@ -1666,11 +1691,35 @@ status_t  QCameraHardwareInterface::takePicture()
         mStreamSnap->setFullSizeLiveshot(false);
         if (isZSLMode()) {
             if (mStreamSnap != NULL) {
-                pausePreviewForZSL();
-                ret = mStreamSnap->takePictureZSL();
-                if (ret != MM_CAMERA_OK) {
-                    ALOGE("%s: Error taking ZSL snapshot!", __func__);
-                    ret = BAD_VALUE;
+                // Query if flash is required based on lighting condition
+                int32_t flash_expected = 0;
+                if(MM_CAMERA_OK != cam_config_get_parm(mCameraId,
+                          MM_CAMERA_PARM_QUERY_FLASH4SNAP, &flash_expected)){
+                    ALOGE("%s: error: can not get flash_expected value", __func__);
+                    return BAD_VALUE;
+                }
+                ALOGV("flash_expected = %d", flash_expected);
+                if(getFlashMode() != LED_MODE_OFF && flash_expected) {
+                    // Flash is used
+                    takePicturePrepareHardware();
+
+                    //start flash LED
+                    uint32_t value = 1;
+                    if(native_set_parms(MM_CAMERA_PARM_ZSL_FLASH, sizeof(value),
+                                           (void *)&value) == false) {
+                        ALOGE("%s: error: cannot set ZSL flash", __func__);
+                        return BAD_VALUE;
+                    }
+                    pausePreviewForZSL();
+                    // takepictureZSL() will be called when the event for
+                    // zslflash is received
+                } else {
+                    //Flash is not used
+                    pausePreviewForZSL();
+                    if (MM_CAMERA_OK != mStreamSnap->takePictureZSL()) {
+                        ALOGE("%s: Error taking ZSL snapshot!", __func__);
+                        ret = BAD_VALUE;
+                    }
                 }
             }
             else {
@@ -1862,6 +1911,15 @@ status_t QCameraHardwareInterface::autoFocus()
       ALOGE("%s:Invalid AF mode (%d)", __func__, afMode);
     }
 
+    if(mPrepareSnapshot==false){
+    /* Prepare snapshot*/
+    cam_ops_action(mCameraId,
+                  TRUE,
+                  MM_CAMERA_OPS_PREPARE_SNAPSHOT,
+                  this);
+        mPrepareSnapshot = true;
+    }
+
     ALOGI("%s:AF start (mode %d)", __func__, afMode);
     if(MM_CAMERA_OK != cam_ops_action(mCameraId, TRUE,
                                     MM_CAMERA_OPS_FOCUS, &afMode)) {
@@ -1886,7 +1944,15 @@ status_t QCameraHardwareInterface::cancelAutoFocus()
 *************************************************************/
 
     mAutofocusLock.lock();
-    if(mAutoFocusRunning || mNeedToUnlockCaf) {
+    if(mPrepareSnapshot==true){
+      cam_ops_action(mCameraId,
+                    TRUE,
+                    MM_CAMERA_OPS_UNPREPARE_SNAPSHOT,
+                    this);
+      mPrepareSnapshot = false;
+    }
+
+	if(mAutoFocusRunning || mNeedToUnlockCaf) {
 
       mAutoFocusRunning = false;
       mNeedToUnlockCaf = false;
@@ -1898,6 +1964,7 @@ status_t QCameraHardwareInterface::cancelAutoFocus()
       ALOGE("%s:Af not running",__func__);
       return NO_ERROR;
     }
+
 /**************************************************************
   END MUTEX CODE
 *************************************************************/
@@ -2585,12 +2652,14 @@ bool QCameraHardwareInterface::isWDenoiseEnabled()
 void QCameraHardwareInterface::takePicturePrepareHardware()
 {
     ALOGV("%s: E", __func__);
-
     /* Prepare snapshot*/
-    cam_ops_action(mCameraId,
+    if(mPrepareSnapshot==false){
+      cam_ops_action(mCameraId,
                   TRUE,
                   MM_CAMERA_OPS_PREPARE_SNAPSHOT,
                   this);
+      mPrepareSnapshot = true;
+    }
     ALOGV("%s: X", __func__);
 }
 

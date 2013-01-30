@@ -639,6 +639,7 @@ private:
     void handleZoomEventForPreview(app_notify_cb_t *);
     void handleZoomEventForSnapshot(void);
     status_t autoFocusEvent(cam_ctrl_status_t *, app_notify_cb_t *);
+    void zslFlashEvent(struct zsl_flash_t evt, app_notify_cb_t *);
 
     void filterPictureSizes();
     bool supportsSceneDetection();
@@ -681,6 +682,7 @@ private:
     int getISOSpeedValue();
     float getExposureTime();
     int getAutoFlickerMode();
+    int getFlashMode();
     status_t setAntibanding(const QCameraParameters& params);
     status_t setEffect(const QCameraParameters& params);
     status_t setExposureCompensation(const QCameraParameters &params);
@@ -852,6 +854,7 @@ private:
     unsigned int mVideoSizeCount;
 
     bool mAutoFocusRunning;
+    bool mPrepareSnapshot;
     bool mNeedToUnlockCaf;
     bool mMultiTouch;
     bool mHasAutoFocusSupport;
