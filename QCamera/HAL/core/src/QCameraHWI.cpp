@@ -267,7 +267,7 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                     numOfSnapshotRcvd++;
                     if (numOfSnapshotExpected > 0 &&
                         numOfSnapshotExpected == numOfSnapshotRcvd) {
-                        pme->cancelPictureInternal();
+                        pme->cancelPicture();
                     }
 
                 } else{
@@ -317,7 +317,7 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                     }
                     if (numOfSnapshotExpected > 0 &&
                         numOfSnapshotExpected == numOfSnapshotRcvd) {
-                        pme->cancelPictureInternal();
+                        pme->cancelPicture();
                     }
                 }
             }
