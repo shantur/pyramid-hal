@@ -170,6 +170,7 @@ typedef struct {
     mm_camera_channel_type_t type;
     pthread_mutex_t mutex;
     uint8_t acquired;
+    int zsl_evt;
     mm_camera_buf_cb_t buf_cb[MM_CAMERA_BUF_CB_MAX];
     mm_camera_channel_attr_buffering_frame_t buffering_frame;
     union {

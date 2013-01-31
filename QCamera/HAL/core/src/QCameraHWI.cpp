@@ -73,10 +73,40 @@ void QCameraHardwareInterface::release_superbuf(mm_camera_super_buf_t* src_frame
 void QCameraHardwareInterface::superbuf_cb_routine(mm_camera_super_buf_t *recvd_frame, void *userdata)
 {
     ALOGE("%s: E",__func__);
+    status_t ret = MM_CAMERA_OK;
     QCameraHardwareInterface *pme = (QCameraHardwareInterface *)userdata;
     if(pme == NULL){
        ALOGE("%s: pme is null", __func__);
        return;
+    }
+
+    ALOGV("%s: received frame id0 :%d\n", __func__, recvd_frame->bufs[0]->frame_idx);
+    if (pme->mZsl_evt) {
+        ALOGV("%s: ZSL event arrived: %d\n", __func__, pme->mZsl_match_id);
+        if (recvd_frame->bufs[0]->frame_idx == pme->mZsl_match_id) {
+            pme->mZsl_evt = 0;
+            ALOGV("%s: Matched the frame\n", __func__);
+        } else {
+            for (int i=0; i<recvd_frame->num_bufs; i++) {
+                if (recvd_frame->bufs[i] != NULL) {
+                    pme->mCameraHandle->ops->qbuf(recvd_frame->camera_handle,
+                                                 recvd_frame->ch_id,
+                                                 recvd_frame->bufs[i]);
+                }
+
+            }
+
+            ALOGV("%s: request_super_buf:\n", __func__);
+            ret = pme->mCameraHandle->ops->request_super_buf(
+                      pme->mCameraHandle->camera_handle,
+                      pme->mChannelId,
+                      pme->getNumOfSnapshots());
+            if (MM_CAMERA_OK != ret) {
+                ALOGE("%s: error - can't start Snapshot streams!", __func__);
+                return;
+            }
+            return;
+        }
     }
 
     mm_camera_super_buf_t* frame =
@@ -972,6 +1002,8 @@ void QCameraHardwareInterface::receiveCompleteJpegPicture(camera_jpeg_data_t *jp
       ALOGE("%s : Calling upperlayer callback to store JPEG image", __func__);
       jpg_data_cb(msg_type, pme->mJpegMemory.camera_memory[0],
                   0, NULL, pme->mCallbackCookie);
+      /* Calling cancelAutoFocus to unprepare snapshot*/
+      pme->cancelAutoFocus();
    } else {
       ALOGE("%s : jpg_data_cb == NULL", __func__);
    }
@@ -2105,8 +2137,12 @@ void  QCameraHardwareInterface::processInfoEvent(
 }
 
 void QCameraHardwareInterface::zslFlashEvent(struct zsl_flash_t evt, app_notify_cb_t *) {
-    ALOGE("flashEvent: numFrames = %d, frameId[0] = %d", evt.valid_entires, evt.frame_idx[0]);
+    ALOGE("%s: numFrames = %d, frameId[0] = %d", __func__,
+        evt.valid_entires, evt.frame_idx[0]);
+
     status_t ret;
+    mZsl_match_id = evt.frame_idx[0];
+#if 0
     ret = mCameraHandle->ops->request_super_buf(
          mCameraHandle->camera_handle,
          mChannelId,
@@ -2114,6 +2150,7 @@ void QCameraHardwareInterface::zslFlashEvent(struct zsl_flash_t evt, app_notify_
     if (ret != MM_CAMERA_OK) {
         ALOGE("%s: Error taking ZSL snapshot!", __func__);
     }
+#endif
     ALOGI("%s: X", __func__);
 }
 
@@ -2955,6 +2992,16 @@ status_t  QCameraHardwareInterface::takePicture()
 		  	    }
 		  	    // request_super_buf() will be called when the event for
 		  	    // zslflash is received
+                 mZsl_evt = 1;
+                 mZsl_match_id = 0;
+                 ret = mCameraHandle->ops->request_super_buf(
+                      mCameraHandle->camera_handle,
+                      mChannelId,
+                      getNumOfSnapshots());
+                 if (MM_CAMERA_OK != ret){
+                    ALOGE("%s: error - can't start Snapshot streams!", __func__);
+                    return BAD_VALUE;
+                 }
 		  	   } else {
 		  		   //Flash is not used
 		  		   ret = mCameraHandle->ops->request_super_buf(

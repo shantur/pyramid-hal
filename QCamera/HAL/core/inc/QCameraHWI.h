@@ -1035,6 +1035,10 @@ private:
      void deleteScratchMem(mm_camera_buf_def_t * scratch_frame);
 
      void finalizeFlip();
+
+     int mZsl_evt;
+     uint32_t mZsl_match_id;
+
 };
 
 }; // namespace android

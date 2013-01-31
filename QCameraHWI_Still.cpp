@@ -1883,6 +1883,7 @@ status_t QCameraStream_Snapshot::receiveRawPicture(mm_camera_ch_data_buf_t* recv
 	}
 
     mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.main.frame, HAL_DUMP_FRM_MAIN);
+    ALOGE("%s: frame_id : %d\n", __func__, recvd_frame->snapshot.main.frame->frame_id);
     if (!isFullSizeLiveshot())
         mHalCamCtrl->dumpFrameToFile(recvd_frame->snapshot.thumbnail.frame,
                                      HAL_DUMP_FRM_THUMBNAIL);
