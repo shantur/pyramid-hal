@@ -1578,7 +1578,7 @@ QCameraHardwareInterface(int cameraId, int mode)
         ALOGE("%s : no mem for mDataProcTh", __func__);
         return;
     }
-
+    mZsl_evt = 0;
     mCameraState = CAMERA_STATE_READY;
     memset(&mHdrInfo, 0, sizeof(snap_hdr_record_t));
 
