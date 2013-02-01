@@ -784,7 +784,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
           __func__, main_stream->mFrameOffsetInfo.mp[0].len,
           main_stream->mFrameOffsetInfo.mp[0].offset);
 
-    if (thumb_frame && thumb_stream) {
+    if (thumb_frame && thumb_stream && mThumbnailWidth && mThumbnailHeight) {
         /* fill in thumbnail src img encode param */
         thumb_buf_info = &jpg_job.encode_job.encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_THUMB];
         thumb_buf_info->type = JPEG_SRC_IMAGE_TYPE_THUMB;
@@ -793,9 +793,9 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         thumb_buf_info->quality = 80;//jpeg_quality; temp hard coding
         thumb_buf_info->src_dim.width = thumb_stream->mWidth;
         thumb_buf_info->src_dim.height = thumb_stream->mHeight;
-        ALOGE("thumbnailWidth %d thumbnailHeight %d",thumbnailWidth, thumbnailHeight);
-        thumb_buf_info->out_dim.width = thumbnailWidth;
-        thumb_buf_info->out_dim.height = thumbnailHeight;
+        ALOGE("thumbnailWidth %d thumbnailHeight %d",mThumbnailWidth, mThumbnailHeight);
+        thumb_buf_info->out_dim.width = mThumbnailWidth;
+        thumb_buf_info->out_dim.height = mThumbnailHeight;
         memcpy(&thumb_buf_info->crop, &thumb_stream->mCrop, sizeof(image_crop_t));
         if (thumb_buf_info->crop.width == 0 || thumb_buf_info->crop.height == 0) {
             thumb_buf_info->crop.width = thumb_stream->mWidth;
@@ -811,7 +811,9 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         thumb_buf_info->src_image[0].offset = thumb_stream->mFrameOffsetInfo;
         ALOGD("%s : setting thumb image offset info, len = %d, offset = %d",
               __func__, thumb_stream->mFrameOffsetInfo.mp[0].len, thumb_stream->mFrameOffsetInfo.mp[0].offset);
-    }else{
+    } else {
+        src_img_num--;
+        jpg_job.encode_job.encode_parm.buf_info.src_imgs.src_img_num = src_img_num;
         ALOGE("NO thumbnail!!");
     }
 

@@ -2720,8 +2720,8 @@ status_t QCameraHardwareInterface::setJpegThumbnailSize(const QCameraParameters&
     for (unsigned int i = 0; i < thumbnail_sizes_count; ++i) {
        if (width == default_thumbnail_sizes[i].width
          && height == default_thumbnail_sizes[i].height) {
-           thumbnailWidth = width;
-           thumbnailHeight = height;
+           mThumbnailWidth = width;
+           mThumbnailHeight = height;
            mParameters.set(QCameraParameters::KEY_JPEG_THUMBNAIL_WIDTH, width);
            mParameters.set(QCameraParameters::KEY_JPEG_THUMBNAIL_HEIGHT, height);
            return NO_ERROR;
@@ -4343,9 +4343,15 @@ status_t QCameraHardwareInterface::setDimension()
     dim.picture_width = mPictureWidth;
     dim.picture_height  = mPictureHeight;
 
-    getThumbnailSize(&thumbnailWidth,&thumbnailHeight);
-    dim.ui_thumbnail_width = thumbnailWidth;
-    dim.ui_thumbnail_height = thumbnailHeight;
+    getThumbnailSize(&mThumbnailWidth,&mThumbnailHeight);
+
+    if ((mThumbnailWidth == 0) || (mThumbnailHeight == 0)) {
+        dim.ui_thumbnail_width = DEFAULT_THUMBNAIL_WIDTH;
+        dim.ui_thumbnail_height = DEFAULT_THUMBNAIL_HEIGHT;
+    } else {
+        dim.ui_thumbnail_width = mThumbnailWidth;
+        dim.ui_thumbnail_height = mThumbnailHeight;
+    }
 
     /* Reset the Main image and thumbnail formats here,
      * since they might have been changed when video size
@@ -4373,8 +4379,13 @@ status_t QCameraHardwareInterface::setDimension()
         postviewWidth = mPreviewWidth;
         postviewHeight = mPreviewHeight;
     } else {
-        postviewWidth = thumbnailWidth;
-        postviewHeight = thumbnailHeight;
+            if ((mThumbnailWidth == 0) || (mThumbnailHeight == 0)) {
+                postviewWidth = DEFAULT_THUMBNAIL_WIDTH;
+                postviewHeight = DEFAULT_THUMBNAIL_HEIGHT;
+            } else {
+                postviewWidth = mThumbnailWidth;
+                postviewHeight = mThumbnailHeight;
+            }
     }
     if (mPictureWidth < postviewWidth || mPictureHeight < postviewHeight)
     {
