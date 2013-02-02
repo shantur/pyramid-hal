@@ -287,9 +287,7 @@ static void mm_stream_buf_notify(mm_camera_super_buf_t *super_buf,
     my_obj->buf[my_obj->local_buf_idx].frame_idx = buf->frame_idx;
 
     memcpy(&my_obj->buf[my_obj->local_buf_idx].ts, &buf->ts, sizeof(buf->ts));
-
-    memcpy(&my_obj->buf[my_obj->local_buf_idx].planes, &buf->planes, buf->num_planes * sizeof(struct v4l2_plane));
-
+    memcpy(my_obj->buf[my_obj->local_buf_idx].buffer, buf->buffer, buf->frame_len);
     /* set flag to indicate buf be to sent out is from local */
     my_obj->is_local_buf = 1;
 
@@ -316,6 +314,7 @@ static void mm_stream_dispatch_app_data(mm_camera_cmdcb_t *cmd_cb,
     mm_stream_t * my_obj = (mm_stream_t *)user_data;
     mm_camera_buf_info_t* buf_info = NULL;
     mm_camera_super_buf_t super_buf;
+    mm_stream_data_cb_t buf_cb[MM_CAMERA_STREAM_BUF_CB_MAX];
 
     if (NULL == my_obj) {
         return;
@@ -338,7 +337,8 @@ static void mm_stream_dispatch_app_data(mm_camera_cmdcb_t *cmd_cb,
     super_buf.camera_handle = my_obj->ch_obj->cam_obj->my_hdl;
     super_buf.ch_id = my_obj->ch_obj->my_hdl;
 
-
+    memset(&buf_cb, 0,
+        sizeof(mm_stream_data_cb_t) * MM_CAMERA_STREAM_BUF_CB_MAX);
     pthread_mutex_lock(&my_obj->cb_lock);
     for(i = 0; i < MM_CAMERA_STREAM_BUF_CB_MAX; i++) {
         if(NULL != my_obj->buf_cb[i].cb) {
@@ -346,10 +346,9 @@ static void mm_stream_dispatch_app_data(mm_camera_cmdcb_t *cmd_cb,
                 /* if <0, means infinite CB
                  * if >0, means CB for certain times
                  * both case we need to call CB */
-                my_obj->buf_cb[i].cb(&super_buf,
-                                     my_obj->buf_cb[i].user_data);
+                memcpy(&buf_cb[i], &my_obj->buf_cb[i],
+                   sizeof(mm_stream_data_cb_t));
             }
-
             /* if >0, reduce count by 1 every time we called CB until reaches 0
              * when count reach 0, reset the buf_cb to have no CB */
             if (my_obj->buf_cb[i].cb_count > 0) {
@@ -362,6 +361,12 @@ static void mm_stream_dispatch_app_data(mm_camera_cmdcb_t *cmd_cb,
         }
     }
     pthread_mutex_unlock(&my_obj->cb_lock);
+
+    for(i = 0; i < MM_CAMERA_STREAM_BUF_CB_MAX; i++) {
+        if (buf_cb[i].cb_count != 0) {
+            buf_cb[i].cb(&super_buf,buf_cb[i].user_data);
+        }
+    }
 }
 
 /* state machine entry */
