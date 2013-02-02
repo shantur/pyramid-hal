@@ -1471,10 +1471,16 @@ QCameraHardwareInterface(int cameraId, int mode)
           ALOGE("startCamera: cam_ops_open failed: id = %d", mCameraId);
           return;
     }
-    //sync API for mm-camera-interface
-    mCameraHandle->ops->sync(mCameraHandle->camera_handle);
-
     int ret = 0;
+
+    //sync API for mm-camera-interface
+    ret = mCameraHandle->ops->sync(mCameraHandle->camera_handle);
+    if( ret ) {
+        ALOGE("Failed to sync, close the camera handle and set it to NULL ret=%d",ret);
+        mCameraHandle->ops->camera_close(mCameraHandle->camera_handle);
+        mCameraHandle = NULL;
+        return;
+    }
 
     ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_ISYUV, (void *)&mIsYUVSensor);
     ALOGD("%s, mIsYUVSensor - %d, ret - %d",__func__,mIsYUVSensor,ret);
@@ -1596,6 +1602,12 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
 {
     ALOGI("~QCameraHardwareInterface: E");
 
+    if((mCameraHandle == NULL) || (mCameraState == CAMERA_STATE_UNINITED)) {
+        ALOGE("mCamera handle or state is invalid mCameraHandle=%p,camera state=%d",
+          mCameraHandle,mCameraState);
+        ALOGI("~QCameraHardwareInterface: X - Error");
+        return;
+    }
     stopPreview();
     mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
 
