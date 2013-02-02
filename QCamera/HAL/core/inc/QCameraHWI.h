@@ -71,6 +71,9 @@ static const char TempBuffer[] = "This is temp buffer";
 #define DEFAULT_LIVESHOT_WIDTH 2592
 #define DEFAULT_LIVESHOT_HEIGHT 1944
 
+#define DEFAULT_THUMBNAIL_WIDTH 512
+#define DEFAULT_THUMBNAIL_HEIGHT 384
+
 //for histogram stats
 #define HISTOGRAM_STATS_SIZE 257
 #define NUM_HISTOGRAM_BUFFERS 3
@@ -821,7 +824,7 @@ private:
     int  mPreviewWidth, mPreviewHeight;
     int  mPictureWidth, mPictureHeight;
     int  videoWidth, videoHeight;
-    int  thumbnailWidth, thumbnailHeight;
+    int  mThumbnailWidth, mThumbnailHeight;
     int  maxSnapshotWidth, maxSnapshotHeight;
     int  mRdiWidth,mRdiHeight;
     int  mPreviewFormat;
