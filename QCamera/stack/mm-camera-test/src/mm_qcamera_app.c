@@ -134,6 +134,12 @@ void mm_app_set_dim_def(cam_ctrl_dimension_t *dim)
     dim->main_img_format = CAMERA_YUV_420_NV21;
     dim->raw_img_format = CAMERA_BAYER_SBGGR10;
     dim->rdi0_format = CAMERA_YUV_422_YUYV;
+    if(my_cam_app.cam_info->main_sensor_type == BAYER) {
+      dim->rdi0_format = CAMERA_BAYER_SBGGR10;
+    } else {
+      dim->rdi0_format = CAMERA_YUV_422_YUYV;
+    }
+
     dim->prev_padding_format = CAMERA_PAD_TO_4K;
     dim->display_luma_width = dim->display_width;
     dim->display_luma_height = dim->display_height;
@@ -559,9 +565,9 @@ int mm_stream_alloc_bufs(mm_camera_app_obj_t *pme,
         int j;
         app_bufs->bufs[i].buf_idx = i;
         app_bufs->alloc[i].len = frame_offset_info->frame_len;
-        app_bufs->alloc[i].flags =
-        (0x1 << CAMERA_ION_HEAP_ID | 0x1 << ION_IOMMU_HEAP_ID);
+        app_bufs->alloc[i].flags = ION_FLAG_CACHED;
         app_bufs->alloc[i].align = 4096;
+        app_bufs->alloc[i].heap_mask = (0x1 << CAMERA_ION_HEAP_ID);
 
         app_bufs->bufs[i].buffer = mm_camera_do_mmap_ion(pme->ionfd,
                                                          &app_bufs->alloc[i],
