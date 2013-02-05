@@ -913,9 +913,12 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
           break;
         }
     }
-     if (i < mHalCamCtrl->mPreviewMemory.buffer_count ) {
+    if (i < mHalCamCtrl->mPreviewMemory.buffer_count ) {
       err = this->mPreviewWindow->lock_buffer(this->mPreviewWindow, buffer_handle);
-     }
+      if(MM_CAMERA_OK != cam_evt_buf_done(mCameraId, &mNotifyBuffer[i])) {
+        ALOGE("BUF DONE FAILED");
+      }
+    }
   } else
       ALOGE("%s: error in dequeue_buffer, enqueue_buffer idx = %d, no free buffer now", __func__, frame->def.idx);
   /* Save the last displayed frame. We'll be using it to fill the gap between
