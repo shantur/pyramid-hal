@@ -312,6 +312,8 @@ status_t QCameraStream_record::initEncodeBuffers()
       mRecordBuf[cnt].stream_id = mStreamId;
       mRecordBuf[cnt].fd = mHalCamCtrl->mRecordingMemory.fd[cnt];
       mRecordBuf[cnt].frame_len = mFrameOffsetInfo.frame_len;
+      mRecordBuf[cnt].buffer =
+        (void *)mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->data;
     }
     ALOGE("%s : END",__func__);
     return NO_ERROR;
