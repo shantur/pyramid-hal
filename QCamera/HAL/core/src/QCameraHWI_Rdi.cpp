@@ -36,20 +36,6 @@
 
 namespace android {
 
-status_t   QCameraStream_Rdi::freeBufferRdi()
-{
-    int err = 0;
-    status_t ret = NO_ERROR;
-
-    ALOGE(" %s : E ", __FUNCTION__);
-    mHalCamCtrl->mRdiMemoryLock.lock();
-    mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mRdiMemory);
-    memset(&mHalCamCtrl->mRdiMemory, 0, sizeof(mHalCamCtrl->mRdiMemory));
-    mHalCamCtrl->mRdiMemoryLock.unlock();
-
-    ALOGI(" %s : X ",__FUNCTION__);
-    return NO_ERROR;
-}
 status_t QCameraStream_Rdi::updatePreviewMetadata(const void *yuvMetadata)
 {
     memset(mHalCamCtrl->mFace, 0, sizeof(mHalCamCtrl->mFace));
@@ -57,10 +43,7 @@ status_t QCameraStream_Rdi::updatePreviewMetadata(const void *yuvMetadata)
     mHalCamCtrl->mMetadata.number_of_faces = 0;
 
     //TODO: Fill out face information based on yuvMetadata
-
-    mHalCamCtrl->mCallbackLock.lock();
     camera_data_callback pcb = mHalCamCtrl->mDataCb;
-    mHalCamCtrl->mCallbackLock.unlock();
 
     if (pcb && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_METADATA)) {
         ALOGE("%s: Face detection RIO callback", __func__);
@@ -180,85 +163,66 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
     return ret;
 }
 
-status_t QCameraStream_Rdi::initRdiBuffers()
+status_t QCameraStream_Rdi::initStream(uint8_t no_cb_needed, uint8_t stream_on)
 {
     status_t ret = NO_ERROR;
-    int width = 0;  /* width of channel  */
-    int height = 0; /* height of channel */
-    const char *pmem_region;
-    uint8_t num_planes = 0;
-    mm_camera_frame_len_offset offset;
-    uint32_t planes[VIDEO_MAX_PLANES];
-    int i,  frame_len, y_off, cbcr_off;
 
-    ALOGD("%s:BEGIN",__func__);
-
-    width = mHalCamCtrl->mRdiWidth;
-    height = mHalCamCtrl->mRdiHeight;
-
-    mHalCamCtrl->mRdiMemoryLock.lock();
-    memset(&mHalCamCtrl->mRdiMemory, 0, sizeof(mHalCamCtrl->mRdiMemory));
-   mHalCamCtrl->mRdiMemory.buffer_count = mNumBuffers;//kRdiBufferCount;
-    frame_len = mFrameOffsetInfo.frame_len;
-    num_planes = mFrameOffsetInfo.num_planes;
-
-    for ( i = 0; i < num_planes; i++) {
-    planes[i] = mFrameOffsetInfo.mp[i].len;
+    ALOGI(" %s : E ", __FUNCTION__);
+    mNumBuffers = PREVIEW_BUFFER_COUNT;
+    if(mHalCamCtrl->isZSLMode()) {
+        if(mNumBuffers < mHalCamCtrl->getZSLQueueDepth() + 3) {
+            mNumBuffers = mHalCamCtrl->getZSLQueueDepth() + 3;
+        }
     }
-    y_off = 0;
-    cbcr_off = planes[0];
+    ret = QCameraStream::initStream(no_cb_needed, stream_on);
+end:
+    ALOGI(" %s : X ", __FUNCTION__);
+    return ret;
+}
 
-    if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mRdiMemory,
-     mHalCamCtrl->mRdiMemory.buffer_count,
-     frame_len, y_off, cbcr_off, MSM_PMEM_MAINIMG,
-     NULL,num_planes, planes) < 0) {
-              ret = NO_MEMORY;
-              return ret;
-    };
-    mHalCamCtrl->mRdiMemoryLock.unlock();
+int QCameraStream_Rdi::getBuf(mm_camera_frame_len_offset *frame_offset_info,
+                              uint8_t num_bufs,
+                              uint8_t *initial_reg_flag,
+                              mm_camera_buf_def_t  *bufs)
+{
+    int ret = 0;
+    ALOGE("%s:BEGIN",__func__);
 
-    for ( i = 0; i < num_planes; i++) {
-    planes[i] = mFrameOffsetInfo.mp[i].len;
+    if (num_bufs > mNumBuffers) {
+        mNumBuffers = num_bufs;
+    }
+    if ((mNumBuffers == 0) || (mNumBuffers > MM_CAMERA_MAX_NUM_FRAMES)) {
+        ALOGE("%s: Invalid number of buffers (=%d) requested!",
+             __func__, mNumBuffers);
+        return BAD_VALUE;
     }
 
-    ALOGD("DEBUG: buffer count = %d",mHalCamCtrl->mRdiMemory.buffer_count);
-    for (i = 0; i < mHalCamCtrl->mRdiMemory.buffer_count ; i++) {
-      int j;
-
-      mRdiBuf[i].fd = mHalCamCtrl->mRdiMemory.fd[i];
-      mRdiBuf[i].frame_len = mHalCamCtrl->mRdiMemory.alloc[i].len;
-      mRdiBuf[i].num_planes = num_planes;
-      mRdiBuf[i].buffer= (void *)mHalCamCtrl->mRdiMemory.camera_memory[i]->data;
-
-      /* Plane 0 needs to be set seperately. Set other planes
-      * in a loop. */
-      mFrameOffsetInfo.mp[0].len = mHalCamCtrl->mRdiMemory.alloc[i].len;
-
-      mRdiBuf[i].planes[0].length = mFrameOffsetInfo.mp[0].len;
-      mRdiBuf[i].planes[0].m.userptr = mRdiBuf[i].fd;
-      mRdiBuf[i].planes[0].data_offset = mFrameOffsetInfo.mp[0].offset;
-      mRdiBuf[i].planes[0].reserved[0] = 0;
-      for (j = 1; j < num_planes; j++) {
-          mRdiBuf[i].planes[j].length = mFrameOffsetInfo.mp[j].len;
-          mRdiBuf[i].planes[j].m.userptr = mRdiBuf[i].fd;
-          mRdiBuf[i].planes[j].data_offset = mFrameOffsetInfo.mp[j].offset;
-          mRdiBuf[i].planes[j].reserved[0] =
-              mRdiBuf[i].planes[j-1].reserved[0] +
-              mRdiBuf[i].planes[j-1].length;
-      }
-      ALOGD(" %s : Buffer allocated %x fd = %d, length = %d num_planes = %d,"
-            "mRdiBuf[i].planes[0].length = %d,mRdiBuf[i].planes[0].m.userptr = %d, mRdiBuf[i].planes[0].data_offset = %d",
-             __func__, &mRdiBuf[i], mRdiBuf[i].fd,mRdiBuf[i].frame_len,num_planes,mRdiBuf[i].planes[0].length,
-            mRdiBuf[i].planes[0].m.userptr,mRdiBuf[i].planes[0].data_offset);
+    memset(mRdiBuf, 0, sizeof(mRdiBuf));
+    memcpy(&mFrameOffsetInfo, frame_offset_info, sizeof(mFrameOffsetInfo));
+    ret = mHalCamCtrl->initHeapMem(&mHalCamCtrl->mRdiMemory,
+                                   mNumBuffers,
+                                   mFrameOffsetInfo.frame_len,
+                                   MSM_PMEM_MAINIMG,
+                                   &mFrameOffsetInfo,
+                                   mRdiBuf);
+    if(MM_CAMERA_OK == ret) {
+        for(int i = 0; i < num_bufs; i++) {
+            bufs[i] = mRdiBuf[i];
+            initial_reg_flag[i] = true;
+        }
     }
 
-    end:
-    if (MM_CAMERA_OK == ret ) {
-      ALOGV("%s: X - NO_ERROR ", __func__);
-      return NO_ERROR;
-    }
-    ALOGE("%s: X - BAD_VALUE ", __func__);
-    return BAD_VALUE;
+    ALOGV("%s: X - ret = %d ", __func__, ret);
+    return ret;
+}
+
+int QCameraStream_Rdi::putBuf(uint8_t num_bufs, mm_camera_buf_def_t *bufs)
+{
+    int ret = 0;
+    ALOGE(" %s : E ", __FUNCTION__);
+    ret = mHalCamCtrl->releaseHeapMem(&mHalCamCtrl->mRdiMemory);
+    ALOGI(" %s : X ",__FUNCTION__);
+    return ret;
 }
 
 void QCameraStream_Rdi::dumpFrameToFile(mm_camera_buf_def_t* newFrame)
@@ -309,26 +273,21 @@ status_t QCameraStream_Rdi::processVisionModeFrame(
         mHalCamCtrl->debugShowPreviewFPS();
     }
 
-    Mutex::Autolock lock(mStopCallbackLock);
-
-    mHalCamCtrl->mCallbackLock.lock();
-    pcb = mHalCamCtrl->mDataCb;
-    mHalCamCtrl->mCallbackLock.unlock();
-
+    if(!mActive) {
+        ALOGE("RDI Streaming Stopped. Returning callback");
+        return NO_ERROR;
+    }
     ALOGV("%s: MessageEnabled = 0x%x", __func__, mHalCamCtrl->mMsgEnabled);
 
-    if(pcb != NULL) {
+    if(mHalCamCtrl->mDataCb != NULL) {
         if (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
             msgType |=  CAMERA_MSG_PREVIEW_FRAME;
             data = mHalCamCtrl->mRdiMemory.camera_memory[frame->\
                 bufs[0]->buf_idx];
         }
-        if (msgType) {
-            mStopCallbackLock.unlock();
-            if (mActive) {
-                ALOGV("sending data callback for vision mode");
-                pcb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
-            }
+        if (mActive && msgType) {
+            ALOGV("sending data callback for vision mode");
+            mHalCamCtrl->mDataCb(msgType, data, 0, metadata, mHalCamCtrl->mCallbackCookie);
         }
     }
     return rc;
@@ -338,12 +297,17 @@ status_t QCameraStream_Rdi::processRdiFrame(
   mm_camera_super_buf_t *frame)
 {
     ALOGV("%s: E",__func__);
-    int err = 0;
     int msgType = 0;
     int i;
     status_t status = NO_ERROR, ret = NO_ERROR;
     camera_data_callback pcb;
     uint8_t * jpeg_info;
+    status_t err = NO_ERROR;
+
+    if(!mActive) {
+        ALOGE("RDI Streaming Stopped. Returning callback");
+        return NO_ERROR;
+    }
 
     if(mHalCamCtrl->mVisionModeFlag) {
         dumpFrameToFile(frame->bufs[0]);
@@ -356,13 +320,7 @@ status_t QCameraStream_Rdi::processRdiFrame(
         ALOGE("%s: Error: Received null jpeg_info", __func__);
         return BAD_VALUE;
     }
-    Mutex::Autolock lock(mStopCallbackLock);
-    if(!mActive) {
-      ALOGE("RDI Streaming Stopped. Returning callback");
-      ret = NO_ERROR;
-      qbuf_helper(frame);
-      return ret;
-    }
+
     if(mHalCamCtrl==NULL) {
       ALOGE("%s: X: HAL control object not set",__func__);
       /*Call buf done*/
@@ -370,12 +328,9 @@ status_t QCameraStream_Rdi::processRdiFrame(
       qbuf_helper(frame);
       return ret;
     }
-    mHalCamCtrl->mCallbackLock.lock();
-    pcb = mHalCamCtrl->mDataCb;
-    mHalCamCtrl->mCallbackLock.unlock();
     ALOGD("RDI2 frame idx %d", frame->bufs[0]->frame_idx);
 
-    if (pcb != NULL) {
+    if (mHalCamCtrl->mDataCb != NULL) {
        //process JPEG info and data.
         jpeg_info_t jpegInfo;
         status = processJpegData(frame->bufs[0]->buffer,
@@ -385,8 +340,8 @@ status_t QCameraStream_Rdi::processRdiFrame(
         }
         else if (status == JPEG_RECEIVED || status == RAW_RECEIVED) {
             /* set rawdata proc thread and jpeg notify thread to active state */
-            mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
-            mHalCamCtrl->mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
+            mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE,TRUE);
+            mHalCamCtrl->mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE,FALSE);
             mm_camera_super_buf_t* dup_frame =
                    (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
             if (dup_frame == NULL) {
@@ -400,7 +355,7 @@ status_t QCameraStream_Rdi::processRdiFrame(
                 mHalCamCtrl->mSuperBufQueue.enqueue(dup_frame);
                 if(status == RAW_RECEIVED){
                     ALOGD("For HDR Raw snapshot, just enqueue raw buffer and proceed ");
-                    mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
+                    mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE,FALSE);
                     return NO_ERROR;
                 }
                 ALOGV("Request_super_buf matching frame id %d ",jpegInfo.jpegFrameId);
@@ -441,6 +396,9 @@ void QCameraStream_Rdi::qbuf_helper(mm_camera_super_buf_t *frame)
                      ALOGE("%s: Buf done failed for buffer %p", __func__, frame->bufs[i]);
             }
         }
+        mHalCamCtrl->cache_ops((QCameraHalMemInfo_t *)(frame->bufs[i]->mem_info),
+                           frame->bufs[i]->buffer,
+                           ION_IOC_CLEAN_CACHES);
     }
 }
 
@@ -458,7 +416,8 @@ QCameraStream_Rdi(uint32_t CameraHandle,
                         uint8_t NumBuffers,
                         mm_camera_vtbl_t *mm_ops,
                         mm_camera_img_mode imgmode,
-                        camera_mode_t mode)
+                        camera_mode_t mode,
+                        QCameraHardwareInterface* camCtrl)
   : QCameraStream(CameraHandle,
                  ChannelId,
                  Width,
@@ -467,10 +426,9 @@ QCameraStream_Rdi(uint32_t CameraHandle,
                  NumBuffers,
                  mm_ops,
                  imgmode,
-                 mode),
-    mNumFDRcvd(0)
+                 mode,
+                 camCtrl)
 {
-    mHalCamCtrl = NULL;
     mJpegSuperBuf = NULL;
     ALOGV("%s: E", __func__);
     ALOGV("%s: X", __func__);
@@ -481,123 +439,17 @@ QCameraStream_Rdi(uint32_t CameraHandle,
 
 QCameraStream_Rdi::~QCameraStream_Rdi() {
     ALOGV("%s: E", __func__);
-    if(mActive) {
-        stop();
-    }
-    if(mInit) {
-        release();
-    }
-    mInit = false;
-    mActive = false;
+    release();
     ALOGV("%s: X", __func__);
 
 }
-// ---------------------------------------------------------------------------
-// QCameraStream_Rdi
-// ---------------------------------------------------------------------------
 
-status_t QCameraStream_Rdi::init() {
-
-    status_t ret = NO_ERROR;
-    ALOGV("%s: E", __func__);
-    return ret;
-}
-// ---------------------------------------------------------------------------
-// QCameraStream_Rdi
-// ---------------------------------------------------------------------------
-
-status_t QCameraStream_Rdi::start()
-{
-    ALOGV("%s: E", __func__);
-    status_t ret = NO_ERROR;
-    uint32_t stream_info;
-    ALOGE("%s: X", __func__);
-    return ret;
-}
-
-
-// ---------------------------------------------------------------------------
-// QCameraStream_Rdi
-// ---------------------------------------------------------------------------
-  void QCameraStream_Rdi::stop() {
-    ALOGE("%s: E", __func__);
-    int ret=MM_CAMERA_OK;
-    uint32_t stream_info;
-    uint32_t str[1];
-    str[0] = mStreamId;
-
-    ALOGE("%s : E", __func__);
-
-    ret = p_mm_ops->ops->stop_streams(mCameraHandle, mChannelId, 1, str);
-    if(ret != MM_CAMERA_OK){
-      ALOGE("%s : stop_streams failed, ret = %d", __func__, ret);
-    }
-    ret= QCameraStream::deinitStream();
-    ALOGE(": %s : De init Channel",__func__);
-    if(ret != MM_CAMERA_OK) {
-        ALOGE("%s:Deinit preview channel failed=%d\n", __func__, ret);
-    }
-
-    ALOGE("%s : X", __func__);
-  }
-// ---------------------------------------------------------------------------
-// QCameraStream_Rdi
-// ---------------------------------------------------------------------------
-  void QCameraStream_Rdi::release() {
-
+void QCameraStream_Rdi::release() {
     ALOGE("%s : BEGIN",__func__);
-    int ret=MM_CAMERA_OK,i;
-
-    if(!mInit)
-    {
-      ALOGE("%s : Stream not Initalized",__func__);
-      return;
-    }
-
-    if(mActive) {
-      this->stop();
-    }
+    streamOff(0);
+    deinitStream();
     ALOGE("%s: END", __func__);
-
-  }
-
-QCameraStream*
-QCameraStream_Rdi::createInstance(uint32_t CameraHandle,
-                        uint32_t ChannelId,
-                        uint32_t Width,
-                        uint32_t Height,
-                        uint32_t Format,
-                        uint8_t NumBuffers,
-                        mm_camera_vtbl_t *mm_ops,
-                        mm_camera_img_mode imgmode,
-                        camera_mode_t mode)
-{
-  QCameraStream* pme = new QCameraStream_Rdi(CameraHandle,
-                        ChannelId,
-                        Width,
-                        Height,
-                        Format,
-                        NumBuffers,
-                        mm_ops,
-                        imgmode,
-                        mode);
-  return pme;
 }
-// ---------------------------------------------------------------------------
-// QCameraStream_Rdi
-// ---------------------------------------------------------------------------
-
-void QCameraStream_Rdi::deleteInstance(QCameraStream *p)
-{
-  if (p){
-    ALOGV("%s: BEGIN", __func__);
-    p->release();
-    delete p;
-    p = NULL;
-    ALOGV("%s: END", __func__);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // No code beyone this line
 // ---------------------------------------------------------------------------

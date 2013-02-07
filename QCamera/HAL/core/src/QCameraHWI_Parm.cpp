@@ -1026,7 +1026,7 @@ void QCameraHardwareInterface::initDefaultParameters()
     if(mFps >= MINIMUM_FPS && mFps <= MAXIMUM_FPS) {
         mParameters.setPreviewFrameRate(mFps);
     }else{
-        mParameters.setPreviewFrameRate(DEFAULT_FPS);
+        mParameters.setPreviewFrameRate(DEFAULT_FIXED_FPS);
     }
 
     //Set Picture Format
@@ -2122,6 +2122,15 @@ status_t QCameraHardwareInterface::setSceneMode(const QCameraParameters& params)
         int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
         ALOGE("Setting Scenemode value = %d",value );
         if (value != NOT_FOUND) {
+            if((value != CAMERA_BESTSHOT_OFF ) && (mColorEffects != CAMERA_EFFECT_OFF )) {
+               int result;
+               mColorEffects = CAMERA_EFFECT_OFF;
+               native_set_parms(MM_CAMERA_PARM_EFFECT, sizeof(mColorEffects),
+                                (void *)&mColorEffects,(int *)&result);
+               if(result != MM_CAMERA_OK) {
+                  ALOGI("Camera Effect is not set as the EFFECT_NONE and result is not OK");
+               }
+            }
             /* Check to see if there was a change of scene mode */
             if(strncmp(str, oldstr, QCameraParameters::MAX_STR_LENGTH)) {
                 ALOGI("%s: valued changed from %s to %s",__func__, oldstr, str);
@@ -2199,6 +2208,7 @@ status_t QCameraHardwareInterface::setEffect(const QCameraParameters& params)
     uint8_t supported;
     const char *str = params.get(CameraParameters::KEY_EFFECT);
     int result;
+    mColorEffects = CAMERA_EFFECT_OFF;
     if (str != NULL) {
         ALOGE("Setting effect %s",str);
         int32_t value = attr_lookup(effects, sizeof(effects) / sizeof(str_map), str);
@@ -2211,6 +2221,7 @@ status_t QCameraHardwareInterface::setEffect(const QCameraParameters& params)
            }else {
                mParameters.set(QCameraParameters::KEY_EFFECT, str);
                ALOGE("Setting effect to lower HAL : %d",value);
+               mColorEffects = value;
                bool ret = native_set_parms(MM_CAMERA_PARM_EFFECT, sizeof(value),
                                            (void *)&value,(int *)&result);
                 if(result != 0) {
@@ -3123,9 +3134,7 @@ status_t QCameraHardwareInterface::setFaceDetection(const char *str)
                                     sizeof(facedetection) / sizeof(str_map), str);
         if (value != NOT_FOUND) {
             fd_set_parm_t fd_set_parm;
-            mMetaDataWaitLock.lock();
             mFaceDetectOn = value;
-            mMetaDataWaitLock.unlock();
             fd_set_parm.fd_mode = value;
             fd_set_parm.num_fd = requested_faces;
             ALOGE("%s Face detection value = %d, num_fd = %d",__func__, value, requested_faces);
@@ -4424,35 +4433,62 @@ status_t QCameraHardwareInterface::setDimension()
 
     /*End of limitation code*/
 
-    ret = mCameraHandle->ops->set_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_DIMENSION,&dim);
+	ret = mCameraHandle->ops->set_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_DIMENSION,&dim);
     if (MM_CAMERA_OK != ret) {
       ALOGE("%s X: error - can't config preview parms!", __func__);
       return BAD_VALUE;
     }
-    if(mStreamDisplay) {
-        mStreamDisplay->mFormat = dim.prev_format;
-        mStreamDisplay->mWidth = dim.display_width;
-        mStreamDisplay->mHeight = dim.display_height;
+
+	ALOGD("%s: Preview = %d X %d, Video = %d X %d, Snapshot = %d X %d,"
+		  "Thumabnail = %d X %d RAW = %d X %d",__func__,dim.display_width,dim.display_height,
+		  dim.video_width,dim.video_height,dim.picture_width,dim.picture_height,
+		  dim.ui_thumbnail_width,dim.ui_thumbnail_height,dim.raw_picture_width,
+		  dim.raw_picture_height);
+
+    if(mStreams[MM_CAMERA_PREVIEW]) {
+        mStreams[MM_CAMERA_PREVIEW]->mFormat = dim.prev_format;
+        mStreams[MM_CAMERA_PREVIEW]->mWidth = dim.display_width;
+        mStreams[MM_CAMERA_PREVIEW]->mHeight = dim.display_height;
     }
-    if(mStreamRecord) {
-        mStreamRecord->mFormat = dim.enc_format;
-        mStreamRecord->mWidth = dim.video_width;
-        mStreamRecord->mHeight = dim.video_height;
+    if(mStreams[MM_CAMERA_VIDEO]) {
+        mStreams[MM_CAMERA_VIDEO]->mFormat = dim.enc_format;
+        mStreams[MM_CAMERA_VIDEO]->mWidth = dim.video_width;
+        mStreams[MM_CAMERA_VIDEO]->mHeight = dim.video_height;
     }
-    if(mStreamSnapMain) {
-        mStreamSnapMain->mFormat = dim.main_img_format;
+    if(mStreams[MM_CAMERA_SNAPSHOT_MAIN]) {
+        mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mFormat = dim.main_img_format;
         if (!isRawSnapshot()) {
-                mStreamSnapMain->mWidth = dim.picture_width;
-                mStreamSnapMain->mHeight = dim.picture_height;
+                mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = dim.picture_width;
+                mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mHeight = dim.picture_height;
         } else {
-                mStreamSnapMain->mWidth = dim.raw_picture_width;
-                mStreamSnapMain->mHeight = dim.raw_picture_height;
+             mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = dim.raw_picture_width;
+             mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mHeight = dim.raw_picture_height;
+#if 0
+            cam_frame_resolution_t raw_res;
+
+            /* the raw_picture_width in dimension is for RDI dump.
+             * here, raw snapshot size is from camif. */
+            memset(&raw_res, 0,  sizeof(raw_res));
+            raw_res.image_mode = MSM_V4L2_EXT_CAPTURE_MODE_RAW;
+            raw_res.padding_format = CAMERA_PAD_TO_WORD;
+            ret = mCameraHandle->ops->get_parm(
+               mCameraHandle->camera_handle,
+               MM_CAMERA_PARM_FRAME_RESOLUTION,&raw_res);
+            if (MM_CAMERA_OK != ret) {
+              ALOGE("%s error - config raw snapshot parms, rc = %d",
+                    __func__, ret);
+              return BAD_VALUE;
+            }
+            mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = raw_res.width;
+            mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mHeight = raw_res.height;
+            mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mFormat = raw_res.format;
+#endif
         }
     }
-    if(mStreamSnapThumb) {
-        mStreamSnapThumb->mFormat = dim.thumb_format;
-        mStreamSnapThumb->mWidth = dim.ui_thumbnail_width;
-        mStreamSnapThumb->mHeight = dim.ui_thumbnail_height;
+    if(mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]) {
+        mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]->mFormat = dim.thumb_format;
+        mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]->mWidth = dim.ui_thumbnail_width;
+        mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]->mHeight = dim.ui_thumbnail_height;
     }
 
     memcpy(&mDimension, &dim, sizeof(mDimension));
