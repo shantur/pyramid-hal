@@ -4142,23 +4142,40 @@ void QCameraHardwareInterface::initHdrInfoForSnapshot(bool Hdr_on, int number_fr
 
 void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * cookie)
 {
-    ALOGE("%s E", __func__);
     mm_camera_super_buf_t *frame;
-    int i;
+
+    ALOGV("%s E", __func__);
     ALOGI("%s: HDR Done status (%d) received",__func__,status);
-    //Mutex::Autolock lock(mStopCallbackLock);
-    for (i =0; i < 2; i++) {
-        frame = mHdrInfo.recvd_frame[i];
-        mSuperBufQueue.enqueue(frame);
-        /* notify dataNotify thread that new super buf is avail
-        * check if it's done with current JPEG notification and
-        * a new encoding job could be conducted */
-        mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
-    }
-    /* qbuf the third frame */
+
+    /* Currently we are using 3 frame HDR, with exposures of the
+     * 3 frames stored in index 0, 1, 2 being 1x, 0.5x and 2x
+     * respectively. If application has requested to store 2
+     * frames(Normal exposure, HDR Processed), then encode and send
+     * the buffers in index 0 and 2. If not, just encode and send
+     * the buffer in index 2, which is HDR Processed to JPEG encoding.
+     * In either case, release the other buffers back. */
+
+    ALOGI("%s Send HDR processed buffer for encoding ", __func__);
+    /* Frame stored in [2] encoded by default. HDR Processed frame */
     frame = mHdrInfo.recvd_frame[2];
+    mSuperBufQueue.enqueue(frame);
+    mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
+
+    if (getNumOfSnapshots() > 1) {
+        ALOGI("%s Send 1x exposed buffer for encoding ", __func__);
+        frame = mHdrInfo.recvd_frame[0];
+        mSuperBufQueue.enqueue(frame);
+        mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE);
+    } else {
+        ALOGI("%s Release 1x exposed buffer ", __func__);
+        frame = mHdrInfo.recvd_frame[0];
+        release_superbuf(frame);
+    }
+
+    /* Release the other buffer back. */
+    frame = mHdrInfo.recvd_frame[1];
     release_superbuf(frame);
-    ALOGE("%s X", __func__);
+    ALOGV("%s X", __func__);
 }
 
 int32_t QCameraHardwareInterface::flipFrame(mm_camera_buf_def_t * frame,
