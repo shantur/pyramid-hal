@@ -1042,6 +1042,7 @@ private:
 
      int mZsl_evt;
      uint32_t mZsl_match_id;
+     bool mYUVThruVFE;
 
 };
 
