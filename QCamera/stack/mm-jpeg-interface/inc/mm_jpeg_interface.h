@@ -155,6 +155,10 @@ typedef struct {
 
     /* flag indicating if buffer is from video stream (special case for video-sized live snapshot) */
     uint8_t is_video_frame;
+
+    /* flag indicating if the thumbnail buffer is the same as the main
+       image buffer */
+    uint8_t use_mainimg_for_thumb;
 } src_image_buffer_config;
 
 typedef struct {
@@ -233,5 +237,3 @@ typedef struct {
 uint32_t jpeg_open(mm_jpeg_ops_t *ops);
 
 #endif /* MM_JPEG_INTERFACE_H_ */
-
-
