@@ -277,7 +277,7 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                 ALOGD("%s: Is Raw snap %d Is HDR Mode %d", __func__,
                       pme->isRawSnapshot(), pme->mHdrMode);
                 if (pme->isRawSnapshot()||
-                    (pme->mIsYUVSensor &&
+                    (pme->mIsYUVSensor && !pme->mYUVThruVFE &&
                      (pme->mHdrMode || pme->mTakeLowlight || pme->mBestPhoto))){
                     /*raw picture*/
                     mm_camera_super_buf_t *super_buf =
@@ -430,13 +430,13 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                     mm_camera_super_buf_t *super_buf =
                         (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     mm_camera_super_buf_t *super_buf2 = NULL;
-                    if (pme->mIsYUVSensor  && (!pme->mHdrMode ||
-                        !pme->mTakeLowlight || !pme->mBestPhoto)) {
+                    if (pme->mIsYUVSensor && !pme->mYUVThruVFE &&
+                        (!pme->mHdrMode || !pme->mTakeLowlight || !pme->mBestPhoto)) {
                         ALOGD("%s: Deque thumb super buf", __func__);
                         super_buf2 = (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     }
                     ALOGD("mIsYUVSensor %d super_buf2 %x", pme->mIsYUVSensor, (uint32_t)super_buf2);
-                    if (NULL != super_buf && (!pme->mIsYUVSensor || super_buf2 != NULL)) {
+                    if (NULL != super_buf && (pme->mYUVThruVFE || !pme->mIsYUVSensor || super_buf2 != NULL)) {
                             ALOGD("calling encode Data");
                             ret = pme->encodeData(super_buf, &current_jobId, super_buf2);
 
@@ -568,7 +568,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
     *jobId = 0;
     ALOGD("isYuv %s num_bufs %d stream id %d",(mIsYUVSensor ? "TRUE":"FALSE"),
           recvd_frame->num_bufs, recvd_frame->bufs[0]->stream_id);
-    QCameraStream *main_stream = (mIsYUVSensor ? mStreamRdi : mStreamSnapMain);
+    QCameraStream *main_stream = (mIsYUVSensor && !mYUVThruVFE) ? mStreamRdi : mStreamSnapMain;
 
     for (i = 0; i < recvd_frame->num_bufs; i++) {
         if (main_stream->mStreamId == recvd_frame->bufs[i]->stream_id) {
@@ -674,13 +674,13 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         }
         */
 
-    } else if(!mIsYUVSensor && mStreamSnapThumb->mWidth &&
-               mStreamSnapThumb->mHeight) {
+    } else if((mYUVThruVFE || !mIsYUVSensor) &&
+           mStreamSnapThumb->mWidth && mStreamSnapThumb->mHeight) {
         /*thumbnail is required, not YUV thumbnail, borrow main image*/
         thumb_stream = main_stream;
         thumb_frame = main_frame;
         src_img_num++;
-    } else if (mIsYUVSensor && recvd_frame2) {
+    } else if (mIsYUVSensor && !mYUVThruVFE && recvd_frame2) {
         thumb_stream = mStreamDisplay;
         ALOGD("thumbnail stream num_bufs %d stream id %d", recvd_frame2->num_bufs,thumb_stream->mStreamId );
         for (i = 0; i < recvd_frame2->num_bufs; i++) {
@@ -744,7 +744,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
     ALOGE("mPictureHeight %d mPictureWidth %d",mPictureHeight, mPictureWidth);
     main_buf_info->quality = jpeg_quality;
 
-    if (mIsYUVSensor) {
+    if (mIsYUVSensor && !mYUVThruVFE) {
         jpg_job.encode_job.encode_parm.exif_data = NULL;
         jpg_job.encode_job.encode_parm.exif_numEntries = 0;
         uint32_t *jpegLength = (uint32_t *)((uint8_t*)main_frame->buffer+0x13);
@@ -897,7 +897,7 @@ void QCameraHardwareInterface::receiveRawPicture(mm_camera_super_buf_t* recvd_fr
      camera_notify_callback notifyCb;
      camera_data_callback dataCb = NULL;
 
-     QCameraHalHeap_t *sourceMemory = (pme->mIsYUVSensor ? &pme->mRdiMemory : &pme->mSnapshotMemory);
+     QCameraHalHeap_t *sourceMemory = (pme->mIsYUVSensor && !pme->mYUVThruVFE) ? &pme->mRdiMemory : &pme->mSnapshotMemory;
      ALOGV("%s: is a raw snapshot", __func__);
      /*RAW snapshot*/
      if (!pme->mShutterSoundPlayed) {
@@ -919,7 +919,7 @@ void QCameraHardwareInterface::receiveRawPicture(mm_camera_super_buf_t* recvd_fr
          pme->releaseHeapMem(sourceMemory);
          return;
      }
- if(!pme->mIsYUVSensor){
+     if (pme->mYUVThruVFE || !pme->mIsYUVSensor){
        if (sourceMemory->camera_memory[buf_index]->data != NULL) {
            memcpy(pme->mRawMemory.camera_memory[buf_index]->data, sourceMemory->camera_memory[buf_index]->data, sourceMemory->size);
        } else {
@@ -1065,7 +1065,8 @@ int32_t QCameraHardwareInterface::createRdi()
         numBuf = 7;
     } else {
         mRdiWidth = 2048;
-        if (mIsYUVSensor && (mHdrMode || mTakeLowlight || mBestPhoto)) {
+        if (mIsYUVSensor && !mYUVThruVFE &&
+            (mHdrMode || mTakeLowlight || mBestPhoto)) {
             ALOGE("%s mHdrMode = %d Allocating 26MB buffer",
                 __FUNCTION__, mHdrMode);
             mRdiWidth = 6341;//2048;
@@ -1478,6 +1479,9 @@ QCameraHardwareInterface(int cameraId, int mode)
     property_get("persist.camera.hal.dis", value, "0");
     mDisEnabled = atoi(value);
 
+    property_get("persist.debug.enable.yuvsensor", value, "0");
+    mYUVThruVFE = atoi(value);
+
     memset(&mem_hooks,0,sizeof(mm_camear_mem_vtbl_t));
 
     mem_hooks.user_data=this;
@@ -1507,7 +1511,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     if ( !ret ) {
         ALOGE("Failed to get the camera sensor id - %d",ret);
         }
-    if (mIsYUVSensor)
+    if (mIsYUVSensor && !mYUVThruVFE)
         rdiMode = STREAM_RAW;
     mChannelId=mCameraHandle->ops->ch_acquire(mCameraHandle->camera_handle);
     if(mChannelId<=0)
@@ -1577,7 +1581,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     }
     // Rdi: used for yuv sensor or vision mode only
     // for vision mode, we create RDI at startPreview2
-    if (mIsYUVSensor) {
+    if (mIsYUVSensor && !mYUVThruVFE) {
         result = createRdi();
         if (result != MM_CAMERA_OK) {
             ALOGE("%s X: Failed to create Rdi object", __func__);
@@ -1676,7 +1680,7 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
         QCameraStream_SnapshotThumbnail::deleteInstance (mStreamSnapThumb);
         mStreamSnapThumb = NULL;
     }
-    if(mIsYUVSensor && mStreamRdi) {
+    if(mIsYUVSensor && !mYUVThruVFE && mStreamRdi) {
         QCameraStream_Rdi::deleteInstance(mStreamRdi);
         mStreamRdi = NULL;
     }
@@ -2242,7 +2246,7 @@ status_t QCameraHardwareInterface::startPreview()
     case QCAMERA_HAL_TAKE_PICTURE:
         mRdiWidth = 2048;
         mRdiHeight = 4101;
-        if(mIsYUVSensor &&
+        if(mIsYUVSensor && !mYUVThruVFE &&
            (mHdrMode || mTakeLowlight || mBestPhoto || isRawSnapshot())){
         if(mPreviewState ==QCAMERA_HAL_TAKE_PICTURE) {
                 ALOGD("HDR/LLS/Raw Bayer Mode on: Stop RDI2");
@@ -2350,7 +2354,7 @@ status_t QCameraHardwareInterface::startPreview2()
 
     mStreamSnapMain->mNumBuffers = 1;
     mStreamSnapThumb->mNumBuffers = 1;
-    if(isZSLMode() && !mIsYUVSensor) {
+    if(isZSLMode() && (mYUVThruVFE || !mIsYUVSensor)) {
         ALOGE("<DEBUGMODE>In ZSL mode");
         ALOGE("Setting OP MODE to MM_CAMERA_OP_MODE_ZSL");
         mm_camera_op_mode_type_t op_mode=MM_CAMERA_OP_MODE_ZSL;
@@ -2435,7 +2439,7 @@ status_t QCameraHardwareInterface::startPreview2()
             ALOGE("%s: X :set mode MM_CAMERA_OP_MODE_VIDEO err=%d\n", __func__, ret);
             return BAD_VALUE;
         }
-        if(mIsYUVSensor) {
+        if(mIsYUVSensor && !mYUVThruVFE) {
             //TODO: Uncomment this for on-the-fly takePicture
             ret = mStreamRdi->initStream(FALSE, TRUE);
             if (MM_CAMERA_OK != ret) {
@@ -2457,26 +2461,25 @@ status_t QCameraHardwareInterface::startPreview2()
                  mStreamDisplay->deinitStream();
                  return BAD_VALUE;
             }
-        if(!mIsYUVSensor)
-            if (!canTakeFullSizeLiveshot()) {
-                ALOGE("%s Azam",__func__);
-                // video-size live snapshot, config same as video
-                mStreamSnapMain ->mFormat = mStreamRecord->mFormat;
-                mStreamSnapMain ->mWidth = mStreamRecord->mWidth;
-                mStreamSnapMain ->mHeight = mStreamRecord->mHeight;
-                ret = mStreamSnapMain->initStream(FALSE, FALSE);
-            } else {
-                ret = mStreamSnapMain->initStream(FALSE, TRUE);
+            if(mYUVThruVFE || !mIsYUVSensor) {
+                if (!canTakeFullSizeLiveshot()) {
+                    // video-size live snapshot, config same as video
+                    mStreamSnapMain ->mFormat = mStreamRecord->mFormat;
+                    mStreamSnapMain ->mWidth = mStreamRecord->mWidth;
+                    mStreamSnapMain ->mHeight = mStreamRecord->mHeight;
+                    ret = mStreamSnapMain->initStream(FALSE, FALSE);
+                } else {
+                    ret = mStreamSnapMain->initStream(FALSE, TRUE);
+                }
+                if (MM_CAMERA_OK != ret){
+                     ALOGE("%s: error - can't init Snapshot Main!", __func__);
+                     mStreamDisplay->deinitStream();
+                     mStreamRecord->deinitStream();
+                     return BAD_VALUE;
+                }
             }
-            if (MM_CAMERA_OK != ret){
-                 ALOGE("%s: error - can't init Snapshot Main!", __func__);
-                 mStreamDisplay->deinitStream();
-                 mStreamRecord->deinitStream();
-                 return BAD_VALUE;
-            }
-
         }
-    if(mIsYUVSensor) {
+    if(mIsYUVSensor && !mYUVThruVFE) {
         /*add bundle*/
         stream[0]=mStreamDisplay->mStreamId;
         stream[1]=mStreamRdi->mStreamId;
@@ -2509,7 +2512,7 @@ status_t QCameraHardwareInterface::startPreview2()
             return BAD_VALUE;
         }
     }
-    if (mIsYUVSensor) {
+    if (mIsYUVSensor && !mYUVThruVFE) {
         ret = mStreamRdi->streamOn();
         if (MM_CAMERA_OK != ret) {
             ALOGE("%s: X: error - cannot start rdi stream!", __func__);
@@ -2596,7 +2599,7 @@ void QCameraHardwareInterface::stopPreviewInternal()
         ALOGE("mStreamDisplay is null");
         return;
     }
-    if(isZSLMode() && !mIsYUVSensor){
+    if(isZSLMode() && (mYUVThruVFE || !mIsYUVSensor)) {
         mStreamDisplay->streamOff(0);
         mStreamSnapMain->streamOff(0);
         ret = mCameraHandle->ops->destroy_stream_bundle(mCameraHandle->camera_handle,mChannelId);
@@ -2605,7 +2608,7 @@ void QCameraHardwareInterface::stopPreviewInternal()
         }
     }else{
         mStreamDisplay->streamOff(0);
-        if(mIsYUVSensor) {
+        if(mIsYUVSensor && !mYUVThruVFE) {
             mStreamRdi->streamOff(0);
             mStreamRdi->deinitStream();
         }
@@ -2615,7 +2618,7 @@ void QCameraHardwareInterface::stopPreviewInternal()
     if (mStreamSnapMain)
         mStreamSnapMain->deinitStream();
     mStreamDisplay->deinitStream();
-    if(mIsYUVSensor) {
+    if(mIsYUVSensor && !mYUVThruVFE) {
         ret = mCameraHandle->ops->destroy_stream_bundle(mCameraHandle->camera_handle, mChannelId);
         if(ret != MM_CAMERA_OK) {
             ALOGE("%s : destroy_stream_bundle Error",__func__);
@@ -2911,10 +2914,10 @@ status_t QCameraHardwareInterface::cancelPictureInternal()
     }
 
 
-    if (isZSLMode() && !mIsYUVSensor) {
+    if (isZSLMode() && (mYUVThruVFE || !mIsYUVSensor)) {
         ret = mCameraHandle->ops->cancel_super_buf_request(mCameraHandle->camera_handle, mChannelId);
     }
-    else if(!mIsYUVSensor){
+    else if(mYUVThruVFE || !mIsYUVSensor){
         ALOGE("%s : destroy_stream_bundle of snapshot & thumbnail",__func__);
         mStreamSnapMain->streamOff(0);
         mStreamSnapThumb->streamOff(0);
@@ -3000,12 +3003,12 @@ status_t  QCameraHardwareInterface::takePicture()
     int num_streams = 0;
     Mutex::Autolock lock(mLock);
 
-    if(mIsYUVSensor && (mHdrMode || mTakeLowlight)) {
+    if(mIsYUVSensor && !mYUVThruVFE && (mHdrMode || mTakeLowlight)) {
         ALOGV("%s: Restart only RDI2 stream for special modes", __func__);
         ret = restartRdiForHdr();
     }
 
-    if(!mIsYUVSensor) {
+    if(mYUVThruVFE || !mIsYUVSensor) {
         /* set rawdata proc thread and jpeg notify thread to active state */
         mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
         mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE);
@@ -3013,7 +3016,7 @@ status_t  QCameraHardwareInterface::takePicture()
     switch(mPreviewState) {
     case QCAMERA_HAL_PREVIEW_STARTED:
         {
-            if (isZSLMode() && !mIsYUVSensor){
+            if (isZSLMode() && (mYUVThruVFE || !mIsYUVSensor)){
 		  	  int32_t flash_expected = 0;
 		  	  ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_QUERY_FLASH4SNAP, (void *)&flash_expected);
 		  	  if (MM_CAMERA_OK != ret) {
@@ -3057,7 +3060,7 @@ status_t  QCameraHardwareInterface::takePicture()
 		  		   }
 		  	   }
 		  	   return ret;
-		    }else if(mIsYUVSensor) {
+		    }else if(mIsYUVSensor && !mYUVThruVFE) {
                 ALOGE("Trigger capture cmd: E");
                 /* Place Holder for Native Call */
                 return ret;
@@ -3175,7 +3178,7 @@ status_t  QCameraHardwareInterface::takePicture()
         break;
     case QCAMERA_HAL_RECORDING_STARTED:
         /* if livesnapshot stream is previous on, need to stream off first */
-        if(mIsYUVSensor) {
+        if(mIsYUVSensor && !mYUVThruVFE) {
                     ALOGE("Trigger live shot capture cmd: E");
                     /* Place Holder for Native Call */
                     ALOGI("takePicture: X");

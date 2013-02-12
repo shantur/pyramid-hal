@@ -3145,7 +3145,7 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
 
     mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
                                           MM_CAMERA_PARM_HDR,&supported,&supported);
-    if(mIsYUVSensor) {
+    if(mIsYUVSensor && !mYUVThruVFE) {
         ALOGE("%s: Skipping fr JPEG SoC", __func__);
         return NO_ERROR;
      }
@@ -4396,7 +4396,8 @@ status_t QCameraHardwareInterface::setDimension()
 
     //VFE output1 shouldn't be greater than VFE output2.
     if( ((dim.display_width > dim.video_width) ||
-        (dim.display_height > dim.video_height))&& !mIsYUVSensor) {
+        (dim.display_height > dim.video_height)) &&
+        (mYUVThruVFE || !mIsYUVSensor) ) {
         //Set preview sizes as record sizes.
         dim.display_width = dim.video_width;
         dim.display_height = dim.video_height;

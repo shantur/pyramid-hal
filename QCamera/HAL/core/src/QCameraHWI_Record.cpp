@@ -188,8 +188,8 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
     if (UNLIKELY(mDebugFps)) {
         debugShowVideoFPS();
     }
-    ALOGE("DEBUG4:%d",frame->bufs[0]->stream_id);
-    ALOGE("<DEBUG4>: Timestamp: %ld %ld",frame->bufs[0]->ts.tv_sec,frame->bufs[0]->ts.tv_nsec);
+    ALOGV("DEBUG4:%d",frame->bufs[0]->stream_id);
+    ALOGV("<DEBUG4>: Timestamp: %ld %ld",frame->bufs[0]->ts.tv_sec,frame->bufs[0]->ts.tv_nsec);
     mHalCamCtrl->dumpFrameToFile(frame->bufs[0], HAL_DUMP_FRM_VIDEO);
     mHalCamCtrl->mCallbackLock.lock();
     camera_data_timestamp_callback rcb = mHalCamCtrl->mDataCbTimestamp;
@@ -198,13 +198,13 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
 	nsecs_t timeStamp = nsecs_t(frame->bufs[0]->ts.tv_sec)*1000000000LL + \
                       frame->bufs[0]->ts.tv_nsec;
 
-  ALOGE("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
+  ALOGV("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
   mRecordedFrames[frame->bufs[0]->buf_idx] = *frame;
 
   if (mHalCamCtrl->mStoreMetaDataInFrame) {
     mStopCallbackLock.unlock();
     if(mActive && (rcb != NULL) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
-      ALOGE("Calling video callback:%d",frame->bufs[0]->buf_idx);
+      ALOGV("Calling video callback:%d",frame->bufs[0]->buf_idx);
       rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
               mHalCamCtrl->mRecordingMemory.metadata_memory[frame->bufs[0]->buf_idx],
               0, mHalCamCtrl->mCallbackCookie);
@@ -212,7 +212,7 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
   } else {
     mStopCallbackLock.unlock();
     if(mActive && (rcb != NULL) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
-      ALOGE("Calling video callback2");
+      ALOGV("Calling video callback2");
       rcb(timeStamp, CAMERA_MSG_VIDEO_FRAME,
               mHalCamCtrl->mRecordingMemory.camera_memory[frame->bufs[0]->buf_idx],
               0, mHalCamCtrl->mCallbackCookie);
@@ -332,7 +332,7 @@ void QCameraStream_record::releaseRecordingFrame(const void *opaque)
         if(mHalCamCtrl->mRecordingMemory.metadata_memory[cnt] &&
                 mHalCamCtrl->mRecordingMemory.metadata_memory[cnt]->data == opaque) {
             /* found the match */
-            ALOGE("Releasing video frames:%d",cnt);
+            ALOGV("Releasing video frames:%d",cnt);
             if(MM_CAMERA_OK != p_mm_ops->ops->qbuf(mCameraHandle,mChannelId, mRecordedFrames[cnt].bufs[0]))
                 ALOGE("%s : Buf Done Failed",__func__);
             ALOGV("%s : END",__func__);
@@ -342,7 +342,7 @@ void QCameraStream_record::releaseRecordingFrame(const void *opaque)
         if(mHalCamCtrl->mRecordingMemory.camera_memory[cnt] &&
                 mHalCamCtrl->mRecordingMemory.camera_memory[cnt]->data == opaque) {
             /* found the match */
-            ALOGE("Releasing video frames2");
+            ALOGV("Releasing video frames2");
             if(MM_CAMERA_OK != p_mm_ops->ops->qbuf(mCameraHandle,mChannelId, mRecordedFrames[cnt].bufs[0]))
                 ALOGE("%s : Buf Done Failed",__func__);
             ALOGV("%s : END",__func__);
