@@ -515,6 +515,12 @@ int32_t mm_channel_fsm_fn_stopped(mm_channel_t *my_obj,
             rc = mm_channel_close_repro_isp(my_obj, repro_handle);
         }
         break;
+    case MM_CHANNEL_EVT_ABORT_FOCUS:
+        {
+            uint32_t sensor_idx = (uint32_t)in_val;
+            rc = mm_channel_abort_focus(my_obj, sensor_idx);
+        }
+        break;
     default:
         CDBG_ERROR("%s: invalid state (%d) for evt (%d)",
                    __func__, my_obj->state, evt);

@@ -3061,15 +3061,16 @@ status_t  QCameraHardwareInterface::takePicture()
                 ALOGE("Trigger capture cmd: E");
                 /* Place Holder for Native Call */
                 return ret;
-		    }
-            /* stop preview */
-            pausePreviewForSnapshot();
-            /*Currently concurrent streaming is not enabled for snapshot
-            So in snapshot mode, we turn of the RDI channel and configure backend
-            for only pixel stream*/
+	    }
 
             /*prepare snapshot, e.g LED*/
             takePicturePrepareHardware( );
+            /* stop preview */
+            pausePreviewForSnapshot();
+           /*Currently concurrent streaming is not enabled for snapshot
+             So in snapshot mode, we turn of the RDI channel and configure backend
+             for only pixel stream*/
+
             /* There's an issue where we have a glimpse of corrupted data between
                a time we stop a preview and display the postview. It happens because
                when we call stopPreview we deallocate the preview buffers hence overlay
