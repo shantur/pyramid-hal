@@ -124,13 +124,12 @@ int32_t QCameraStream::streamOff(bool isAsyncCmd)
               __func__,mStreamId);
         return rc;
     }
-
+	mActive = false;
     rc = p_mm_ops->ops->stop_streams(mCameraHandle,
                               mChannelId,
                               1,
                               &mStreamId);
 
-    mActive = false;
     ALOGD("%s: X, mActive = %d, mInit = %d, streamid = %d, image_mode = %d",
           __func__, mActive, mInit, mStreamId, mExtImgMode);
     return rc;
@@ -210,16 +209,6 @@ status_t QCameraStream::deinitStream()
     return NO_ERROR;
 }
 
-status_t QCameraStream::setMode(int enable) {
-  ALOGE("%s: E, mActive = %d, streamid = %d, image_mode = %d",__func__, mActive, mStreamId, mExtImgMode);
-  if (enable) {
-      myMode = (camera_mode_t)(myMode | CAMERA_ZSL_MODE);
-  } else {
-      myMode = (camera_mode_t)(myMode & ~CAMERA_ZSL_MODE);
-  }
-  return NO_ERROR;
-}
-
 status_t QCameraStream::setFormat()
 {
     int rc = MM_CAMERA_OK;
@@ -290,28 +279,28 @@ QCameraStream::QCameraStream (){
 }
 
 QCameraStream::QCameraStream(uint32_t CameraHandle,
-                        uint32_t ChannelId,
-                        uint32_t Width,
-                        uint32_t Height,
-                        uint32_t Format,
-                        uint8_t NumBuffers,
-                        mm_camera_vtbl_t *mm_ops,
-                        mm_camera_img_mode imgmode,
-                        camera_mode_t mode)
-              :myMode(mode)
+                             uint32_t ChannelId,
+                             uint32_t Width,
+                             uint32_t Height,
+                             uint32_t Format,
+                             uint8_t NumBuffers,
+                             mm_camera_vtbl_t *mm_ops,
+                             mm_camera_img_mode imgmode,
+                             camera_mode_t mode,
+                             QCameraHardwareInterface* camCtrl)
+              : mCameraHandle(CameraHandle),
+                mChannelId(ChannelId),
+                mWidth(Width),
+                mHeight(Height),
+                mFormat(Format),
+                mNumBuffers(NumBuffers),
+                p_mm_ops(mm_ops),
+                mExtImgMode(imgmode),
+                mHalCamCtrl(camCtrl)
 {
     mInit = false;
     mActive = false;
 
-    mCameraHandle=CameraHandle;
-    mChannelId=ChannelId;
-    mWidth=Width;
-    mHeight=Height;
-
-    mFormat=Format;
-    mNumBuffers=NumBuffers;
-    p_mm_ops=mm_ops;
-    mExtImgMode=imgmode;
     mStreamId = 0;
     m_flag_no_cb = FALSE;
     m_flag_stream_on = TRUE;
@@ -320,17 +309,42 @@ QCameraStream::QCameraStream(uint32_t CameraHandle,
     memset(&mCrop, 0, sizeof(mm_camera_rect_t));
 }
 
-QCameraStream::~QCameraStream () {;}
+QCameraStream::~QCameraStream () {
+}
 
 void QCameraStream::release() {
     return;
 }
 
-void QCameraStream::setHALCameraControl(QCameraHardwareInterface* ctrl) {
+int32_t QCameraStream::setCrop()
+{
+    mm_camera_rect_t v4l2_crop;
+    int32_t rc = 0;
+    memset(&v4l2_crop,0,sizeof(v4l2_crop));
 
-    /* provide a frame data user,
-    for the  queue monitor thread to call the busy queue is not empty*/
-    mHalCamCtrl = ctrl;
+    if(!mActive) {
+        ALOGE("%s: Stream:%d is not active", __func__, mStreamId);
+        return -1;
+    }
+
+    rc = p_mm_ops->ops->get_stream_parm(mCameraHandle,
+                                   mChannelId,
+                                   mStreamId,
+                                   MM_CAMERA_STREAM_CROP,
+                                   &v4l2_crop);
+    ALOGI("%s: Crop info received: %d, %d, %d, %d ",
+                                 __func__,
+                                 v4l2_crop.left,
+                                 v4l2_crop.top,
+                                 v4l2_crop.width,
+                                 v4l2_crop.height);
+    if (rc == 0) {
+        mCrop.offset_x = v4l2_crop.left;
+        mCrop.offset_y = v4l2_crop.top;
+        mCrop.width = v4l2_crop.width;
+        mCrop.height = v4l2_crop.height;
+    }
+    return rc;
 }
 
 }; // namespace android

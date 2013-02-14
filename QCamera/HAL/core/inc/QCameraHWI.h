@@ -149,41 +149,45 @@ typedef enum {
 #define QCAMERA_HAL_RECORDING_STARTED  3
 #define QCAMERA_HAL_TAKE_PICTURE       4
 
+typedef struct {
+    int                     fd;
+    int                     main_ion_fd;
+    struct ion_handle *     handle;
+    uint32_t                size;
+} QCameraHalMemInfo_t;
 
 typedef struct {
      int                     buffer_count;
-	 buffer_handle_t        *buffer_handle[MM_CAMERA_MAX_NUM_FRAMES];
-	 struct private_handle_t *private_buffer_handle[MM_CAMERA_MAX_NUM_FRAMES];
-	 int                     stride[MM_CAMERA_MAX_NUM_FRAMES];
-	 uint32_t                addr_offset[MM_CAMERA_MAX_NUM_FRAMES];
-	 uint8_t                 local_flag[MM_CAMERA_MAX_NUM_FRAMES];
-	 camera_memory_t        *camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
-     int                     main_ion_fd[MM_CAMERA_MAX_NUM_FRAMES];
-     struct ion_fd_data      ion_info_fd[MM_CAMERA_MAX_NUM_FRAMES];
+     buffer_handle_t        *buffer_handle[MM_CAMERA_MAX_NUM_FRAMES];
+     struct private_handle_t *private_buffer_handle[MM_CAMERA_MAX_NUM_FRAMES];
+     int                     stride[MM_CAMERA_MAX_NUM_FRAMES];
+     uint32_t                addr_offset[MM_CAMERA_MAX_NUM_FRAMES];
+     uint8_t                 local_flag[MM_CAMERA_MAX_NUM_FRAMES];
+     camera_memory_t        *camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
+     QCameraHalMemInfo_t     mem_info[MM_CAMERA_MAX_NUM_FRAMES];
 } QCameraHalMemory_t;
 
 
 typedef struct {
      int                     buffer_count;
+     int                     local_flag[MM_CAMERA_MAX_NUM_FRAMES];
+     camera_memory_t*        camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
+     camera_memory_t*        metadata_memory[MM_CAMERA_MAX_NUM_FRAMES];
+     QCameraHalMemInfo_t     mem_info[MM_CAMERA_MAX_NUM_FRAMES];
+
+     //Not used.. Need to remove
      uint32_t                size;
      uint32_t                y_offset;
      uint32_t                cbcr_offset;
-	 int                     fd[MM_CAMERA_MAX_NUM_FRAMES];
-	 int                     local_flag[MM_CAMERA_MAX_NUM_FRAMES];
-	 camera_memory_t*        camera_memory[MM_CAMERA_MAX_NUM_FRAMES];
-     camera_memory_t*        metadata_memory[MM_CAMERA_MAX_NUM_FRAMES];
+     int                     fd[MM_CAMERA_MAX_NUM_FRAMES];
      int main_ion_fd[MM_CAMERA_MAX_NUM_FRAMES];
      struct ion_allocation_data alloc[MM_CAMERA_MAX_NUM_FRAMES];
      struct ion_fd_data ion_info_fd[MM_CAMERA_MAX_NUM_FRAMES];
 } QCameraHalHeap_t;
 
 typedef struct {
-     camera_memory_t*  camera_memory[3];
-     int main_ion_fd[3];
-     struct ion_allocation_data alloc[3];
-     struct ion_fd_data ion_info_fd[3];
-     int fd[3];
-     int size;
+     camera_memory_t *       camera_memory[NUM_HISTOGRAM_BUFFERS];
+     QCameraHalMemInfo_t     mem_info[NUM_HISTOGRAM_BUFFERS];
      int active;
 } QCameraStatHeap_t;
 
@@ -200,6 +204,7 @@ typedef struct {
   unsigned int             index;
   camera_frame_metadata_t *metadata;
   void                    *cookie;
+  void                    *user_data;
 } argm_data_cb_t;
 
 typedef struct {
@@ -280,18 +285,18 @@ namespace android {
 
 class QCameraStream;
 
+typedef void (*release_data_fn)(void* data, void *user_data);
+
 class QCameraQueue {
 public:
     QCameraQueue();
+    QCameraQueue(release_data_fn data_rel_fn, void *user_data);
     virtual ~QCameraQueue();
     bool enqueue(void *data);
+    bool pri_enqueue(void *data);
     void flush();
     void* dequeue();
     int getSize();
-private:
-    void init();
-    void deinit();
-
 private:
     typedef struct {
         struct cam_list list;
@@ -301,6 +306,8 @@ private:
     camera_q_node mhead; /* dummy head */
     uint32_t msize;
     pthread_mutex_t mlock;
+    release_data_fn mdata_rel_fn;
+    void *muser_data;
 };
 
 typedef enum
@@ -333,7 +340,7 @@ public:
 
     int32_t launch(void *(*start_routine)(void *), void* user_data);
     int32_t exit();
-    int32_t sendCmd(camera_cmd_type_t cmd, uint8_t sync_cmd);
+    int32_t sendCmd(camera_cmd_type_t cmd, uint8_t sync_cmd, uint8_t priority);
     camera_cmd_type_t getCmd();
 
     QCameraQueue cmd_queue;      /* cmd queue */
@@ -531,8 +538,8 @@ public:
     int dump(int fd);
     void         getPictureSize(int *picture_width, int *picture_height) const;
     void         getPreviewSize(int *preview_width, int *preview_height) const;
-	void         getVideoSize(int *video_width,int *video_height) const;
-	void         getThumbnailSize(int *thumb_width, int *thumb_height) const;
+    void         getVideoSize(int *video_width,int *video_height) const;
+    void         getThumbnailSize(int *thumb_width, int *thumb_height) const;
     cam_format_t getPreviewFormat() const;
     cam_pad_format_t getPreviewPadding() const;
     void processEvent(mm_camera_event_t *);
@@ -554,25 +561,19 @@ public:
     int getZSLBackLookCount(void) const;
 
     ~QCameraHardwareInterface();
-    int initHeapMem( QCameraHalHeap_t *heap,
-                            int num_of_buf,
-                            int buf_len,
-                            int y_off,
-                            int cbcr_off,
-                            int pmem_type,
-                            mm_camera_buf_def_t *buf_def,
-                            uint8_t num_planes,
-                            uint32_t *planes);
+     int initHeapMem(QCameraHalHeap_t *heap,
+                    int num_of_buf,
+                    uint32_t buf_len,
+                    int pmem_type,
+                    mm_camera_frame_len_offset* offset,
+                    mm_camera_buf_def_t *buf_def);
     int releaseHeapMem( QCameraHalHeap_t *heap);
-    int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt,
-      int ion_type);
-    int deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt);
+    int allocate_ion_memory(QCameraHalMemInfo_t * mem_info, int ion_type);
+    int deallocate_ion_memory(QCameraHalMemInfo_t *mem_info);
 
-    int allocate_ion_memory(QCameraStatHeap_t *p_camera_memory, int cnt,
-      int ion_type);
-    int deallocate_ion_memory(QCameraStatHeap_t *p_camera_memory, int cnt);
-
-    int cache_ops(int ion_fd, struct ion_flush_data *cache_inv_data, int type);
+    int cache_ops(QCameraHalMemInfo_t *mem_info,
+                  void *buf_ptr,
+                  unsigned int cmd);
 
     void dumpFrameToFile(const void * data, uint32_t size, char* name,
       char* ext, int index);
@@ -770,7 +771,6 @@ private:
     void parseGPSCoordinate(const char *latlonString, rat_t* coord);
     //added to support hdr
     bool getHdrInfoAndSetExp(int max_num_frm, int *num_frame, int *exp);
-    void hdrEvent(cam_ctrl_status_t status, void *cookie);
     status_t initHistogramBuffers();
     status_t deInitHistogramBuffers();
     mm_jpeg_color_format getColorfmtFromImgFmt(uint32_t img_fmt);
@@ -784,10 +784,7 @@ private:
 
     mm_camear_mem_vtbl_t mem_hooks;
 
-
-
     QCameraParameters    mParameters;
-    //sp<Overlay>         mOverlay;
     int32_t             mMsgEnabled;
 
     camera_notify_callback         mNotifyCb;
@@ -796,29 +793,15 @@ private:
     camera_request_memory          mGetMemory;
     void                           *mCallbackCookie;
 
-    //sp<MemoryHeapBase>  mPreviewHeap;  //@Guru : Need to remove
-    sp<AshmemPool>      mMetaDataHeap;
-
     mutable Mutex       mLock;
-    //mutable Mutex       eventLock;
-    Mutex         mCallbackLock;
     Mutex         mPreviewMemoryLock;
-    Mutex         mRecordingMemoryLock;
-    Mutex         mRdiMemoryLock;
     Mutex         mAutofocusLock;
-    Mutex         mMetaDataWaitLock;
     Mutex         mRecordFrameLock;
-    Mutex         mRecordLock;
     Condition     mRecordWait;
     pthread_mutex_t     mAsyncCmdMutex;
     pthread_cond_t      mAsyncCmdWait;
 
-    QCameraStream       *mStreamDisplay;
-    QCameraStream       *mStreamRecord;
-    QCameraStream       *mStreamSnapMain;
-    QCameraStream       *mStreamSnapThumb;
-    QCameraStream       *mStreamLiveSnap;
-    QCameraStream       *mStreamRdi;
+    QCameraStream *     mStreams[MM_CAMERA_IMG_MODE_MAX];
 
     cam_ctrl_dimension_t mDimension;
     int  mPreviewWidth, mPreviewHeight;
@@ -834,6 +817,7 @@ private:
     int  mContrast;
     int  mBestShotMode;
     int  mEffects;
+    int  mColorEffects;
     int  mSkinToneEnhancement;
     int  mDenoiseValue;
     int  mHJR;
@@ -891,7 +875,7 @@ private:
 
     bool mZslLookBackMode;
     int mZslLookBackValue;
-	int mHFRLevel;
+    int mHFRLevel;
     bool mZslEmptyQueueFlag;
     String8 mEffectValues;
     String8 mIsoValues;
@@ -942,12 +926,6 @@ private:
     const camera_size_type * mPictureSizesPtr;
     HAL_camera_state_type_t mCameraState;
 
-     /* Temporary - can be removed after Honeycomb*/
-#ifdef USE_ION
-    sp<IonPool>  mPostPreviewHeap;
-#else
-    sp<PmemPool> mPostPreviewHeap;
-#endif
     // mm_cameara_stream_buf_t mPrevForPostviewBuf;
      int mStoreMetaDataInFrame;
      preview_stream_ops_t *mPreviewWindow;
@@ -980,7 +958,7 @@ private:
      int                 mLowPowerMode;
      bool                mVisionModeFlag;
      QCameraQueue mSuperBufQueue;     /* queue for raw super buf */
-     QCameraQueue mJpegDataQueue;     /* queue for encoded jpeg frame */
+     QCameraQueue mNotifyDataQueue;   /* queue for data notify */
      QCameraCmdThread *mNotifyTh;     /* thread for data notify */
      QCameraCmdThread *mDataProcTh;   /* thread for data process (jpeg encoding) */
      mm_jpeg_ops_t mJpegHandle;
@@ -1009,7 +987,12 @@ private:
                              uint8_t* out_data,
                              uint32_t data_size,
                              void *userdata);
-     static void receiveCompleteJpegPicture(camera_jpeg_data_t* jpeg_data,
+     static void receiveCompleteJpegPicture(jpeg_job_status_t status,
+                                            uint8_t thumbnailDroppedFlag,
+                                            uint32_t client_hdl,
+                                            uint32_t jobId,
+                                            uint8_t* out_data,
+                                            uint32_t data_size,
                                             QCameraHardwareInterface* pme);
      static void superbuf_cb_routine(mm_camera_super_buf_t *recvd_frame,
                                      void *userdata);
@@ -1018,6 +1001,11 @@ private:
      status_t encodeData(mm_camera_super_buf_t* recvd_frame, uint32_t *jobId,
                  mm_camera_super_buf_t* recvd_frame2 = NULL);
      void notifyShutter(bool play_shutter_sound);
+     status_t sendDataNotify(int32_t msg_type,
+                             camera_memory_t *data,
+                             uint8_t index,
+                             camera_frame_metadata_t *metadata,
+                             QCameraHalHeap_t *heap);
 
      int32_t flipFrame(mm_camera_buf_def_t * frame, const QCameraStream * stream);
 
@@ -1044,6 +1032,15 @@ private:
      uint32_t mZsl_match_id;
      bool mYUVThruVFE;
 
+     void releaseSuperBuf(mm_camera_super_buf_t *super_buf);
+     void releaseAppCBData(app_notify_cb_t *app_cb);
+     static void releaseNofityData(void *data, void *user_data);
+     static void releaseProcData(void *data, void *user_data);
+
+
+     //Function Not used internally. need to remove
+     int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt,int ion_type);
+     int deallocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt);
 };
 
 }; // namespace android
