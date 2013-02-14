@@ -1422,9 +1422,6 @@ QCameraHardwareInterface(int cameraId, int mode)
     property_get("persist.camera.hal.dis", value, "0");
     mDisEnabled = atoi(value);
 
-    property_get("persist.debug.enable.yuvsensor", value, "0");
-    mYUVThruVFE = atoi(value);
-
     memset(&mem_hooks,0,sizeof(mm_camear_mem_vtbl_t));
 
     mem_hooks.user_data=this;
@@ -1451,11 +1448,17 @@ QCameraHardwareInterface(int cameraId, int mode)
 
     ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_ISYUV, (void *)&mIsYUVSensor);
     ALOGD("%s, mIsYUVSensor - %d, ret - %d",__func__,mIsYUVSensor,ret);
-    if ( !ret ) {
+    if (!ret)
         ALOGE("Failed to get the camera sensor id - %d",ret);
-        }
+
+    ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_YUV_THRU_VFE, (void *)&mYUVThruVFE);
+    ALOGD("%s mYUVThruVFE - %d, ret - %d", __func__, mYUVThruVFE, ret);
+    if (!ret)
+        ALOGE("Failed to get YUV path selection - %d",ret);
+
     if (mIsYUVSensor && !mYUVThruVFE)
         rdiMode = STREAM_RAW;
+
     mChannelId=mCameraHandle->ops->ch_acquire(mCameraHandle->camera_handle);
     if(mChannelId<=0)
     {

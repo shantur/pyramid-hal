@@ -850,6 +850,10 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
     CDBG_ERROR("%s MM_CAMERA_PARAM_REAL_GAIN, rc = %d",__func__, rc );
     break;
 
+    case MM_CAMERA_PARM_YUV_THRU_VFE:
+        *((int *)p_value) = my_obj->properties.yuv_thru_vfe;
+        break;
+
     default:
         /* needs to add more implementation */
         rc = -1;
