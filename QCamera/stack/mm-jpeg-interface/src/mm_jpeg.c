@@ -441,8 +441,12 @@ int32_t mm_jpeg_omx_config_thumbnail(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* jo
         src_buf->src_dim.height != src_buf->out_dim.height) {
         thumbnail.scaling = 1;
     }
-    /* Use single buffer for livesnapshot case */
-    thumbnail.use_main_buf = job->encode_parm.buf_info.src_imgs.is_video_frame;
+    /* Use single buffer for livesnapshot case or use main buffer in full size
+       snapshot case*/
+    if (job->encode_parm.buf_info.src_imgs.is_video_frame ||
+        job->encode_parm.buf_info.src_imgs.use_mainimg_for_thumb) {
+        thumbnail.use_main_buf = 1;
+    }
 
     /* set omx thumbnail info */
     OMX_GetExtensionIndex(my_obj->omx_handle, "omx.qcom.jpeg.exttype.thumbnail", &thumb_idx);

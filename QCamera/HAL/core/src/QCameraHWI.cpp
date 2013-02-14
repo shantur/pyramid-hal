@@ -569,6 +569,8 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
     uint8_t src_img_num = recvd_frame->num_bufs;
     int i;
 
+    memset(&jpg_job, 0, sizeof(mm_jpeg_job));
+
     *jobId = 0;
     ALOGD("isYuv %s num_bufs %d stream id %d",(mIsYUVSensor ? "TRUE":"FALSE"),
           recvd_frame->num_bufs, recvd_frame->bufs[0]->stream_id);
@@ -711,6 +713,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         /*thumbnail is required, not YUV thumbnail, borrow main image*/
         thumb_stream = main_stream;
         thumb_frame = main_frame;
+        jpg_job.encode_job.encode_parm.buf_info.src_imgs.use_mainimg_for_thumb = 1;
         src_img_num++;
     } else if (mIsYUVSensor && !mYUVThruVFE && recvd_frame2) {
         thumb_stream = mStreams[MM_CAMERA_PREVIEW];
@@ -739,7 +742,6 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         jpeg_quality = 85;
     }
 
-    memset(&jpg_job, 0, sizeof(mm_jpeg_job));
     jpg_job.job_type = JPEG_JOB_TYPE_ENCODE;
     jpg_job.encode_job.userdata = cookie;
     jpg_job.encode_job.jpeg_cb = QCameraHardwareInterface::snapshot_jpeg_cb;
@@ -909,7 +911,6 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         cookie = NULL;
         return -1;
     }
-
     if (mJpegClientHandle > 0) {
         ret = mJpegHandle.start_job(mJpegClientHandle, &jpg_job, jobId);
     } else {
