@@ -3424,6 +3424,10 @@ status_t QCameraHardwareInterface::setRecordingHintValue(const int32_t value)
     }
     setDISMode();
     setFullLiveshot();
+
+    if(value) {
+        myMode = (camera_mode_t)(myMode & ~CAMERA_ZSL_MODE);
+    }
     return NO_ERROR;
 }
 
