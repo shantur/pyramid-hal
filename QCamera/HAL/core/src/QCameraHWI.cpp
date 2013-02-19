@@ -3178,19 +3178,7 @@ status_t QCameraHardwareInterface::autoFocus()
       ALOGE("%s:Invalid AF mode (%d)", __func__, afMode);
     }
 
-    if(afMode == AF_MODE_INFINITY){
-        if(MM_CAMERA_OK != mCameraHandle->ops->start_focus(mCameraHandle->camera_handle,
-               mChannelId,0,(uint32_t)&afMode)){
-            ALOGE("%s: AF command failed err:%d error %s",
-           __func__, errno, strerror(errno));
-            mAutoFocusRunning = false;
-            return UNKNOWN_ERROR;
-        }
-        ALOGI("autoFocus: Mode INFINITY X");
-        return NO_ERROR;
-    }
-
-    /* Prepare snapshot*/
+   /* Prepare snapshot*/
     ALOGI("%s:Prepare Snapshot", __func__);
 
     if(mPrepareSnapshot==false){
@@ -3201,7 +3189,7 @@ status_t QCameraHardwareInterface::autoFocus()
 
     ALOGI("%s:AF start (mode %d)", __func__, afMode);
     if(MM_CAMERA_OK != mCameraHandle->ops->start_focus(mCameraHandle->camera_handle,
-               mChannelId,0,(uint32_t)&afMode)){
+               mChannelId, mCameraId,(uint32_t)&afMode)){
       ALOGE("%s: AF command failed err:%d error %s",
            __func__, errno, strerror(errno));
       return UNKNOWN_ERROR;
