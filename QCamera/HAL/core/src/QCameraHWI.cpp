@@ -3743,8 +3743,6 @@ bool QCameraHardwareInterface::getHdrInfoAndSetExp( int max_num_frm, int *num_fr
         } else {
             temp.total_frames = 1;
         }
-   /* Application waits until this many snapshots before restarting preview */
-       mParameters.set("num-snaps-per-shutter", 2);
     }
     ALOGE("%s, hdr - rc = %d, num_frame = %d", __func__, rc, *num_frame);
     return rc;
