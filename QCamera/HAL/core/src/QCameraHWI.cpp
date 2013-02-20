@@ -68,7 +68,7 @@ void QCameraHardwareInterface::release_superbuf(mm_camera_super_buf_t* src_frame
        }
        cache_ops((QCameraHalMemInfo_t *)(src_frame->bufs[i]->mem_info),
                        src_frame->bufs[i]->buffer,
-                       ION_IOC_CLEAN_CACHES);
+                       ION_IOC_CLEAN_INV_CACHES);
     }
 }
 
@@ -586,6 +586,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
        ALOGE("%s : Main frame is NULL", __func__);
        return ret;
     }
+    main_mem_info = &mSnapshotMemory.mem_info[main_frame->buf_idx];
 
     // send upperlayer callback for raw image (data or notify, not both)
     app_notify_cb_t *app_cb = (app_notify_cb_t *)malloc(sizeof(app_notify_cb_t));
@@ -3507,6 +3508,7 @@ int QCameraHardwareInterface::allocate_ion_memory(QCameraHalMemInfo_t *mem_info,
     mem_info->fd = ion_info_fd.fd;
     mem_info->handle = ion_info_fd.handle;
     mem_info->size = alloc.len;
+
     return 0;
 
 ION_MAP_FAILED:
@@ -3601,6 +3603,8 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
             rc = -1;
             break;
         }
+        //Invalidate since the memory allocated is cached
+        cache_ops(&heap->mem_info[i], heap->camera_memory[i]->data, ION_IOC_INV_CACHES);
 
         if(buf_def != NULL && offset != NULL) {
             buf_def[i].fd = heap->mem_info[i].fd;
@@ -3809,6 +3813,10 @@ status_t QCameraHardwareInterface::initHistogramBuffers()
                   mHistServer.camera_memory[cnt]->size,
                   mHistServer.camera_memory[cnt]->release);
         }
+
+        //Invalidate since the memory allocated is cached
+        cache_ops(&mHistServer.mem_info[cnt], mHistServer.camera_memory[cnt]->data, ION_IOC_INV_CACHES);
+
         /*Register buffer at back-end*/
         map_buf.fd = mHistServer.mem_info[cnt].fd;
         map_buf.frame_idx = cnt;
