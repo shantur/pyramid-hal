@@ -443,8 +443,8 @@ int32_t mm_jpeg_omx_config_thumbnail(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* jo
     }
     /* Use single buffer for livesnapshot case or use main buffer in full size
        snapshot case*/
-    if (job->encode_parm.buf_info.src_imgs.is_video_frame ||
-        job->encode_parm.buf_info.src_imgs.use_mainimg_for_thumb) {
+    if (job->encode_parm.buf_info.src_imgs.use_mainimg_for_thumb
+        && !job->encode_parm.buf_info.src_imgs.is_video_frame) {
         thumbnail.use_main_buf = 1;
     }
 
