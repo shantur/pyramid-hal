@@ -322,11 +322,6 @@ int32_t QCameraStream::setCrop()
     int32_t rc = 0;
     memset(&v4l2_crop,0,sizeof(v4l2_crop));
 
-    if(!mActive) {
-        ALOGE("%s: Stream:%d is not active", __func__, mStreamId);
-        return -1;
-    }
-
     rc = p_mm_ops->ops->get_stream_parm(mCameraHandle,
                                    mChannelId,
                                    mStreamId,

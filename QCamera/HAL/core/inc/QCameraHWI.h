@@ -660,8 +660,6 @@ private:
     void pausePreviewForSnapshot();
     void pausePreviewForZSL();
     void snapshot_buf_done(mm_camera_super_buf_t* src_frame);
-    void release_superbuf(mm_camera_super_buf_t* src_frame);
-    //status_t resumePreviewAfterSnapshot();
 
     status_t runFaceDetection();
 
@@ -1032,11 +1030,10 @@ private:
      uint32_t mZsl_match_id;
      bool mYUVThruVFE;
 
-     void releaseSuperBuf(mm_camera_super_buf_t *super_buf);
      void releaseAppCBData(app_notify_cb_t *app_cb);
      static void releaseNofityData(void *data, void *user_data);
      static void releaseProcData(void *data, void *user_data);
-
+     void release_superbuf(mm_camera_super_buf_t* src_frame);
 
      //Function Not used internally. need to remove
      int allocate_ion_memory(QCameraHalHeap_t *p_camera_memory, int cnt,int ion_type);

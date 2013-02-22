@@ -56,19 +56,21 @@ void QCameraHardwareInterface::snapshot_buf_done(mm_camera_super_buf_t* src_fram
 }
 
 void QCameraHardwareInterface::release_superbuf(mm_camera_super_buf_t* src_frame){
-    for(int i = 0; i< src_frame->num_bufs; i++) {
-      if (src_frame->bufs[i]->p_mobicat_info) {
-        free(src_frame->bufs[i]->p_mobicat_info);
-        src_frame->bufs[i]->p_mobicat_info = NULL;
-       }
-       if(MM_CAMERA_OK != mCameraHandle->ops->qbuf(src_frame->camera_handle,
-                                         src_frame->ch_id,
-                                         src_frame->bufs[i])){
-           ALOGE("%s:Buf done failed for buffer[%d] streamid %d", __func__, i, src_frame->bufs[i]->stream_id);
-       }
-       cache_ops((QCameraHalMemInfo_t *)(src_frame->bufs[i]->mem_info),
-                       src_frame->bufs[i]->buffer,
-                       ION_IOC_CLEAN_INV_CACHES);
+    if (src_frame != NULL) {
+        for(int i = 0; i< src_frame->num_bufs; i++) {
+          if (src_frame->bufs[i]->p_mobicat_info) {
+            free(src_frame->bufs[i]->p_mobicat_info);
+            src_frame->bufs[i]->p_mobicat_info = NULL;
+           }
+           if(MM_CAMERA_OK != mCameraHandle->ops->qbuf(src_frame->camera_handle,
+                                             src_frame->ch_id,
+                                             src_frame->bufs[i])){
+               ALOGE("%s:Buf done failed for buffer[%d] streamid %d", __func__, i, src_frame->bufs[i]->stream_id);
+           }
+           cache_ops((QCameraHalMemInfo_t *)(src_frame->bufs[i]->mem_info),
+                           src_frame->bufs[i]->buffer,
+                           ION_IOC_CLEAN_INV_CACHES);
+        }
     }
 }
 
@@ -217,28 +219,11 @@ void QCameraHardwareInterface::releaseNofityData(void *data, void *user_data)
     }
 }
 
-void QCameraHardwareInterface::releaseSuperBuf(mm_camera_super_buf_t *super_buf)
-{
-    if (NULL != super_buf) {
-        for(int i = 0; i< super_buf->num_bufs; i++) {
-            if(MM_CAMERA_OK != mCameraHandle->ops->qbuf(
-                                             super_buf->camera_handle,
-                                             super_buf->ch_id,
-                                             super_buf->bufs[i])){
-                    ALOGE("%s : Buf done failed for buffer[%d]", __func__, i);
-            }
-            cache_ops((QCameraHalMemInfo_t *)(super_buf->bufs[i]->mem_info),
-                      super_buf->bufs[i]->buffer,
-                      ION_IOC_CLEAN_CACHES);
-        }
-    }
-}
-
 void QCameraHardwareInterface::releaseProcData(void *data, void *user_data)
 {
     QCameraHardwareInterface *pme = (QCameraHardwareInterface *)user_data;
     if (NULL != pme) {
-        pme->releaseSuperBuf((mm_camera_super_buf_t *)data);
+        pme->release_superbuf((mm_camera_super_buf_t *)data);
     }
 }
 
@@ -316,11 +301,22 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                     }
                     if (app_cb->dataCb) {
                         ALOGD("%s: data notify cb", __func__);
-                        app_cb->dataCb(app_cb->argm_data_cb.msg_type,
-                                       app_cb->argm_data_cb.data,
-                                       app_cb->argm_data_cb.index,
-                                       app_cb->argm_data_cb.metadata,
-                                       app_cb->argm_data_cb.cookie);
+                        if (app_cb->argm_data_cb.data != NULL) {
+                            app_cb->dataCb(app_cb->argm_data_cb.msg_type,
+                                           app_cb->argm_data_cb.data,
+                                           app_cb->argm_data_cb.index,
+                                           app_cb->argm_data_cb.metadata,
+                                           app_cb->argm_data_cb.cookie);
+                        }else{
+                            camera_memory_t *data = pme->mGetMemory(-1, 1, 1, NULL);
+                            app_cb->dataCb(app_cb->argm_data_cb.msg_type,
+                                           data,
+                                           app_cb->argm_data_cb.index,
+                                           app_cb->argm_data_cb.metadata,
+                                           app_cb->argm_data_cb.cookie);
+                            if(NULL != data)
+                                data->release(data);
+                        }
                     }
                     /* free app_cb */
                     pme->releaseAppCBData(app_cb);
@@ -419,7 +415,7 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                             receiveRawPicture(super_buf, pme);
 
                             /*free superbuf*/
-                            pme->releaseSuperBuf(super_buf);
+                            pme->release_superbuf(super_buf);
                             free(super_buf);
                             super_buf = NULL;
                         } else{
@@ -427,11 +423,11 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                             ret = pme->encodeData(super_buf, &current_jobId);
 
                              if (NO_ERROR != ret) {
-                                 pme->releaseSuperBuf(super_buf);
+                                 pme->release_superbuf(super_buf);
                                  free(super_buf);
                                  super_buf = NULL;
                                  if (super_buf2) {
-                                     pme->releaseSuperBuf(super_buf2);
+                                     pme->release_superbuf(super_buf2);
                                      free(super_buf2);
                                      super_buf2 = NULL;
                                  }
@@ -448,7 +444,7 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                     mm_camera_super_buf_t *super_buf =
                        (mm_camera_super_buf_t *)pme->mSuperBufQueue.dequeue();
                     if (NULL != super_buf) {
-                        pme->releaseSuperBuf(super_buf);
+                        pme->release_superbuf(super_buf);
                         free(super_buf);
                         super_buf = NULL;
                     }
@@ -825,21 +821,31 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         jpg_job.encode_job.encode_parm.exif_data = getExifData();
         jpg_job.encode_job.encode_parm.exif_numEntries = getExifTableNumEntries();
 
-    main_buf_info->src_image[0].fd = main_frame->fd;
-    main_buf_info->src_image[0].buf_vaddr = (uint8_t*) main_frame->buffer;
-    main_buf_info->src_image[0].offset = main_stream->mFrameOffsetInfo;
-    main_buf_info->img_fmt = JPEG_SRC_IMAGE_FMT_YUV;
-    main_buf_info->src_dim.width = main_stream->mWidth;
-    main_buf_info->src_dim.height = main_stream->mHeight;
-    main_buf_info->out_dim.width = mPictureWidth;
-    main_buf_info->out_dim.height = mPictureHeight;
-    memcpy(&main_buf_info->crop, &main_stream->mCrop, sizeof(image_crop_t));
-    if (main_buf_info->crop.width == 0 || main_buf_info->crop.height == 0) {
-        main_buf_info->crop.width = main_stream->mWidth;
-        main_buf_info->crop.height = main_stream->mHeight;
-    }
+        main_buf_info->src_image[0].fd = main_frame->fd;
+        main_buf_info->src_image[0].buf_vaddr = (uint8_t*) main_frame->buffer;
+        main_buf_info->src_image[0].offset = main_stream->mFrameOffsetInfo;
+        main_buf_info->img_fmt = JPEG_SRC_IMAGE_FMT_YUV;
+        main_buf_info->src_dim.width = main_stream->mWidth;
+        main_buf_info->src_dim.height = main_stream->mHeight;
+        main_buf_info->out_dim.width = mPictureWidth;
+        main_buf_info->out_dim.height = mPictureHeight;
+        memcpy(&main_buf_info->crop, &main_stream->mCrop, sizeof(image_crop_t));
+        if (main_buf_info->crop.width == 0 || main_buf_info->crop.height == 0) {
+            main_buf_info->crop.width = main_stream->mWidth;
+            main_buf_info->crop.height = main_stream->mHeight;
+        }
         jpg_job.encode_job.encode_parm.buf_info.sink_img.buf_len =
             main_stream->mFrameOffsetInfo.frame_len;
+
+        //Jpeg Limitation
+         if (mPictureWidth > main_buf_info->crop.width &&
+             mPictureHeight < main_buf_info->crop.height){
+             main_buf_info->crop.height = mPictureHeight;
+         }else if(mPictureWidth < main_buf_info->crop.width &&
+             mPictureHeight > main_buf_info->crop.height){
+             main_buf_info->crop.width = mPictureWidth;
+         }
+        //End of Limitation
     }
     ALOGD("%s : Main Image :Input Dimension %d x %d output Dimension = %d X %d",
           __func__, main_buf_info->src_dim.width, main_buf_info->src_dim.height,
@@ -879,6 +885,17 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         ALOGD("%s : setting thumb image offset info, len = %d, offset = %d",
               __func__, thumb_stream->mFrameOffsetInfo.mp[0].len, thumb_stream->mFrameOffsetInfo.mp[0].offset);
         cache_ops(thumb_mem_info, thumb_frame->buffer, ION_IOC_CLEAN_INV_CACHES);
+
+        //Jpeg Limitation
+         if ((mThumbnailWidth > thumb_buf_info->crop.width &&
+             mThumbnailHeight < thumb_buf_info->crop.height)||
+             (mThumbnailWidth < thumb_buf_info->crop.width &&
+             mThumbnailHeight > thumb_buf_info->crop.height)){
+             src_img_num--;
+             jpg_job.encode_job.encode_parm.buf_info.src_imgs.src_img_num = src_img_num;
+             ALOGE("DROP thumbnail!!");
+         }
+        //End of Limitation
     } else {
         src_img_num--;
         jpg_job.encode_job.encode_parm.buf_info.src_imgs.src_img_num = src_img_num;
@@ -2399,7 +2416,6 @@ status_t QCameraHardwareInterface::startPreview2()
             }
             if(mYUVThruVFE || !mIsYUVSensor)
             if (!canTakeFullSizeLiveshot()) {
-                ALOGE("%s Azam",__func__);
                 // video-size live snapshot, config same as video
                 mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mFormat = mStreams[MM_CAMERA_VIDEO]->mFormat;
                 mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = mStreams[MM_CAMERA_VIDEO]->mWidth;
