@@ -890,10 +890,12 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         //use the same output resolution as input
         main_buf_info->out_dim.width = main_buf_info->src_dim.width;
         main_buf_info->out_dim.height = main_buf_info->src_dim.height;
-        if (thumb_buf_info->out_dim.width > thumb_buf_info->src_dim.width ||
-            thumb_buf_info->out_dim.height > thumb_buf_info->src_dim.height ) {
-            thumb_buf_info->out_dim.width = thumb_buf_info->src_dim.width;
-            thumb_buf_info->out_dim.height = thumb_buf_info->src_dim.height;
+        if (thumb_frame && thumb_stream && mThumbnailWidth && mThumbnailHeight) {
+            if (thumb_buf_info->out_dim.width > thumb_buf_info->src_dim.width ||
+                thumb_buf_info->out_dim.height > thumb_buf_info->src_dim.height ) {
+                thumb_buf_info->out_dim.width = thumb_buf_info->src_dim.width;
+                thumb_buf_info->out_dim.height = thumb_buf_info->src_dim.height;
+            }
         }
         len = main_buf_info->out_dim.width * main_buf_info->out_dim.height * 1.5;
         if (len > buf_len) {
