@@ -290,10 +290,10 @@ status_t   QCameraStream_preview::freeBufferNoDisplay()
     return NO_ERROR;
 }
 
-// Commented for MR1 bringup
 void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
 {
-	camera_memory_t *data = mHalCamCtrl->mGetMemory(-1, 1, 1, NULL);
+    camera_memory_t *data = mHalCamCtrl->mGetMemory(-1, 1, 1, NULL);
+    ALOGV("%s: roi type %d", __func__, roi.type);
     switch (roi.type) {
     case FD_ROI_TYPE_HEADER:
         {
@@ -329,7 +329,7 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
 
             mHalCamCtrl->mFace[idx].id = roi.d.data.face.id;
             mHalCamCtrl->mFace[idx].score = roi.d.data.face.score;
-
+            ALOGV("%s: score = %d", __func__, roi.d.data.face.score);
             // top
             mHalCamCtrl->mFace[idx].rect[0] =
                roi.d.data.face.face_boundary.x*2000/mHalCamCtrl->mDimension.display_width - 1000;
@@ -373,7 +373,7 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
             mHalCamCtrl->mFace[idx].mouth[1] =
               roi.d.data.face.mouth_center[1]*2000/mHalCamCtrl->mDimension.display_height - 1000;
 
-            /*mHalCamCtrl->mFace[idx].smile_degree = roi.d.data.face.smile_degree;
+            mHalCamCtrl->mFace[idx].smile_degree = roi.d.data.face.smile_degree;
             mHalCamCtrl->mFace[idx].smile_score = roi.d.data.face.smile_confidence;
             mHalCamCtrl->mFace[idx].blink_detected = roi.d.data.face.blink_detected;
             mHalCamCtrl->mFace[idx].face_recognised = roi.d.data.face.is_face_recognised;
@@ -400,7 +400,7 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
                mHalCamCtrl->mFace[idx].leftright_dir, mHalCamCtrl->mFace[idx].roll_dir,
                mHalCamCtrl->mFace[idx].blink_detected,
                mHalCamCtrl->mFace[idx].leye_blink, mHalCamCtrl->mFace[idx].reye_blink);
-*/
+
              mNumFDRcvd++;
              mDisplayLock.unlock();
 
@@ -416,12 +416,6 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
     }
     if(NULL != data) data->release(data);
 }
-
-/*void QCameraStream_preview::notifyROIEvent(fd_roi_t roi) {
-    ALOGI("%s Dummy function implementation ", __func__);
-    return;
-}*/
-
 
 status_t QCameraStream_preview::initDisplayBuffers()
 {
