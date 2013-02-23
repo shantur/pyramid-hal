@@ -710,7 +710,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         /*thumbnail is required, not YUV thumbnail, borrow main image*/
         thumb_stream = main_stream;
         thumb_frame = main_frame;
-        jpg_job.encode_job.encode_parm.buf_info.src_imgs.use_mainimg_for_thumb = 1;
+        jpg_job.encode_job.encode_parm.buf_info.src_imgs.use_mainimg_for_thumb = TRUE;
         src_img_num++;
     } else if (mIsYUVSensor && !mYUVThruVFE && recvd_frame2) {
         thumb_stream = mStreams[MM_CAMERA_PREVIEW];
@@ -905,6 +905,8 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
      if (main_stream->m_flag_stream_on == FALSE) {
         //if video-sized livesnapshot
         jpg_job.encode_job.encode_parm.buf_info.src_imgs.is_video_frame = TRUE;
+        jpg_job.encode_job.encode_parm.buf_info.src_imgs.use_mainimg_for_thumb = FALSE;
+
         //use the same output resolution as input
         main_buf_info->out_dim.width = main_buf_info->src_dim.width;
         main_buf_info->out_dim.height = main_buf_info->src_dim.height;
