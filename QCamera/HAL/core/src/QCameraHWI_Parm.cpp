@@ -2552,10 +2552,10 @@ status_t QCameraHardwareInterface::setVideoSize(const QCameraParameters& params)
     const char *str_t= NULL;
     int old_vid_w = 0, old_vid_h = 0;
     ALOGE("%s: E", __func__);
-    str = params.get(QCameraParameters::KEY_VIDEO_SIZE);
+    str = params.get(CameraParameters::KEY_VIDEO_SIZE);
     str_t = mParameters.get(CameraParameters::KEY_VIDEO_SIZE);
     if(!str) {
-        mParameters.set(QCameraParameters::KEY_VIDEO_SIZE, "");
+        mParameters.set(CameraParameters::KEY_VIDEO_SIZE, "");
         //If application didn't set this parameter string, use the values from
         //getPreviewSize() as video dimensions.
         ALOGE("No Record Size requested, use the preview dimensions");
@@ -2565,14 +2565,15 @@ status_t QCameraHardwareInterface::setVideoSize(const QCameraParameters& params)
         //Extract the record witdh and height that application requested.
         ALOGI("%s: requested record size %s", __func__, str);
         if(!parse_size(str, videoWidth, videoHeight)) {
-            parse_size(str_t, old_vid_w, old_vid_h);
+            if(str_t)
+                parse_size(str_t, old_vid_w, old_vid_h);
             if(old_vid_w != videoWidth || old_vid_h != videoHeight) {
                 mRestartPreview = true;
                 ALOGE("%s: Video sizes changes to %s, Restart preview...", __func__, str);
             }
-            mParameters.set(QCameraParameters::KEY_VIDEO_SIZE, str);
+            mParameters.set(CameraParameters::KEY_VIDEO_SIZE, str);
         } else {
-            mParameters.set(QCameraParameters::KEY_VIDEO_SIZE, "");
+            mParameters.set(CameraParameters::KEY_VIDEO_SIZE, "");
             ALOGE("%s: error :failed to parse parameter record-size (%s)", __func__, str);
             return BAD_VALUE;
         }
