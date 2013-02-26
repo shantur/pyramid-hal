@@ -184,6 +184,8 @@ typedef struct {
     const uint8_t * mobicat_data;
     int32_t mobicat_data_length;
     int hasmobicat;
+    /*Flag added temporarily to indicate if the snapshot taken is in ZSLMode*/
+    int isZSLMode;
 } mm_jpeg_encode_params;
 
 typedef enum {
