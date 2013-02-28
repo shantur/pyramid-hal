@@ -1525,11 +1525,7 @@ int32_t mm_stream_get_offset(mm_stream_t *my_obj)
 
     switch (frame_offset.image_mode) {
     case MSM_V4L2_EXT_CAPTURE_MODE_PREVIEW:
-        if (CAMERA_YUV_420_YV12 == frame_offset.format) {
-            frame_offset.padding_format = CAMERA_PAD_TO_2K;
-        } else {
-            frame_offset.padding_format = CAMERA_PAD_TO_WORD;
-        }
+        frame_offset.padding_format = CAMERA_PAD_TO_WORD;
         break;
     case MSM_V4L2_EXT_CAPTURE_MODE_MAIN:
     case MSM_V4L2_EXT_CAPTURE_MODE_RAW:
