@@ -151,6 +151,12 @@ public:
     static const char EFFECT_EMBOSS[];
     static const char EFFECT_SKETCH[];
     static const char EFFECT_NEON[];
+    static const char EFFECT_USER_DEFINED1[];
+    static const char EFFECT_USER_DEFINED2[];
+    static const char EFFECT_USER_DEFINED3[];
+    static const char EFFECT_USER_DEFINED4[];
+    static const char EFFECT_USER_DEFINED5[];
+    static const char EFFECT_USER_DEFINED6[];
 
     // Values for Touch AF/AEC
     static const char TOUCH_AF_AEC_OFF[] ;

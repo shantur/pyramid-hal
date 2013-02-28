@@ -190,18 +190,24 @@ static const int PICTURE_FORMAT_RAW = 2;
 
 /********************************************************************/
 static const str_map effects[] = {
-    { QCameraParameters::EFFECT_NONE,       CAMERA_EFFECT_OFF },
-    { QCameraParameters::EFFECT_MONO,       CAMERA_EFFECT_MONO },
-    { QCameraParameters::EFFECT_NEGATIVE,   CAMERA_EFFECT_NEGATIVE },
-    { QCameraParameters::EFFECT_SOLARIZE,   CAMERA_EFFECT_SOLARIZE },
-    { QCameraParameters::EFFECT_SEPIA,      CAMERA_EFFECT_SEPIA },
-    { QCameraParameters::EFFECT_POSTERIZE,  CAMERA_EFFECT_POSTERIZE },
-    { QCameraParameters::EFFECT_WHITEBOARD, CAMERA_EFFECT_WHITEBOARD },
-    { QCameraParameters::EFFECT_BLACKBOARD, CAMERA_EFFECT_BLACKBOARD },
-    { QCameraParameters::EFFECT_AQUA,       CAMERA_EFFECT_AQUA },
-    { QCameraParameters::EFFECT_EMBOSS,     CAMERA_EFFECT_EMBOSS },
-    { QCameraParameters::EFFECT_SKETCH,     CAMERA_EFFECT_SKETCH },
-    { QCameraParameters::EFFECT_NEON,       CAMERA_EFFECT_NEON }
+    { QCameraParameters::EFFECT_NONE,           CAMERA_EFFECT_OFF },
+    { QCameraParameters::EFFECT_MONO,           CAMERA_EFFECT_MONO },
+    { QCameraParameters::EFFECT_NEGATIVE,       CAMERA_EFFECT_NEGATIVE },
+    { QCameraParameters::EFFECT_SOLARIZE,       CAMERA_EFFECT_SOLARIZE },
+    { QCameraParameters::EFFECT_SEPIA,          CAMERA_EFFECT_SEPIA },
+    { QCameraParameters::EFFECT_POSTERIZE,      CAMERA_EFFECT_POSTERIZE },
+    { QCameraParameters::EFFECT_WHITEBOARD,     CAMERA_EFFECT_WHITEBOARD },
+    { QCameraParameters::EFFECT_BLACKBOARD,     CAMERA_EFFECT_BLACKBOARD },
+    { QCameraParameters::EFFECT_AQUA,           CAMERA_EFFECT_AQUA },
+    { QCameraParameters::EFFECT_EMBOSS,         CAMERA_EFFECT_EMBOSS },
+    { QCameraParameters::EFFECT_SKETCH,         CAMERA_EFFECT_SKETCH },
+    { QCameraParameters::EFFECT_NEON,           CAMERA_EFFECT_NEON },
+    { QCameraParameters::EFFECT_USER_DEFINED1,  CAMERA_EFFECT_USER_DEFINED1 },
+    { QCameraParameters::EFFECT_USER_DEFINED2,	CAMERA_EFFECT_USER_DEFINED2 },
+    { QCameraParameters::EFFECT_USER_DEFINED3,	CAMERA_EFFECT_USER_DEFINED3 },
+    { QCameraParameters::EFFECT_USER_DEFINED4,  CAMERA_EFFECT_USER_DEFINED4 },
+    { QCameraParameters::EFFECT_USER_DEFINED5,  CAMERA_EFFECT_USER_DEFINED5 },
+    { QCameraParameters::EFFECT_USER_DEFINED6,  CAMERA_EFFECT_USER_DEFINED6 },
 };
 
 static const str_map iso[] = {
