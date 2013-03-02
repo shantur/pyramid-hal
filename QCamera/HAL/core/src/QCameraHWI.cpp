@@ -628,41 +628,6 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
     cookie->userdata = this;
     cookie->scratch_frame = NULL;
 
-    if (!mIsYUVSensor) {
-      /* flip block */
-      QCameraHalHeap_t *main_mem_heap = NULL;
-      QCameraHalHeap_t * scratch_heap = NULL;
-      mm_camera_buf_def_t * scratch_frame = NULL;
-
-      if (1/*isFullSizeLiveSnapshot()*/) {
-        main_mem_heap = &mSnapshotMemory;
-      } else { //video size snapshot;
-        /*
-          Need to make a copy so that a video frame pending (or given in) rcb
-          does not get flipped
-        */
-        main_mem_heap = &mRecordingMemory;
-        main_stream = mStreams[MM_CAMERA_VIDEO];
-
-        finalizeFlip();
-
-        if (mSnapshotFlip != FLIP_NONE) {
-          const ScratchMem * sm = allocateScratchMem(mStreams[MM_CAMERA_VIDEO]->mFrameOffsetInfo.frame_len);
-          scratch_frame = sm->frame;
-          main_mem_heap = sm->heap;
-
-          /* CHECK, if we need to fill in the rest of
-             the fields of main_frame */
-          memcpy(scratch_frame->buffer,
-                 main_frame->buffer, main_frame->frame_len);
-          main_frame = scratch_frame;
-          cookie->scratch_frame = scratch_frame;
-        }
-      }
-      //in place flip, main stream has w,h,format, offsets
-      flipFrame(main_frame, main_stream);
-    }
-
     dumpFrameToFile(main_frame, HAL_DUMP_FRM_MAIN);
 
     QCameraStream *thumb_stream = NULL;
@@ -902,7 +867,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         ALOGE("NO thumbnail!!");
     }
      buf_len = main_stream->mFrameOffsetInfo.frame_len;
-     if (main_stream->m_flag_stream_on == FALSE) {
+     if (mStreams[MM_CAMERA_SNAPSHOT_MAIN]->m_flag_stream_on == FALSE) {
         //if video-sized livesnapshot
         jpg_job.encode_job.encode_parm.buf_info.src_imgs.is_video_frame = TRUE;
         jpg_job.encode_job.encode_parm.buf_info.src_imgs.use_mainimg_for_thumb = FALSE;
@@ -4283,13 +4248,6 @@ void QCameraHardwareInterface::deleteScratchMem(mm_camera_buf_def_t *scratch_fra
 uint8_t QCameraHardwareInterface::canTakeFullSizeLiveshot() {
     if (mFullLiveshotEnabled && !isLowPowerCamcorder()) {
         /* Full size liveshot enabled. */
-
-        /* If Picture size is same as video size, switch to Video size
-         * live snapshot */
-        if ((mDimension.picture_width == mDimension.video_width) &&
-            (mDimension.picture_height == mDimension.video_height)) {
-            return FALSE;
-        }
 
         if (mDisEnabled) {
             /* If DIS is enabled and Picture size is
