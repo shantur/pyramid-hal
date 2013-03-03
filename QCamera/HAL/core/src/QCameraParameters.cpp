@@ -89,6 +89,12 @@ const char QCameraParameters::KEY_QC_SNAPSHOT_FRAME_FLIP[] = "snapshot-flip";
 const char QCameraParameters::EFFECT_EMBOSS[] = "emboss";
 const char QCameraParameters::EFFECT_SKETCH[] = "sketch";
 const char QCameraParameters::EFFECT_NEON[] = "neon";
+const char QCameraParameters::EFFECT_USER_DEFINED1[] = "userdefined1";
+const char QCameraParameters::EFFECT_USER_DEFINED2[] = "userdefined2";
+const char QCameraParameters::EFFECT_USER_DEFINED3[] = "userdefined3";
+const char QCameraParameters::EFFECT_USER_DEFINED4[] = "userdefined4";
+const char QCameraParameters::EFFECT_USER_DEFINED5[] = "userdefined5";
+const char QCameraParameters::EFFECT_USER_DEFINED6[] = "userdefined6";
 
 // Values for auto exposure settings.
 const char QCameraParameters::TOUCH_AF_AEC_OFF[] = "touch-off";
