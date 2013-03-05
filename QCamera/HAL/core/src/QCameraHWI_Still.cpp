@@ -80,7 +80,7 @@ status_t QCameraStream_SnapshotMain::initStream(uint8_t no_cb_needed, uint8_t st
     } else if (mHalCamCtrl->mHdrInfo.hdr_on) {
         mNumBuffers = mHalCamCtrl->mHdrInfo.num_frame;
     }else{
-		mNumBuffers = mHalCamCtrl->getNumOfSnapshots();
+		mNumBuffers = mHalCamCtrl->num_of_snapshot;
 	}
     ret = QCameraStream::initStream(no_cb_needed, stream_on);
     return ret;;
@@ -184,7 +184,7 @@ status_t QCameraStream_SnapshotThumbnail::initStream(uint8_t no_cb_needed, uint8
     } else if (mHalCamCtrl->mHdrInfo.hdr_on) {
         mNumBuffers = mHalCamCtrl->mHdrInfo.num_frame;
     } else {
-        mNumBuffers = mHalCamCtrl->getNumOfSnapshots();
+        mNumBuffers = mHalCamCtrl->num_of_snapshot;
     }
     ret = QCameraStream::initStream(no_cb_needed, stream_on);
     return ret;;

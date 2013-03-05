@@ -544,7 +544,6 @@ public:
     cam_pad_format_t getPreviewPadding() const;
     void processEvent(mm_camera_event_t *);
     int  getJpegQuality() const;
-    int  getNumOfSnapshots(void) const;
     int  getNumOfSnapshots(const QCameraParameters& params);
     int  getThumbSizesFromAspectRatio(uint32_t aspect_ratio,
                                      int *picture_width,
@@ -832,6 +831,8 @@ private:
     int  mDumpSkipCnt;
     int  mFocusMode;
     int  rdiMode;
+    int  num_of_snapshot;
+    int  num_snapshot_rcvd;
 
     unsigned int mPictureSizeCount;
     unsigned int mPreviewSizeCount;
