@@ -3916,8 +3916,17 @@ void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * c
     mm_camera_super_buf_t *frame;
 
     ALOGV("%s E", __func__);
-    ALOGI("%s: HDR Done status (%d) received",__func__,status);
+    ALOGI("%s: HDR Done status (%d) received mPreviewState = %d",__func__,status,mPreviewState);
 
+    if (mPreviewState != QCAMERA_HAL_TAKE_PICTURE) {
+        for (int i = 0; i < MAX_HDR_EXP_FRAME_NUM; i++) {
+            if (mHdrInfo.recvd_frame[i] != NULL) {
+                free(mHdrInfo.recvd_frame[i]);
+                mHdrInfo.recvd_frame[i] = NULL;
+            }
+        }
+        return;
+    }
     /* Currently we are using 3 frame HDR, with exposures of the
      * 3 frames stored in index 0, 1, 2 being 1x, 0.5x and 2x
      * respectively. If application has requested to store 2
@@ -3940,13 +3949,20 @@ void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * c
     } else {
         ALOGI("%s Release 1x exposed buffer ", __func__);
         frame = mHdrInfo.recvd_frame[0];
-        release_superbuf(frame);
-        mHdrInfo.recvd_frame[0] = NULL;
+        if (frame != NULL) {
+            release_superbuf(frame);
+            free(frame);
+            mHdrInfo.recvd_frame[0] = NULL;
+        }
     }
 
     /* Release the other buffer back. */
     frame = mHdrInfo.recvd_frame[1];
-    release_superbuf(frame);
+    if (frame != NULL) {
+        release_superbuf(frame);
+        free(frame);
+        mHdrInfo.recvd_frame[1] = NULL;
+    }
     ALOGV("%s X", __func__);
 }
 
