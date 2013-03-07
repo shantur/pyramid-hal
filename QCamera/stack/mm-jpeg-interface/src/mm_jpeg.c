@@ -333,8 +333,7 @@ int32_t mm_jpeg_omx_config_user_preference(mm_jpeg_obj* my_obj, mm_jpeg_encode_j
     CDBG("%s:User Preferences: color_format %d, thumbnail_color_format = %d",
          __func__, user_preferences.color_format, user_preferences.thumbnail_color_format);
 
-    if ((job->encode_parm.buf_info.src_imgs.is_video_frame != 0) ||
-        (job->encode_parm.isZSLMode != 0)) {
+    if (job->encode_parm.buf_info.src_imgs.is_video_frame != 0) {
         user_preferences.preference = OMX_JPEG_PREF_SOFTWARE_ONLY;
     } else {
         user_preferences.preference = OMX_JPEG_PREF_HW_ACCELERATED_PREFERRED;
