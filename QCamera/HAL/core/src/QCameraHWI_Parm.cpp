@@ -1472,12 +1472,11 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
       mParameters.set("capture-burst-exposures", str_val);
     }
     mParameters.set("num-snaps-per-shutter", params.get("num-snaps-per-shutter"));
-
-    if ((rc = setAEBracket(params)))              final_rc = rc;
+    if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
+    if ((rc = setAEBracket(params)))                    final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
     if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
     if((rc = setRecordingHint(params)))                 final_rc = rc;
-    if ((rc = setNumOfSnapshot(params)))                final_rc = rc;
     if ((rc = setAecAwbLock(params)))                   final_rc = rc;
 
     const char *str = params.get(QCameraParameters::KEY_SCENE_MODE);
