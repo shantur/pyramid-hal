@@ -2119,15 +2119,19 @@ void QCameraHardwareInterface::zslFlashEvent(struct zsl_flash_t evt, app_notify_
 
     status_t ret;
     mZsl_match_id = evt.frame_idx[0];
-#if 0
-    ret = mCameraHandle->ops->request_super_buf(
+
+    mm_camera_req_buf_t req_buf;
+
+    req_buf.num_buf_requested = num_of_snapshot;
+    req_buf.yuv_frame_id = evt.frame_idx[0];
+    ret = mCameraHandle->ops->request_super_buf_by_frameId(
          mCameraHandle->camera_handle,
          mChannelId,
-         getNumOfSnapshots());
+         &req_buf);
     if (ret != MM_CAMERA_OK) {
         ALOGE("%s: Error taking ZSL snapshot!", __func__);
     }
-#endif
+
     ALOGI("%s: X", __func__);
 }
 
@@ -2972,14 +2976,7 @@ status_t  QCameraHardwareInterface::takePicture()
                     // zslflash is received
                     mZsl_evt = 1;
                     mZsl_match_id = 0;
-                    ret = mCameraHandle->ops->request_super_buf(
-                      mCameraHandle->camera_handle,
-                      mChannelId,
-                      num_of_snapshot);
-                    if (MM_CAMERA_OK != ret){
-                        ALOGE("%s: error - can't start Snapshot streams!", __func__);
-                        return BAD_VALUE;
-                    }
+
                 } else {
                     //Flash is not used
                     ret = mCameraHandle->ops->request_super_buf(

@@ -219,8 +219,14 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
         cmd_cb->u.req_buf.yuv_frame_id);
         ch_obj->pending_cnt = cmd_cb->u.req_buf.num_buf_requested;
         yuv_frame_id = cmd_cb->u.req_buf.yuv_frame_id;
-        mm_channel_superbuf_match_frameId(ch_obj, &ch_obj->
-                                          bundle.superbuf_queue, yuv_frame_id);
+	if (ch_obj->cam_obj->properties.yuv_output) {
+	    mm_channel_superbuf_match_frameId(ch_obj, &ch_obj->
+                  bundle.superbuf_queue, yuv_frame_id);
+	}
+        else{
+	  mm_channel_superbuf_match_frameId_skip_unmatched(ch_obj, &ch_obj->
+                  bundle.superbuf_queue, yuv_frame_id);
+        }
         CDBG("%s:ch_obj->pending_cnt %d", __func__, ch_obj->pending_cnt);
         //TODO: return from here?
     }
@@ -1846,6 +1852,63 @@ int32_t mm_channel_superbuf_match_frameId(mm_channel_t* my_obj,
     pthread_mutex_unlock(&queue->que.lock);
     CDBG("%s: X",__func__);
     return rc;
+}
+
+int32_t mm_channel_superbuf_match_frameId_skip_unmatched(mm_channel_t* my_obj,
+                              mm_channel_queue_t * queue, uint32_t yuv_frame_id)
+{
+    int32_t rc = 0, i, count;
+    mm_channel_queue_node_t* super_buf1 = NULL;
+    uint8_t match_frame = FALSE;
+    CDBG("%s: E",__func__);
+    if (MM_CAMERA_SUPER_BUF_NOTIFY_CONTINUOUS == queue->attr.notify_mode) {
+        /* for continuous streaming mode, no skip is needed */
+        return 0;
+    }
+    /* bufdone overflowed bufs */
+    pthread_mutex_lock(&queue->que.lock);
+    /* For JPEG SoC sensor, (yuv sync) frame matching logic*/
+
+    while (!match_frame) {
+      super_buf1 = mm_channel_superbuf_dequeue_internal(queue);
+      if (NULL != super_buf1) {
+        if (yuv_frame_id == super_buf1->super_buf->frame_idx) {
+          //my_obj->pending_cnt--;
+          match_frame = TRUE;
+
+        } else {
+          //return buffer to kernel
+          CDBG_ERROR("%s: No Matched frameID, return Buffer to Kernel", __func__);
+          for (i = 0; i < super_buf1->num_of_bufs; i++) {
+            mm_channel_qbuf(my_obj, super_buf1->super_buf[i].buf);
+          }
+        }
+      } else {
+        break;
+    }
+  } //end of while
+
+  if (TRUE == match_frame) {
+    /* all nodes in queue are mtached, or no node in queue
+     * create a new node */
+    mm_camera_q_node_t* new_node = NULL;
+
+    new_node = (mm_camera_q_node_t*)malloc(sizeof(mm_camera_q_node_t));
+
+    if (NULL != new_node) {
+      memset(new_node, 0, sizeof(mm_camera_q_node_t));
+      new_node->data = (void*)super_buf1;
+      /* enqueue */
+      //cam_list_add_tail_node(&node->list, &queue->que.head.list);
+      cam_list_add_tail_node(&new_node->list, &queue->que.head.list);
+      queue->que.size++;
+      queue->match_cnt++;
+
+    }
+  }
+  pthread_mutex_unlock(& queue->que.lock);
+  CDBG("%s: X", __func__);
+  return rc;
 }
 
 uint32_t mm_channel_open_repro_isp(mm_channel_t *my_obj,
