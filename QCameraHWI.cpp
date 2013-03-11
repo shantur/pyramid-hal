@@ -490,6 +490,16 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
             mSendData = true;
             rc = NO_ERROR;
             break;
+        case CAMERA_CMD_ENABLE_FOCUS_MOVE_MSG :
+        {
+            bool enable = bool(arg1);
+            if (enable) {
+                mMsgEnabled |= CAMERA_MSG_FOCUS_MOVE;
+            } else {
+                mMsgEnabled &= ~CAMERA_MSG_FOCUS_MOVE;
+            }
+        }
+        break;
         case CAMERA_CMD_START_FACE_DETECTION:
            if(supportsFaceDetection() == false){
                 ALOGE("Face detection support is not available");
@@ -813,6 +823,9 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event, a
             autoFocusEvent(&event->status, app_cb);
             break;
         case MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT:
+            break;
+        case MM_CAMERA_CTRL_EVT_AUTO_FOCUS_MOVE:
+            autoFocusMoveEvent(&event->status, app_cb);
             break;
         case MM_CAMERA_CTRL_EVT_WDN_DONE:
             wdenoiseEvent(event->status, (void *)(event->cookie));
@@ -1422,6 +1435,34 @@ void QCameraHardwareInterface::releaseRecordingFrame(const void *opaque)
     mStreamRecord->releaseRecordingFrame(opaque);
     ALOGV("%s : END",__func__);
     return;
+}
+
+status_t QCameraHardwareInterface::autoFocusMoveEvent(cam_ctrl_status_t *status, app_notify_cb_t *app_cb)
+{
+    ALOGI("autoFocusMoveEvent: E");
+    int ret = NO_ERROR;
+
+    isp3a_af_mode_t afMode = getAutoFocusMode(mParameters);
+    if (afMode == AF_MODE_CAF && mNotifyCb && ( mMsgEnabled & CAMERA_MSG_FOCUS_MOVE)){
+        ALOGV("%s:Issuing AF Move callback to service",__func__);
+
+        app_cb->notifyCb  = mNotifyCb;
+        app_cb->argm_notify.msg_type = CAMERA_MSG_FOCUS_MOVE;
+        app_cb->argm_notify.ext2 = 0;
+        app_cb->argm_notify.cookie =  mCallbackCookie;
+
+        ALOGV("Auto foucs state =%d", *status);
+        if(*status == 1) {
+            app_cb->argm_notify.ext1 = true;
+        }else if(*status == 0){
+            app_cb->argm_notify.ext1 = false;
+        }else{
+            app_cb->notifyCb  = NULL;
+            ALOGE("%s:Unknown AF Move Status received (%d) received",__func__,*status);
+        }
+    }
+    ALOGI("autoFocusMoveEvent: X");
+    return ret;
 }
 
 status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status, app_notify_cb_t *app_cb)
