@@ -892,12 +892,6 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
             buf_len = len;
         }
     }
-     /*Pass ZSL mode infor to setup software encoder in ZSL mode to avoid bus
-     overflow while using HW encoder*/
-     if (isZSLMode()) {
-        jpg_job.encode_job.encode_parm.isZSLMode = 1;
-     }
-
     //fill in the sink img info
     jpg_job.encode_job.encode_parm.buf_info.sink_img.buf_len = buf_len;
     jpg_job.encode_job.encode_parm.buf_info.sink_img.buf_vaddr =
