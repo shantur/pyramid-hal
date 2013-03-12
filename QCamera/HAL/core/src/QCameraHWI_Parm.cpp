@@ -3591,7 +3591,7 @@ int QCameraHardwareInterface::getNumOfSnapshots(const QCameraParameters& params)
     memset(prop, 0, sizeof(prop));
     property_get("persist.camera.snapshot.number", prop, "0");
     ALOGI("%s: prop enable/disable = %d", __func__, atoi(prop));
-    if (atoi(prop)) {
+    if (atoi(prop) && ((myMode & CAMERA_ZSL_MODE) || (mHdrMode == EXP_BRACKETING_MODE))) {
         ALOGI("%s: Reading maximum no of snapshots = %d"
              "from properties", __func__, atoi(prop));
         return atoi(prop);
