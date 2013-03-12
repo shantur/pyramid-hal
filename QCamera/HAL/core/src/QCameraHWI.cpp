@@ -292,7 +292,10 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                 app_notify_cb_t *app_cb =
                         (app_notify_cb_t *)pme->mNotifyDataQueue.dequeue();
                 if (NULL != app_cb) {
-                    isEncoding = FALSE;
+                    if(CAMERA_MSG_COMPRESSED_IMAGE == app_cb->argm_data_cb.msg_type){
+                        ALOGD("Received jpeg callback, reset isEncoding to FALSE");
+                        isEncoding = FALSE;
+                    }
 
                     /* send notify to upper layer */
                     if (app_cb->notifyCb) {
@@ -326,7 +329,7 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                     free(app_cb);
                     app_cb = NULL;
                 }
-                if (FALSE == isEncoding) {
+                if ((FALSE == isEncoding)&&(pme->mSuperBufQueue.getSize() > 0)) {
                     isEncoding = TRUE;
                     /* notify processData thread to do next encoding job */
                     pme->mDataProcTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE,FALSE);
@@ -599,7 +602,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
             app_cb->argm_data_cb.msg_type = CAMERA_MSG_RAW_IMAGE;
             app_cb->argm_data_cb.cookie = mCallbackCookie;
             app_cb->argm_data_cb.data = mSnapshotMemory.camera_memory[main_frame->buf_idx];
-            app_cb->argm_data_cb.index = 1;
+            app_cb->argm_data_cb.index = main_frame->buf_idx;
             app_cb->argm_data_cb.metadata = NULL;
             app_cb->argm_data_cb.user_data = NULL;
         }
