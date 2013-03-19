@@ -644,6 +644,7 @@ private:
     status_t autoFocusEvent(cam_ctrl_status_t *, app_notify_cb_t *);
     void zslFlashEvent(struct zsl_flash_t evt, app_notify_cb_t *);
     status_t autoFocusMoveEvent(cam_ctrl_status_t *, app_notify_cb_t *);
+    void zslExpBktEvent(struct zsl_exp_bracket_t evt, app_notify_cb_t *);
 
     void filterPictureSizes();
     bool supportsSceneDetection();

@@ -1849,6 +1849,12 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                               sizeof(int),
                                               p_value);
        break;
+    case MM_CAMERA_PARM_SET_ZSL_EXP_BKT:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                            CAMERA_SET_ZSL_EXP_BKT,
+                                            sizeof(int),
+                                            p_value);
+       break;
     default:
         CDBG("%s: default: parm %d not supported\n", __func__, parm_type);
         break;

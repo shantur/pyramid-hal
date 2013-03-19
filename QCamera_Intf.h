@@ -493,6 +493,7 @@ typedef enum {
     MM_CAMERA_PARM_ZSL_FLASH, /* 115 */
     MM_CAMERA_PARM_YUV_THRU_VFE,
     MM_CAMERA_PARM_VIDEO_HDR,
+    MM_CAMERA_PARM_SET_ZSL_EXP_BKT,
     MM_CAMERA_PARM_MAX
 } mm_camera_parm_type_t;
 
@@ -655,6 +656,7 @@ typedef enum {
   CAMERA_GET_PARAM_ISO_AUTO_VALUE,
   CAMERA_UNPREPARE_SNAPSHOT_ZSL,
   CAMERA_SET_VIDEO_HDR,
+  CAMERA_SET_ZSL_EXP_BKT,
   CAMERA_CTRL_PARM_MAX
 } cam_ctrl_type;
 
@@ -1041,12 +1043,18 @@ struct zsl_flash_t {
     uint8_t valid_entires;
 };
 
+struct zsl_exp_bracket_t {
+  uint32_t start_frame;
+  uint32_t end_frame;
+};
+
 typedef struct  {
   uint32_t event_id;
   union {
     mm_camera_histo_mem_info_t histo_mem_info;
     struct fd_roi_t roi;
     struct zsl_flash_t zsl_flash_info;
+    struct zsl_exp_bracket_t zsl_exp_bkt;
   } e;
 } mm_camera_info_event_t;
 
