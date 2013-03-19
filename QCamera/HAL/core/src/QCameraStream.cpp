@@ -55,6 +55,10 @@ void stream_cb_routine(mm_camera_super_buf_t *bufs,
             ((QCameraStream_Rdi *)p_obj)->processRdiFrame(bufs);
             break;
         case MM_CAMERA_SNAPSHOT_MAIN:
+            if(p_obj->mHalCamCtrl->mVideoHDRMode){
+                ALOGD("%s : In VideoHDR mode... snapshot frame received",__func__);
+                p_obj->mHalCamCtrl->superbuf_cb_routine(bufs,p_obj->mHalCamCtrl);
+            }
             break;
         case MM_CAMERA_SNAPSHOT_THUMBNAIL:
             break;

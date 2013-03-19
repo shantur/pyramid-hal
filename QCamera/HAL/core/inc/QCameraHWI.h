@@ -866,6 +866,8 @@ private:
     int mZslInterval;
     bool mRestartPreview;
     bool mMobiCatEnabled;
+    bool mRDIEnabled;
+    bool mVideoHDRMode;
     /*for histogram*/
     int            mStatsOn;
     int            mCurrentHisto;

@@ -34,6 +34,11 @@
 #define VISION_MODE_IMG_WIDTH   176
 #define VISION_MODE_IMG_HEIGHT  104
 
+
+#define VIDEO_HDR_STATS_WIDTH   2560
+#define VIDEO_HDR_STATS_HEIGHT  1
+
+
 /* QCameraHardwareInterface class implementation goes here*/
 /* following code implement the contol logic of this class*/
 
@@ -293,10 +298,9 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
                         (app_notify_cb_t *)pme->mNotifyDataQueue.dequeue();
                 if (NULL != app_cb) {
                     if(CAMERA_MSG_COMPRESSED_IMAGE == app_cb->argm_data_cb.msg_type){
-                        ALOGD("Received jpeg callback, reset isEncoding to FALSE");
-                        isEncoding = FALSE;
+                       ALOGD("Received jpeg callback, reset isEncoding to FALSE");
+                       isEncoding = FALSE;
                     }
-
                     /* send notify to upper layer */
                     if (app_cb->notifyCb) {
                         ALOGD("%s: evt notify cb", __func__);
@@ -1096,7 +1100,12 @@ int32_t QCameraHardwareInterface::createRdi()
 
     ALOGV("%s : E",__FUNCTION__);
 
-    if(mVisionModeFlag == true) {
+    if(mVideoHDRMode == true) {
+        mRdiWidth = VIDEO_HDR_STATS_WIDTH;
+        mRdiHeight = VIDEO_HDR_STATS_HEIGHT;
+        imgFormat = CAMERA_BAYER_SBGGR10;
+        numBuf = 7;
+    } else if(mVisionModeFlag == true) {
         mRdiWidth = VISION_MODE_IMG_WIDTH;
         mRdiHeight = VISION_MODE_IMG_HEIGHT;
         imgFormat = CAMERA_BAYER_SBGGR10;
@@ -1386,6 +1395,8 @@ QCameraHardwareInterface(int cameraId, int mode)
     mNotifyDataQueue(releaseNofityData, this),
     num_of_snapshot(1),
     num_snapshot_rcvd(0),
+    mRDIEnabled(0),
+    mVideoHDRMode(0),
     mSnapshotFlip(FLIP_NONE)
 {
     ALOGI("QCameraHardwareInterface: E");
@@ -2427,6 +2438,71 @@ status_t QCameraHardwareInterface::startPreview2()
                  mStreams[MM_CAMERA_VIDEO]->deinitStream();
                  return BAD_VALUE;
             }
+
+            if (mVideoHDRMode) {
+
+                if(mStreams[MM_CAMERA_RDI] == NULL) {
+                ALOGE("Create RDI Stream.\n");
+                 ret = createRdi();
+                    if (ret != MM_CAMERA_OK) {
+                        ALOGE("%s X: Failed to create Rdi object", __func__);
+                        return BAD_VALUE;
+                    }
+                }
+
+                ret = setDimension();
+                if (MM_CAMERA_OK != ret) {
+                    ALOGE("%s: error - can't Set Dimensions!", __func__);
+                    return BAD_VALUE;
+                }
+                ALOGE("Initing RDI Stream.\n");
+
+                ret =  mStreams[MM_CAMERA_RDI]->initStream(TRUE, TRUE);
+                if (MM_CAMERA_OK != ret){
+                    ALOGE("%s: error - can't init RDI stream!", __func__);
+                    mStreams[MM_CAMERA_SNAPSHOT_MAIN]->deinitStream();
+                    mStreams[MM_CAMERA_VIDEO]->deinitStream();
+                    mStreams[MM_CAMERA_PREVIEW]->deinitStream();
+                    return BAD_VALUE;
+                }
+                stream[1] = mStreams[MM_CAMERA_RDI]->mStreamId;
+                stream[0] = mStreams[MM_CAMERA_PREVIEW]->mStreamId;
+                attr.notify_mode = MM_CAMERA_SUPER_BUF_NOTIFY_BURST;
+                attr.burst_num = 1;
+                attr.look_back = 2;
+                attr.post_frame_skip = 0;
+                attr.water_mark = 2;
+                ALOGE("%s: burst_num=%d, look_back=%d, frame_skip=%d, water_mark=%d",
+                      __func__, attr.burst_num, attr.look_back,
+                      attr.post_frame_skip, attr.water_mark);
+                ret = mCameraHandle->ops->init_stream_bundle(
+                          mCameraHandle->camera_handle,
+                          mChannelId,
+                          superbuf_cb_routine,
+                          this,
+                          &attr,
+                          2,
+                          stream);
+                if (MM_CAMERA_OK != ret){
+                    ALOGE("%s: error - can't init preview streams!", __func__);
+                    mStreams[MM_CAMERA_RDI]->deinitStream();
+                    mStreams[MM_CAMERA_SNAPSHOT_MAIN]->deinitStream();
+                    mStreams[MM_CAMERA_VIDEO]->deinitStream();
+                    mStreams[MM_CAMERA_PREVIEW]->deinitStream();
+                    return BAD_VALUE;
+                }
+                ALOGE("Starting RDI Stream.\n");
+                ret = mStreams[MM_CAMERA_RDI]->streamOn();
+                if (MM_CAMERA_OK != ret){
+                    ALOGE("%s: error - can't start rdi stream!", __func__);
+                    mStreams[MM_CAMERA_RDI]->deinitStream();
+                    mStreams[MM_CAMERA_SNAPSHOT_MAIN]->deinitStream();
+                    mStreams[MM_CAMERA_VIDEO]->deinitStream();
+                    mStreams[MM_CAMERA_PREVIEW]->deinitStream();
+                    return BAD_VALUE;
+                }
+                mRDIEnabled = TRUE;
+            }
         }
     if(mIsYUVSensor && !mYUVThruVFE) {
         /*add bundle*/
@@ -2469,7 +2545,7 @@ status_t QCameraHardwareInterface::startPreview2()
         }
     }
 
-    ALOGE("%s: Starting RDI stream", __func__);
+    ALOGE("%s: Starting PREVIEW stream", __func__);
         ret = mStreams[MM_CAMERA_PREVIEW]->streamOn();
         if (MM_CAMERA_OK != ret){
             ALOGE("%s: error - can't start preview stream!", __func__);
@@ -2557,18 +2633,21 @@ void QCameraHardwareInterface::stopPreviewInternal()
         }
     }else{
         mStreams[MM_CAMERA_PREVIEW]->streamOff(0);
-        if(mIsYUVSensor && !mYUVThruVFE) {
+        if((mIsYUVSensor && !mYUVThruVFE)|| mRDIEnabled) {
             mStreams[MM_CAMERA_RDI]->streamOff(0);
             mStreams[MM_CAMERA_RDI]->deinitStream();
         }
     }
+
     if (mStreams[MM_CAMERA_VIDEO])
         mStreams[MM_CAMERA_VIDEO]->deinitStream();
     if (mStreams[MM_CAMERA_SNAPSHOT_MAIN])
         mStreams[MM_CAMERA_SNAPSHOT_MAIN]->deinitStream();
-    mStreams[MM_CAMERA_PREVIEW]->deinitStream();
-    if(mIsYUVSensor && !mYUVThruVFE) {
+        mStreams[MM_CAMERA_PREVIEW]->deinitStream();
+    if((mIsYUVSensor && !mYUVThruVFE)|| mRDIEnabled) {
         ret = mCameraHandle->ops->destroy_stream_bundle(mCameraHandle->camera_handle, mChannelId);
+        if (mRDIEnabled)
+            mRDIEnabled = FALSE;
         if(ret != MM_CAMERA_OK) {
             ALOGE("%s : destroy_stream_bundle Error",__func__);
         }
@@ -3149,27 +3228,32 @@ status_t  QCameraHardwareInterface::takePicture()
         }
         mStreams[MM_CAMERA_SNAPSHOT_MAIN]->streamOff(0);
 
-        stream[0]=mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mStreamId;
-        memset(&attr, 0, sizeof(mm_camera_bundle_attr_t));
-        attr.notify_mode = MM_CAMERA_SUPER_BUF_NOTIFY_CONTINUOUS;
-        ret = mCameraHandle->ops->init_stream_bundle(
-                  mCameraHandle->camera_handle,
-                  mChannelId,
-                  superbuf_cb_routine,
-                  this,
-                  &attr,
-                  1,
-                  stream);
-        if (MM_CAMERA_OK != ret){
-            ALOGE("%s: error - can't init Snapshot streams!", __func__);
-            return BAD_VALUE;
+       if (!mVideoHDRMode) {
+            stream[0]=mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mStreamId;
+            memset(&attr, 0, sizeof(mm_camera_bundle_attr_t));
+            attr.notify_mode = MM_CAMERA_SUPER_BUF_NOTIFY_CONTINUOUS;
+            ret = mCameraHandle->ops->init_stream_bundle(
+                      mCameraHandle->camera_handle,
+                      mChannelId,
+                      superbuf_cb_routine,
+                      this,
+                      &attr,
+                      1,
+                      stream);
+            if (MM_CAMERA_OK != ret){
+                ALOGE("%s: error - can't init Snapshot streams!", __func__);
+                return BAD_VALUE;
+            }
         }
         ret = mStreams[MM_CAMERA_SNAPSHOT_MAIN]->streamOn();
+
         if (MM_CAMERA_OK != ret){
             ALOGE("%s: error - can't start Snapshot streams!", __func__);
-            mCameraHandle->ops->destroy_stream_bundle(
-               mCameraHandle->camera_handle,
-               mChannelId);
+            if (!mVideoHDRMode) {
+                mCameraHandle->ops->destroy_stream_bundle(
+                   mCameraHandle->camera_handle,
+                   mChannelId);
+            }
             return BAD_VALUE;
         }
         break;
