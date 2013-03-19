@@ -18,6 +18,8 @@
 */
 
 //#define ALOG_NDEBUG 0
+#define LOG_NDEBUG 0
+#define LOG_NDDEBUG 0
 #define ALOG_NIDEBUG 0
 #define LOG_TAG "QCameraHWI_Parm"
 #include <utils/Log.h>
@@ -388,6 +390,11 @@ static const str_map zsl_modes[] = {
 };
 
 
+static const str_map video_hdr_modes[] = {
+    { QCameraParameters::VIDEO_HDR_OFF, FALSE },
+    { QCameraParameters::VIDEO_HDR_ON, TRUE },
+};
+
 static const str_map hdr_bracket[] = {
     { QCameraParameters::AE_BRACKET_HDR_OFF,HDR_BRACKETING_OFF},
     { QCameraParameters::AE_BRACKET_HDR,HDR_MODE },
@@ -617,6 +624,12 @@ bool QCameraHardwareInterface::supportsSelectableZoneAf() {
 bool QCameraHardwareInterface::supportsRedEyeReduction() {
    bool rc ;
    mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,MM_CAMERA_PARM_REDEYE_REDUCTION,(uint8_t*)&rc,(uint8_t*)&rc);
+   return rc;
+}
+
+bool QCameraHardwareInterface::supportsVideoHDR() {
+   bool rc ;
+   mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,MM_CAMERA_PARM_VIDEO_HDR,(uint8_t*)&rc,(uint8_t*)&rc);
    return rc;
 }
 
@@ -931,6 +944,9 @@ void QCameraHardwareInterface::initDefaultParameters()
 
         denoise_value = create_values_str(
             denoise, sizeof(denoise) / sizeof(str_map));
+
+        mVideoHdrValues = create_values_str(
+            video_hdr_modes, sizeof(video_hdr_modes) / sizeof(str_map));
 
        if(supportsFaceDetection()) {
             mFaceDetectionValues = create_values_str(
@@ -1299,6 +1315,18 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.set(QCameraParameters::KEY_QC_SUPPORTED_ZSL_MODES,
                     mZslValues);
 
+
+    //Set VIDEOHDR
+    mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
+                                          MM_CAMERA_PARM_VIDEO_HDR,&supported,&supported);
+
+    if(supported){
+        mParameters.set(QCameraParameters::KEY_QC_VIDEO_HDR,
+                        QCameraParameters::VIDEO_HDR_OFF);
+        mParameters.set(QCameraParameters::KEY_QC_SUPPORTED_VIDEO_HDR_MODES,
+                        mVideoHdrValues);
+    }
+
     //Set Focal length, horizontal and vertical view angles
     float focalLength = 0.0f;
     float horizontalViewAngle = 0.0f;
@@ -1500,6 +1528,7 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     // setHighFrameRate needs to be done at end, as there can
     // be a preview restart, and need to use the updated parameters
     if ((rc = setHighFrameRate(params)))  final_rc = rc;
+    if ((rc = setVideoHDR(params)))  final_rc = rc;
     if ((rc = setZSLBurstLookBack(params))) final_rc = rc;
     if ((rc = setZSLBurstInterval(params))) final_rc = rc;
     if ((rc = setMobiCat(params)))       final_rc = rc;
@@ -3282,6 +3311,41 @@ status_t QCameraHardwareInterface::setRedeyeReduction(const QCameraParameters& p
         }
     }
     ALOGE("Invalid Redeye Reduction value: %s", (str == NULL) ? "NULL" : str);
+    return BAD_VALUE;
+}
+
+status_t QCameraHardwareInterface::setVideoHDR(const QCameraParameters& params)
+{
+    if(supportsVideoHDR() == false) {
+        ALOGE("Parameter Video HDR is not supported for this sensor");
+        return NO_ERROR;
+    }
+
+    ALOGI("Parameter Video HDR is supported for this sensor");
+    const char *str = params.get(QCameraParameters::KEY_QC_VIDEO_HDR);
+    if (str != NULL) {
+        int value = attr_lookup(video_hdr_modes, sizeof(video_hdr_modes) / sizeof(str_map), str);
+        if (value != NOT_FOUND) {
+            int32_t temp = (int32_t)value;
+            ALOGE("%s: setting Video HDR value of %s", __FUNCTION__, str);
+            mVideoHDRMode = temp;
+            const char *oldHDR = mParameters.get(QCameraParameters::KEY_QC_VIDEO_HDR);
+            if(strcmp(oldHDR, str)) {
+                mParameters.set(QCameraParameters::KEY_QC_VIDEO_HDR, str);
+                if(QCAMERA_HAL_PREVIEW_STARTED == mPreviewState) {
+                    stopPreviewInternal();
+                    mPreviewState = QCAMERA_HAL_PREVIEW_STOPPED;
+                    native_set_parms(MM_CAMERA_PARM_VIDEO_HDR, sizeof(int32_t), (void *)&temp);
+                    if (startPreview2() == NO_ERROR)
+                        mPreviewState = QCAMERA_HAL_PREVIEW_STARTED;
+                        return NO_ERROR;
+                }
+            }
+            native_set_parms(MM_CAMERA_PARM_VIDEO_HDR, sizeof(int32_t), (void *)&temp);
+            return NO_ERROR;
+        }
+    }
+    ALOGE("Invalid Video HDR value: %s", (str == NULL) ? "NULL" : str);
     return BAD_VALUE;
 }
 

@@ -1721,6 +1721,12 @@ int32_t mm_camera_set_general_parm(mm_camera_obj_t * my_obj,
                                             sizeof(int32_t),
                                             p_value);
         break;
+    case MM_CAMERA_PARM_VIDEO_HDR:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                            CAMERA_SET_VIDEO_HDR,
+                                            sizeof(int32_t),
+                                            p_value);
+        break;
     case MM_CAMERA_PARM_WAVELET_DENOISE:
         {
             uint8_t isYuvSensor = my_obj->properties.yuv_output;

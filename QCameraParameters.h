@@ -70,8 +70,8 @@ public:
     static const char KEY_QC_PREVIEW_FRAME_RATE_AUTO_MODE[];
     static const char KEY_QC_PREVIEW_FRAME_RATE_FIXED_MODE[];
 
-    static const char KEY_QC_SKIN_TONE_ENHANCEMENT[] ;
-    static const char KEY_QC_SUPPORTED_SKIN_TONE_ENHANCEMENT_MODES[] ;
+    static const char KEY_QC_SKIN_TONE_ENHANCEMENT[];
+    static const char KEY_QC_SUPPORTED_SKIN_TONE_ENHANCEMENT_MODES[];
 
     //Touch Af/AEC settings.
     static const char KEY_QC_TOUCH_AF_AEC[];
@@ -92,8 +92,8 @@ public:
 
     static const char KEY_QC_ISO_MODE[];
     static const char KEY_QC_SUPPORTED_ISO_MODES[];
-    static const char KEY_QC_LENSSHADE[] ;
-    static const char KEY_QC_SUPPORTED_LENSSHADE_MODES[] ;
+    static const char KEY_QC_LENSSHADE[];
+    static const char KEY_QC_SUPPORTED_LENSSHADE_MODES[];
 
     static const char KEY_QC_AUTO_EXPOSURE[];
     static const char KEY_QC_SUPPORTED_AUTO_EXPOSURE[];
@@ -113,6 +113,8 @@ public:
 
     static const char KEY_QC_ZSL[];
     static const char KEY_QC_SUPPORTED_ZSL_MODES[];
+    static const char KEY_QC_VIDEO_HDR[];
+    static const char KEY_QC_SUPPORTED_VIDEO_HDR_MODES[];
 
     static const char KEY_QC_CAMERA_MODE[];
 
@@ -159,8 +161,8 @@ public:
     static const char EFFECT_USER_DEFINED6[];
 
     // Values for Touch AF/AEC
-    static const char TOUCH_AF_AEC_OFF[] ;
-    static const char TOUCH_AF_AEC_ON[] ;
+    static const char TOUCH_AF_AEC_OFF[];
+    static const char TOUCH_AF_AEC_ON[];
     static const char SCENE_MODE_ASD[];
     static const char SCENE_MODE_BACKLIGHT[];
     static const char SCENE_MODE_FLOWERS[];
@@ -176,15 +178,15 @@ public:
     // CameraHardwareInterface.autoFocus to start the focus in this mode.
     static const char FOCUS_MODE_NORMAL[];
     static const char ISO_AUTO[];
-    static const char ISO_HJR[] ;
+    static const char ISO_HJR[];
     static const char ISO_100[];
-    static const char ISO_200[] ;
+    static const char ISO_200[];
     static const char ISO_400[];
     static const char ISO_800[];
     static const char ISO_1600[];
     // Values for Lens Shading
-    static const char LENSSHADE_ENABLE[] ;
-    static const char LENSSHADE_DISABLE[] ;
+    static const char LENSSHADE_ENABLE[];
+    static const char LENSSHADE_DISABLE[];
 
     // Values for auto exposure settings.
     static const char AUTO_EXPOSURE_FRAME_AVG[];
@@ -198,19 +200,19 @@ public:
     static const char KEY_QC_SATURATION[];
     static const char KEY_QC_MAX_SATURATION[];
 
-    static const char KEY_QC_HISTOGRAM[] ;
-    static const char KEY_QC_SUPPORTED_HISTOGRAM_MODES[] ;
+    static const char KEY_QC_HISTOGRAM[];
+    static const char KEY_QC_SUPPORTED_HISTOGRAM_MODES[];
     // Values for HISTOGRAM
-    static const char HISTOGRAM_ENABLE[] ;
-    static const char HISTOGRAM_DISABLE[] ;
+    static const char HISTOGRAM_ENABLE[];
+    static const char HISTOGRAM_DISABLE[];
 
     // Values for SKIN TONE ENHANCEMENT
-    static const char SKIN_TONE_ENHANCEMENT_ENABLE[] ;
-    static const char SKIN_TONE_ENHANCEMENT_DISABLE[] ;
+    static const char SKIN_TONE_ENHANCEMENT_ENABLE[];
+    static const char SKIN_TONE_ENHANCEMENT_DISABLE[];
 
     // Values for Denoise
-    static const char DENOISE_OFF[] ;
-    static const char DENOISE_ON[] ;
+    static const char DENOISE_OFF[];
+    static const char DENOISE_ON[];
 
     // Values for auto exposure settings.
     static const char SELECTABLE_ZONE_AF_AUTO[];
@@ -230,6 +232,8 @@ public:
     static const char ZSL_OFF[];
     static const char ZSL_ON[];
 
+    static const char VIDEO_HDR_OFF[];
+    static const char VIDEO_HDR_ON[];
     // Values for HDR Bracketing settings.
     static const char AE_BRACKET_HDR_OFF[];
     static const char AE_BRACKET_HDR[];
@@ -286,5 +290,4 @@ public:
 };
 
 }; // namespace android
-
 #endif
