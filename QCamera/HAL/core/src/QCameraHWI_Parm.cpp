@@ -3193,6 +3193,7 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
         ALOGE("%s: Skipping fr JPEG SoC", __func__);
         return NO_ERROR;
      }
+
     if(!supported || (myMode & CAMERA_ZSL_MODE)) {
         ALOGI("Parameter HDR is not supported for this sensor/ ZSL mode");
 
@@ -3207,6 +3208,7 @@ status_t QCameraHardwareInterface::setAEBracket(const QCameraParameters& params)
         }
         return NO_ERROR;
     }
+
     const char *str1 = params.get(QCameraParameters::KEY_SCENE_MODE);
     if (!strncmp(str1, QCameraParameters::SCENE_MODE_HDR,
            QCameraParameters::MAX_STR_LENGTH))

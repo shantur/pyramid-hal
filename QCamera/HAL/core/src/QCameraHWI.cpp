@@ -2128,7 +2128,10 @@ void  QCameraHardwareInterface::processInfoEvent(
         case MM_CAMERA_INFO_FLASH_FRAME_IDX:
             zslFlashEvent(event->e.zsl_flash_info, app_cb);
             break;
-        default:
+    case MM_CAMERA_INFO_ZSL_EXP_BKT:
+        zslExpBktEvent(event->e.zsl_exp_bkt, app_cb);
+        break;
+    default:
             break;
     }
     ALOGI("processInfoEvent: X");
@@ -2157,6 +2160,15 @@ void QCameraHardwareInterface::zslFlashEvent(struct zsl_flash_t evt, app_notify_
     ALOGI("%s: X", __func__);
 }
 
+void QCameraHardwareInterface::zslExpBktEvent(struct zsl_exp_bracket_t evt,
+  app_notify_cb_t *)
+{
+
+    ALOGI("%s: startframe = %d, endframe= %d", __func__,
+          evt.start_frame, evt.end_frame);
+
+    ALOGI("%s: X", __func__);
+}
 
 void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
 {
