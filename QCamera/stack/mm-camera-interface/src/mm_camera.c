@@ -853,6 +853,12 @@ int32_t mm_camera_get_parm(mm_camera_obj_t *my_obj,
     case MM_CAMERA_PARM_YUV_THRU_VFE:
         *((int *)p_value) = my_obj->properties.yuv_thru_vfe;
         break;
+    case MM_CAMERA_PARM_QUERY_FLASH4ZSL:
+        rc = mm_camera_send_native_ctrl_cmd(my_obj,
+                                        CAMERA_QUERY_FLASH_FOR_ZSL,
+                                        sizeof(int),
+                                        p_value);
+        break;
 
     default:
         /* needs to add more implementation */
