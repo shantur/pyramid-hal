@@ -2036,6 +2036,7 @@ void QCameraHardwareInterface::processCtrlEvent(mm_camera_ctrl_event_t *event, a
             break;
         case MM_CAMERA_CTRL_EVT_AUTO_FOCUS_DONE:
             ALOGI("processCtrlEvent: MM_CAMERA_CTRL_EVT_AUTO_FOCUS_DONE");
+            mTouchROIEnabled = false;
             autoFocusEvent(&event->status, app_cb);
             break;
         case MM_CAMERA_CTRL_EVT_PREP_SNAPSHOT:
@@ -3315,7 +3316,7 @@ status_t QCameraHardwareInterface::autoFocus()
    /* Prepare snapshot*/
     ALOGI("%s:Prepare Snapshot", __func__);
 
-    if(mPrepareSnapshot==false){
+    if((mPrepareSnapshot==false) && (mTouchROIEnabled==false)){
         mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
             mChannelId,0);
         mPrepareSnapshot = true;

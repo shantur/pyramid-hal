@@ -2086,6 +2086,7 @@ status_t QCameraHardwareInterface::setMeteringAreas(const QCameraParameters& par
             aec_roi_value.aec_roi_position.coordinate.y = DONT_CARE_COORDINATE;
         }
 
+        mTouchROIEnabled = aec_roi_value.aec_roi_enable == AEC_ROI_ON ? true : false;
         if(native_set_parms(MM_CAMERA_PARM_AEC_ROI, sizeof(cam_set_aec_roi_t), (void *)&aec_roi_value))
             rc = NO_ERROR;
         else

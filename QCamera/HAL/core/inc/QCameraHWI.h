@@ -844,6 +844,7 @@ private:
 
     bool mAutoFocusRunning;
     bool mPrepareSnapshot;
+    bool mTouchROIEnabled;
     bool mNeedToUnlockCaf;
     bool mMultiTouch;
     bool mHasAutoFocusSupport;
