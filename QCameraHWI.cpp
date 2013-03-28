@@ -1735,7 +1735,7 @@ status_t  QCameraHardwareInterface::takePicture()
                 // Query if flash is required based on lighting condition
                 int32_t flash_expected = 0;
                 if(MM_CAMERA_OK != cam_config_get_parm(mCameraId,
-                          MM_CAMERA_PARM_QUERY_FLASH4SNAP, &flash_expected)){
+                          MM_CAMERA_PARM_QUERY_FLASH4ZSL, &flash_expected)){
                     ALOGE("%s: error: can not get flash_expected value", __func__);
                     return BAD_VALUE;
                 }

@@ -3090,7 +3090,8 @@ status_t  QCameraHardwareInterface::takePicture()
             if (isZSLMode() && (mYUVThruVFE || !mIsYUVSensor)){
                 ALOGD("%s: ZSL Snapshot Enabled",__func__);
                 int32_t flash_expected = 0;
-                ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_QUERY_FLASH4SNAP, (void *)&flash_expected);
+                ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle,
+                        MM_CAMERA_PARM_QUERY_FLASH4ZSL, (void *)&flash_expected);
                 if (MM_CAMERA_OK != ret) {
                     ALOGE("%s: error: can not get flash_expected value", __func__);
                     return BAD_VALUE;
