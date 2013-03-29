@@ -3724,6 +3724,7 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
             rc = -1;
             break;
         }
+        memset(heap->camera_memory[i]->data,0,heap->camera_memory[i]->size);
         //Invalidate since the memory allocated is cached
         cache_ops(&heap->mem_info[i], heap->camera_memory[i]->data, ION_IOC_INV_CACHES);
 
@@ -3748,7 +3749,6 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
                      buf_def[i].planes[j-1].length;
             }
         }
-        memset(heap->camera_memory[i]->data,0,heap->camera_memory[i]->size);
         ALOGE("heap->fd[%d] =%d, camera_memory=%p", i,
               heap->mem_info[i].fd, heap->camera_memory[i]);
         heap->local_flag[i] = 1;
