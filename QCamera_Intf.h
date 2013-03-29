@@ -136,12 +136,14 @@ typedef struct {
   int fd;         /* origin fd */
   uint32_t size;
   uint8_t is_hist; /* is hist mapping? */
+  uint8_t is_mobicat; /* is mobicat mapping */
 } mm_camera_frame_map_type;
 
 typedef struct {
   int ext_mode;   /* preview, main, thumbnail, video, raw, etc */
   int frame_idx;  /* frame index */
   uint8_t is_hist; /* is hist unmapping? */
+  uint8_t is_mobicat; /* is mobicat unmapping */
 } mm_camera_frame_unmap_type;
 
 typedef enum {
@@ -151,6 +153,8 @@ typedef enum {
   CAM_SOCK_MSG_TYPE_HDR_START,
   CAM_SOCK_MSG_TYPE_HIST_MAPPING,
   CAM_SOCK_MSG_TYPE_HIST_UNMAPPING,
+  CAM_SOCK_MSG_TYPE_MOBICAT_MAPPING,
+  CAM_SOCK_MSG_TYPE_MOBICAT_UNMAPPING,
   CAM_SOCK_MSG_TYPE_MAX
 }mm_camera_socket_msg_type;
 #define MAX_HDR_EXP_FRAME_NUM 5
@@ -1187,7 +1191,7 @@ typedef struct {
   uint32_t mobicat_size;
 }mm_cam_mobicat_info_t;
 
-#define MAX_MOBICAT_SIZE 8092
+#define MAX_MOBICAT_SIZE 8192
 
 /* This macro defines whether to gather the mobicat info from
    mm-camera-interface or HAL. Since its a huge data, we dont

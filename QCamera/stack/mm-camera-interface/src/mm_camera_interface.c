@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+Copyright (c) 2011-2013, The Linux Foundation. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -871,7 +871,9 @@ static int32_t mm_camera_intf_send_native_cmd(uint32_t camera_handle,
             memcpy(&packet.payload.frame_fd_map, cmd, sizeof(mm_camera_frame_map_type));
             if(packet.payload.frame_fd_map.is_hist) {
                 packet.msg_type = CAM_SOCK_MSG_TYPE_HIST_MAPPING;
-            } else {
+                } else if(packet.payload.frame_fd_map.is_mobicat){
+                   packet.msg_type = CAM_SOCK_MSG_TYPE_MOBICAT_MAPPING;
+                }else{
                 packet.msg_type = CAM_SOCK_MSG_TYPE_FD_MAPPING;
             }
             rc = mm_camera_util_sendmsg(my_obj, &packet,
@@ -885,7 +887,9 @@ static int32_t mm_camera_intf_send_native_cmd(uint32_t camera_handle,
             memcpy(&packet.payload.frame_fd_unmap, cmd, sizeof(mm_camera_frame_unmap_type));
             if(packet.payload.frame_fd_unmap.is_hist) {
                 packet.msg_type = CAM_SOCK_MSG_TYPE_HIST_UNMAPPING;
-            } else {
+                } else if(packet.payload.frame_fd_unmap.is_mobicat){
+                   packet.msg_type = CAM_SOCK_MSG_TYPE_MOBICAT_UNMAPPING;
+                }else{
                 packet.msg_type = CAM_SOCK_MSG_TYPE_FD_UNMAPPING;
             }
             rc = mm_camera_util_sendmsg(my_obj, &packet,

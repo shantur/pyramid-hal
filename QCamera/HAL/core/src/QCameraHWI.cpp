@@ -1,8 +1,7 @@
 /*
-** Copyright (c) 2012 The Linux Foundation. All rights reserved.
+** Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
 **
-** Not a Contribution, Apache license notifications and license are retained
-** for attribution purposes only.
+** Not a Contribution.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -63,9 +62,8 @@ void QCameraHardwareInterface::snapshot_buf_done(mm_camera_super_buf_t* src_fram
 void QCameraHardwareInterface::release_superbuf(mm_camera_super_buf_t* src_frame){
     if (src_frame != NULL) {
         for(int i = 0; i< src_frame->num_bufs; i++) {
-          if (src_frame->bufs[i]->p_mobicat_info) {
-            free(src_frame->bufs[i]->p_mobicat_info);
-            src_frame->bufs[i]->p_mobicat_info = NULL;
+           if(mMobiCatEnabled){
+           deInitMobicatBuffers();
            }
            if(MM_CAMERA_OK != mCameraHandle->ops->qbuf(src_frame->camera_handle,
                                              src_frame->ch_id,
@@ -717,17 +715,31 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
     jpg_job.encode_job.encode_parm.buf_info.src_imgs.src_img_num = src_img_num;
 
     if (mMobiCatEnabled) {
-        main_frame->p_mobicat_info = (cam_exif_tags_t*)malloc(sizeof(cam_exif_tags_t));
-        if ((main_frame->p_mobicat_info != NULL) &&
-             mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_MOBICAT,
-                 main_frame->p_mobicat_info)
-                 == MM_CAMERA_OK) {
-                 ALOGV("%s:%d] Mobicat enabled %p %d", __func__, __LINE__,
-                       main_frame->p_mobicat_info->tags,
-                       main_frame->p_mobicat_info->data_len);
-        } else {
-              ALOGE("MM_CAMERA_PARM_MOBICAT get failed");
-        }
+      ret = initMobicatBuffers();
+      if (ret != NO_ERROR) {
+        ALOGE("%s Error initializing Mobicat buffers ", __func__);
+        return ret;
+      }
+      mm_cam_mobicat_info_t mbc_info;
+      mbc_info.enable = 1;
+     if (mbc_info.enable != mMobiCatParamEnabled)
+     {
+      native_set_parms(MM_CAMERA_PARM_MOBICAT, sizeof(mm_cam_mobicat_info_t),
+                       (void *)&mbc_info);
+      mMobiCatEnabled = mbc_info.enable;
+      mMobiCatParamEnabled = mbc_info.enable;
+      }
+
+      main_frame->p_mobicat_info = (cam_exif_tags_t *)mMobicatServer.camera_memory->data;
+      ret = mCameraHandle->ops->get_parm(mCameraHandle->camera_handle, MM_CAMERA_PARM_MOBICAT,
+                                       (void *)&mMobiCatEnabled);
+     if (ret) {
+        ALOGE("%s:%d] Mobicat enabled in encode data: tag = %p,data_len = %d", __func__, __LINE__,
+              main_frame->p_mobicat_info->tags,
+              main_frame->p_mobicat_info->data_len);
+      } else {
+        ALOGE("MM_CAMERA_PARM_MOBICAT get failed");
+      }
     }
     if (mMobiCatEnabled && main_frame->p_mobicat_info) {
         jpg_job.encode_job.encode_parm.hasmobicat = 1;
@@ -1395,6 +1407,7 @@ QCameraHardwareInterface(int cameraId, int mode)
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
     mMobiCatEnabled = false;
+    mMobiCatParamEnabled = false;
     char value[PROPERTY_VALUE_MAX];
 
     pthread_mutex_init(&mAsyncCmdMutex, NULL);
@@ -1611,6 +1624,8 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
       mStatHeap.clear( );
       mStatHeap = NULL;
     }
+
+    deInitMobicatBuffers();
 
     for (int i = 0; i < MM_CAMERA_IMG_MODE_MAX; i++) {
         if (mStreams[i] != NULL) {
@@ -3926,6 +3941,7 @@ status_t QCameraHardwareInterface::initHistogramBuffers()
         map_buf.size = mHistServer.mem_info[cnt].size;
         map_buf.ext_mode = 0;
         map_buf.is_hist = TRUE;
+        map_buf.is_mobicat = FALSE;
         mCameraHandle->ops->send_command(mCameraHandle->camera_handle,
                                          MM_CAMERA_CMD_TYPE_NATIVE,
                                          NATIVE_CMD_ID_SOCKET_MAP,
@@ -3955,6 +3971,7 @@ status_t QCameraHardwareInterface::deInitHistogramBuffers()
         }
         unmap_buf.ext_mode = 0;
         unmap_buf.is_hist = TRUE;
+        unmap_buf.is_mobicat = FALSE;
         unmap_buf.frame_idx = i;
         mCameraHandle->ops->send_command(mCameraHandle->camera_handle,
                                          MM_CAMERA_CMD_TYPE_NATIVE,
@@ -3972,6 +3989,104 @@ status_t QCameraHardwareInterface::deInitHistogramBuffers()
     mHistServer.active = FALSE;
     ALOGI("%s X", __func__);
     return NO_ERROR;
+}
+
+status_t QCameraHardwareInterface::initMobicatBuffers()
+{
+  int statSize = sizeof(cam_exif_tags_t);
+
+  mm_camera_frame_map_type map_buf;
+
+  ALOGE("%s E", __func__);
+  if (TRUE == mMobicatServer.active) {
+    ALOGE("%s Previous buffers not deallocated yet. ", __func__);
+    return BAD_VALUE;
+  }
+
+  memset(&map_buf, 0, sizeof(map_buf));
+  mMobicatServer.mem_info.size = sizeof(cam_exif_tags_t);
+#ifdef USE_ION
+  int flag = (0x1 << ION_CP_MM_HEAP_ID | 0x1 << ION_IOMMU_HEAP_ID);
+  if (allocate_ion_memory(&mMobicatServer.mem_info, flag) < 0) {
+    ALOGE("%s ION alloc failed \n", __func__);
+    return NO_MEMORY;
+  }
+#else
+  mMobicatServer.mem_info.fd = open("/dev/pmem_adsp", O_RDWR | O_SYNC);
+  if (mMobicatServer.mem_info.fd <= 0) {
+    ALOGE("%s: no pmem", __func__);
+    return NO_INIT;
+  }
+#endif
+  mMobicatServer.camera_memory = mGetMemory(mMobicatServer.mem_info.fd,
+                                            mMobicatServer.mem_info.size,
+                                            1,
+                                            mCallbackCookie);
+
+  if (mMobicatServer.camera_memory == NULL) {
+    ALOGE("Failed to get camera memory for server side "
+          "Mobicat");
+    return NO_MEMORY;
+  } else {
+    ALOGE("Received following info for server side Mobicat data:%p,"
+          " handle:%p, size:%d,release:%p",
+          mMobicatServer.camera_memory->data,
+          mMobicatServer.camera_memory->handle,
+          mMobicatServer.camera_memory->size,
+          mMobicatServer.camera_memory->release);
+  }
+  //Invalidate since the memory allocated is cached
+  cache_ops(&mMobicatServer.mem_info, mMobicatServer.camera_memory->data, ION_IOC_INV_CACHES);
+  /*Register buffer at back-end*/
+  map_buf.fd = mMobicatServer.mem_info.fd;
+  map_buf.frame_idx = 0;
+  map_buf.size = mMobicatServer.mem_info.size;
+  map_buf.ext_mode = 0;
+  map_buf.is_mobicat = TRUE;
+  map_buf.is_hist = FALSE;
+  mCameraHandle->ops->send_command(mCameraHandle->camera_handle,
+                                   MM_CAMERA_CMD_TYPE_NATIVE,
+                                   NATIVE_CMD_ID_SOCKET_MAP,
+                                   sizeof(map_buf), &map_buf);
+  mMobicatServer.active = TRUE;
+  ALOGE("%s X", __func__);
+  return NO_ERROR;
+}
+
+status_t QCameraHardwareInterface::deInitMobicatBuffers()
+{
+  mm_camera_frame_unmap_type unmap_buf;
+  memset(&unmap_buf, 0, sizeof(unmap_buf));
+
+  ALOGI("%s E", __func__);
+
+  if (!mMobicatServer.active) {
+    ALOGI("%s Mobicat buffers not active. return. ", __func__);
+   return NO_ERROR;
+  }
+  //release memory
+ {
+    unmap_buf.ext_mode = 0;
+    unmap_buf.is_mobicat = TRUE;
+    unmap_buf.frame_idx = 0;
+    unmap_buf.is_hist = FALSE;
+    mCameraHandle->ops->send_command(mCameraHandle->camera_handle,
+                                     MM_CAMERA_CMD_TYPE_NATIVE,
+                                     NATIVE_CMD_ID_SOCKET_UNMAP,
+                                     sizeof(unmap_buf), &unmap_buf);
+
+    if (mMobicatServer.camera_memory != NULL) {
+      mMobicatServer.camera_memory->release(mMobicatServer.camera_memory);
+    }
+    close(mMobicatServer.mem_info.fd);
+    mMobicatServer.mem_info.fd = -1;
+#ifdef USE_ION
+    deallocate_ion_memory(&mMobicatServer.mem_info);
+#endif
+  }
+  mMobicatServer.active = FALSE;
+  ALOGI("%s X", __func__);
+  return NO_ERROR;
 }
 
 mm_jpeg_color_format QCameraHardwareInterface::getColorfmtFromImgFmt(uint32_t img_fmt)

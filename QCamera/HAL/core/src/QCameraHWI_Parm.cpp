@@ -1,8 +1,7 @@
 /*
 ** Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
 **
-** Not a Contribution, Apache license notifications and license are retained
-** for attribution purposes only.
+** Not a Contribution.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -3577,12 +3576,8 @@ status_t QCameraHardwareInterface::setMobiCat(const QCameraParameters& params)
   ALOGV("%s:%d] prop %d %d", __func__, __LINE__, mbc_info.enable, propval);
   mbc_info.enable |= propval;
 
-  if (mbc_info.enable != mMobiCatEnabled) {
-      ALOGV("%s:%d] enable %d", __func__, __LINE__, mbc_info.enable);
-      native_set_parms(MM_CAMERA_PARM_MOBICAT, sizeof(mm_cam_mobicat_info_t),
-                      (void *)&mbc_info);
-       mMobiCatEnabled = mbc_info.enable;
-  }
+  mMobiCatEnabled = mbc_info.enable;
+
   return NO_ERROR;
 }
 
