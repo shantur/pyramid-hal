@@ -4107,6 +4107,9 @@ void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * c
         free(frame);
         mHdrInfo.recvd_frame[1] = NULL;
     }
+
+    memset(mHdrInfo.recvd_frame, 0,
+           sizeof(mm_camera_super_buf_t *)*MAX_HDR_EXP_FRAME_NUM);
     ALOGV("%s X", __func__);
 }
 
