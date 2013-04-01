@@ -589,6 +589,8 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
       //Sending preview callback if corresponding Msgs are enabled
       if(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_PREVIEW_FRAME) {
           ALOGE("Q%s: PCB callback enabled", __func__);
+      //if CAMERA_MSG_COMPRESSED_IMAGE is enabled then avoid preview callback to app to avoid deadlock scenarios.
+      if(!(mHalCamCtrl->mMsgEnabled & CAMERA_MSG_COMPRESSED_IMAGE)) {
           msgType |=  CAMERA_MSG_PREVIEW_FRAME;
           int previewBufSize;
           /* The preview buffer size sent back in the callback should be (width*height*bytes_per_pixel)
@@ -618,6 +620,7 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
                 data = mHalCamCtrl->mPreviewMemory.camera_memory[preview_buf_idx];
                 ALOGE("Invalid preview format, buffer size in preview callback may be wrong.");
           }
+      }
       } else {
           data = NULL;
       }
