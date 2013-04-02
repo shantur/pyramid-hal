@@ -4331,7 +4331,7 @@ status_t QCameraHardwareInterface::setVisionAE(const QCameraParameters& params)
     	int ret = NO_ERROR;
 
 	if(mVisionModeFlag == false) {
-		ALOGV("%s: this parameter is not availble for non-vision mode");
+		ALOGV("%s: this parameter is not availble for non-vision mode", __func__);
 		return NO_ERROR;
 	}
 	ALOGE("%s: val=%d : E", __func__, val);
