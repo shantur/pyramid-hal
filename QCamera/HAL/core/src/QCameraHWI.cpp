@@ -601,6 +601,9 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
     }
     main_mem_info = &mSnapshotMemory.mem_info[main_frame->buf_idx];
 
+    //Update Exiftag values.
+    setExifTags();
+
     // send upperlayer callback for raw image (data or notify, not both)
     app_notify_cb_t *app_cb = (app_notify_cb_t *)malloc(sizeof(app_notify_cb_t));
     if (app_cb != NULL) {
