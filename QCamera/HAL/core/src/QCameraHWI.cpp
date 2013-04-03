@@ -2894,7 +2894,6 @@ status_t QCameraHardwareInterface::autoFocusEvent(cam_ctrl_status_t *status, app
        mNeedToUnlockCaf = true;
     mAutoFocusRunning = false;
     mAutofocusLock.unlock();
-
 /************************************************************
   END MUTEX CODE
 *************************************************************/
@@ -3320,12 +3319,13 @@ status_t QCameraHardwareInterface::autoFocus()
    /* Prepare snapshot*/
     ALOGI("%s:Prepare Snapshot", __func__);
 
-    if((mPrepareSnapshot==false) && (mTouchROIEnabled==false)){
+    if(isZSLMode()){
+      if((mPrepareSnapshot==false) && (mTouchROIEnabled==false)){
         mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
             mChannelId,0);
         mPrepareSnapshot = true;
     }
-
+  }
     ALOGI("%s:AF start (mode %d)", __func__, afMode);
     if(MM_CAMERA_OK != mCameraHandle->ops->start_focus(mCameraHandle->camera_handle,
                mChannelId, mCameraId,(uint32_t)&afMode)){
