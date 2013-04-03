@@ -777,6 +777,7 @@ private:
 
     void notifyHdrEvent(cam_ctrl_status_t status, void * cookie);
     void initHdrInfoForSnapshot(bool Hdr_on, int number_frames, int *exp );
+    void deInitHdrInfoForSnapshot();
     void doHdrProcessing();
 
     int           mCameraId;
