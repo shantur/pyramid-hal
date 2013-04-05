@@ -90,24 +90,9 @@ void QCameraHardwareInterface::superbuf_cb_routine(mm_camera_super_buf_t *recvd_
     }
 
     if (pme->mZsl_evt) {
-        ALOGD("%s: ZSL event match ID: %d Frame ID = %d\n", __func__, pme->mZsl_match_id,
+        if (recvd_frame->bufs[0]->frame_idx != pme->mZsl_match_id) {
+            ALOGE("%s: ZSL event match ID: %d Frame ID = %d\n", __func__, pme->mZsl_match_id,
               recvd_frame->bufs[0]->frame_idx);
-        if (recvd_frame->bufs[0]->frame_idx == pme->mZsl_match_id) {
-            ALOGD("%s: Matched the frame\n", __func__);
-        } else {
-            if (pme->num_snapshot_rcvd == 0) {
-                pme->release_superbuf(recvd_frame);
-                ALOGD("%s: request_super_buf:\n", __func__);
-                ret = pme->mCameraHandle->ops->request_super_buf(
-                          pme->mCameraHandle->camera_handle,
-                          pme->mChannelId,
-                          1);
-                if (MM_CAMERA_OK != ret) {
-                    ALOGE("%s: error - can't start Snapshot streams!", __func__);
-                    return;
-                }
-                return;
-            }
         }
     }
 
@@ -1634,13 +1619,6 @@ QCameraHardwareInterface::~QCameraHardwareInterface()
         }
     }
 
-    for (int i = 0; i < MAX_HDR_EXP_FRAME_NUM; i++) {
-        if (mHdrInfo.recvd_frame[i] != NULL) {
-            free(mHdrInfo.recvd_frame[i]);
-            mHdrInfo.recvd_frame[i] = NULL;
-        }
-    }
-
     mCameraHandle->ops->ch_release(mCameraHandle->camera_handle,
                                    mChannelId);
 
@@ -3004,6 +2982,7 @@ status_t QCameraHardwareInterface::cancelPictureInternal()
             mStreams[MM_CAMERA_SNAPSHOT_THUMBNAIL]->deinitStream();
         }
     }
+    deInitHdrInfoForSnapshot();
     ALOGI("cancelPictureInternal: X");
     return ret;
 }
@@ -3720,7 +3699,7 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
         }
 #endif
         heap->camera_memory[i] = mGetMemory(heap->mem_info[i].fd,
-                                            heap->mem_info[i].size,
+                                            buf_len,
                                             1,
                                             (void *)this);
 
@@ -4058,6 +4037,19 @@ void QCameraHardwareInterface::initHdrInfoForSnapshot(bool Hdr_on, int number_fr
     ALOGE("%s X", __func__);
 }
 
+void QCameraHardwareInterface::deInitHdrInfoForSnapshot()
+{
+    if (mHdrInfo.hdr_on) {
+        for (int i = 0; i < mHdrInfo.num_raw_received; i++) {
+            if (mHdrInfo.recvd_frame[i] != NULL) {
+                free(mHdrInfo.recvd_frame[i]);
+                mHdrInfo.recvd_frame[i] = NULL;
+            }
+        }
+        memset(mHdrInfo.recvd_frame, 0,
+                sizeof(mm_camera_super_buf_t *)*MAX_HDR_EXP_FRAME_NUM);
+    }
+}
 void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * cookie)
 {
     mm_camera_super_buf_t *frame;
@@ -4066,12 +4058,7 @@ void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * c
     ALOGI("%s: HDR Done status (%d) received mPreviewState = %d",__func__,status,mPreviewState);
 
     if (mPreviewState != QCAMERA_HAL_TAKE_PICTURE) {
-        for (int i = 0; i < MAX_HDR_EXP_FRAME_NUM; i++) {
-            if (mHdrInfo.recvd_frame[i] != NULL) {
-                free(mHdrInfo.recvd_frame[i]);
-                mHdrInfo.recvd_frame[i] = NULL;
-            }
-        }
+        deInitHdrInfoForSnapshot();
         return;
     }
     /* Currently we are using 3 frame HDR, with exposures of the
@@ -4085,12 +4072,14 @@ void QCameraHardwareInterface::notifyHdrEvent(cam_ctrl_status_t status, void * c
     ALOGI("%s Send HDR processed buffer for encoding ", __func__);
     /* Frame stored in [2] encoded by default. HDR Processed frame */
     frame = mHdrInfo.recvd_frame[2];
+    mHdrInfo.recvd_frame[2] = NULL;
     mSuperBufQueue.enqueue(frame);
     mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE,FALSE);
 
     if (num_of_snapshot > 1) {
         ALOGI("%s Send 1x exposed buffer for encoding ", __func__);
         frame = mHdrInfo.recvd_frame[0];
+        mHdrInfo.recvd_frame[0] = NULL;
         mSuperBufQueue.enqueue(frame);
         mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE,FALSE);
     } else {

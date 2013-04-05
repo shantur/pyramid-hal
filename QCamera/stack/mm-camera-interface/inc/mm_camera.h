@@ -387,6 +387,12 @@ typedef struct mm_channel {
     /* num of pending suferbuffers */
     uint32_t pending_cnt;
 
+	/* suferbuffers request type*/
+    uint32_t req_type;
+
+	/* suferbuffers FrameID*/
+    uint32_t req_frameID;
+
     /* cmd thread for superbuffer dataCB and async stop*/
     mm_camera_cmd_thread_t cmd_thread;
 

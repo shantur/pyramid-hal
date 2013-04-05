@@ -210,6 +210,8 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
     } else if (MM_CAMERA_CMD_TYPE_REQ_DATA_CB  == cmd_cb->cmd_type) {
         /* skip frames if needed */
         ch_obj->pending_cnt = cmd_cb->u.req_buf.num_buf_requested;
+        ch_obj->req_type = MM_CAMERA_CMD_TYPE_REQ_DATA_CB;
+        ch_obj->req_frameID = 0;
         mm_channel_superbuf_skip(ch_obj, &ch_obj->bundle.superbuf_queue);
     } else if (MM_CAMERA_CMD_TYPE_REQ_DATA_CB_BY_FRAMEID  == cmd_cb->cmd_type) {
     /* for jpeg soc sensor, we have to find matching yuv frame
@@ -218,15 +220,8 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
         __func__, cmd_cb->u.req_buf.num_buf_requested,
         cmd_cb->u.req_buf.yuv_frame_id);
         ch_obj->pending_cnt = cmd_cb->u.req_buf.num_buf_requested;
-        yuv_frame_id = cmd_cb->u.req_buf.yuv_frame_id;
-	if (ch_obj->cam_obj->properties.yuv_output) {
-	    mm_channel_superbuf_match_frameId(ch_obj, &ch_obj->
-                  bundle.superbuf_queue, yuv_frame_id);
-	}
-        else{
-	  mm_channel_superbuf_match_frameId_skip_unmatched(ch_obj, &ch_obj->
-                  bundle.superbuf_queue, yuv_frame_id);
-        }
+        ch_obj->req_type = MM_CAMERA_CMD_TYPE_REQ_DATA_CB_BY_FRAMEID;
+        ch_obj->req_frameID = cmd_cb->u.req_buf.yuv_frame_id;
         CDBG("%s:ch_obj->pending_cnt %d", __func__, ch_obj->pending_cnt);
         //TODO: return from here?
     }
@@ -240,6 +235,16 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
     while ( (ch_obj->pending_cnt > 0) ||
             (MM_CAMERA_SUPER_BUF_NOTIFY_CONTINUOUS == notify_mode) ) {
 
+        if (ch_obj->req_type == MM_CAMERA_CMD_TYPE_REQ_DATA_CB_BY_FRAMEID) {
+            if (ch_obj->cam_obj->properties.yuv_output) {
+                mm_channel_superbuf_match_frameId(ch_obj, &ch_obj->
+                      bundle.superbuf_queue, ch_obj->req_frameID);
+            }else{
+                mm_channel_superbuf_match_frameId_skip_unmatched(ch_obj, &ch_obj->
+                      bundle.superbuf_queue, ch_obj->req_frameID);
+            }
+        }
+
         /* dequeue */
         node = mm_channel_superbuf_dequeue(&ch_obj->bundle.superbuf_queue);
         if (NULL != node) {
@@ -249,6 +254,8 @@ static void mm_channel_process_stream_buf(mm_camera_cmdcb_t * cmd_cb,
             if (MM_CAMERA_SUPER_BUF_NOTIFY_BURST == notify_mode) {
                 ch_obj->pending_cnt--;
             }
+            ch_obj->req_type = MM_CAMERA_CMD_TYPE_REQ_DATA_CB;
+            ch_obj->req_frameID = 0;
 
             /* do post processing if needed */
             /* this is a blocking call */
