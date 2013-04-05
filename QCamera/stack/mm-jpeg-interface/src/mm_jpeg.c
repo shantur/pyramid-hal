@@ -781,14 +781,6 @@ static void *mm_jpeg_notify_thread(void *data)
 
     /* call cb */
     if (NULL != job_entry->job.encode_job.jpeg_cb) {
-        /* Add to cb queue */
-        rc = mm_jpeg_queue_enq(&my_obj->cb_q, data);
-        if (0 != rc) {
-            CDBG_ERROR("%s: enqueue into cb_q failed", __func__);
-            free(job_node);
-            return NULL;
-        }
-
         CDBG("%s: send jpeg callback", __func__);
         /* has callback, send CB */
         job_entry->job.encode_job.jpeg_cb(job_entry->job_status,
@@ -829,6 +821,12 @@ int32_t mm_jpeg_process_encoding_job(mm_jpeg_obj *my_obj, mm_jpeg_job_q_node_t* 
         /* OMX encode failed, notify error through callback */
         job_entry->job_status = JPEG_JOB_STATUS_ERROR;
         if (NULL != job_entry->job.encode_job.jpeg_cb) {
+            rc = mm_jpeg_queue_enq(&my_obj->cb_q, job_node);
+            if (0 != rc) {
+               CDBG_ERROR("%s: enqueue into cb_q failed", __func__);
+               free(job_node);
+               return rc;
+            }
             /* has callback, create a thread to send CB */
             pthread_create(&job_entry->cb_pid,
                            NULL,
@@ -1281,6 +1279,12 @@ OMX_ERRORTYPE mm_jpeg_ftbdone(OMX_HANDLETYPE hComponent,
         mm_jpeg_clean_omx_job(my_obj, job_entry);
 
         if (NULL != job_entry->job.encode_job.jpeg_cb) {
+            rc = mm_jpeg_queue_enq(&my_obj->cb_q, node);
+            if (0 != rc) {
+               CDBG_ERROR("%s: enqueue into cb_q failed", __func__);
+               free(node);
+               return rc;
+            }
             /* has callback, create a thread to send CB */
             pthread_create(&job_entry->cb_pid,
                            NULL,
@@ -1365,6 +1369,12 @@ OMX_ERRORTYPE mm_jpeg_handle_omx_event(OMX_HANDLETYPE hComponent,
                         /* find job that is OMX ongoing */
                         job_entry->job_status = JPEG_JOB_STATUS_ERROR;
                         if (NULL != job_entry->job.encode_job.jpeg_cb) {
+                            rc = mm_jpeg_queue_enq(&my_obj->cb_q, node);
+                            if (0 != rc) {
+                               CDBG_ERROR("%s: enqueue into cb_q failed", __func__);
+                               free(node);
+                               return rc;
+                            }
                             /* has callback, create a thread to send CB */
                             pthread_create(&job_entry->cb_pid,
                                            NULL,

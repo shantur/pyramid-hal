@@ -278,6 +278,7 @@ typedef struct {
     mm_camera_super_buf_t* src_frame;
     mm_camera_super_buf_t* src_frame2;
     mm_camera_buf_def_t* scratch_frame;
+    void* out_buf;
     void* userdata;
 } camera_jpeg_encode_cookie_t;
 
@@ -984,6 +985,8 @@ private:
      } ScratchMem;
 
      List<ScratchMem> mScratchMems;
+
+     camera_jpeg_encode_cookie_t *mCookie;
 
      static void *dataNotifyRoutine(void *data);
      static void *dataProcessRoutine(void *data);

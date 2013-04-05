@@ -182,6 +182,9 @@ void QCameraHardwareInterface::snapshot_jpeg_cb(jpeg_job_status_t status,
         return;
     }
 
+    //Reset jpeg cookie
+    pme->mCookie = NULL;
+
     if (cookie->src_frame) {
         /* no use of src frames, return them to kernel */
         pme->release_superbuf(cookie->src_frame);
@@ -396,6 +399,35 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                     ALOGE("%s: Abort Jpeg Job",__func__);
                     pme->mJpegHandle.abort_job(pme->mJpegClientHandle, current_jobId);
                     current_jobId = 0;
+                    camera_jpeg_encode_cookie_t *cookie = pme->mCookie;
+                    if(cookie){
+                        ALOGE("Cleanup start");
+                        //Release outbuf
+                        if(cookie->out_buf){
+                            free(cookie->out_buf);
+                            cookie->out_buf = NULL;
+                        }
+                        //Release srcframe,srcframe2 and scratch frames
+                        if (cookie->src_frame != NULL) {
+                            /* no use of src frames, return them to kernel */
+                            pme->release_superbuf(cookie->src_frame);
+                            free(cookie->src_frame);
+                            cookie->src_frame = NULL;
+                        }
+                        if (cookie->src_frame2 != NULL) {
+                            pme->release_superbuf(cookie->src_frame2);
+                            free(cookie->src_frame2);
+                            cookie->src_frame2 = NULL;
+                        }
+                        if (cookie->scratch_frame != NULL) {
+                            pme->deleteScratchMem(cookie->scratch_frame);
+                            cookie->scratch_frame = NULL;
+                        }
+                        //finally free the cookie
+                        free(cookie);
+                        pme->mCookie = NULL;
+                        ALOGE("Cleanup end");
+                    }
                 }
                 /* flush superBufQueue */
                 pme->mSuperBufQueue.flush();
@@ -643,6 +675,11 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         ALOGE("%s : no mem for cookie", __func__);
         return ret;
     }
+    memset(cookie,0,sizeof(camera_jpeg_encode_cookie_t));
+
+    //store reference to this cookie needed for cleanup
+    mCookie = cookie;
+
     cookie->src_frame = recvd_frame;
     cookie->src_frame2 = recvd_frame2;
     cookie->userdata = this;
@@ -918,6 +955,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         cookie = NULL;
         return -1;
     }
+    cookie->out_buf = jpg_job.encode_job.encode_parm.buf_info.sink_img.buf_vaddr;
     if (mJpegClientHandle > 0) {
         ret = mJpegHandle.start_job(mJpegClientHandle, &jpg_job, jobId);
     } else {
@@ -1405,7 +1443,8 @@ QCameraHardwareInterface(int cameraId, int mode)
     num_snapshot_rcvd(0),
     mRDIEnabled(0),
     mVideoHDRMode(0),
-    mSnapshotFlip(FLIP_NONE)
+    mSnapshotFlip(FLIP_NONE),
+    mCookie(NULL)
 {
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
