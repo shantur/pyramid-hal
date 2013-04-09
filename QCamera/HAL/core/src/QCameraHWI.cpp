@@ -3299,12 +3299,10 @@ status_t QCameraHardwareInterface::autoFocus()
     ALOGI("%s:Prepare Snapshot", __func__);
 
     if(isZSLMode()){
-      if((mPrepareSnapshot==false) && (mTouchROIEnabled==false)){
-        mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
-            mChannelId,0);
-        mPrepareSnapshot = true;
+      mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
+          mChannelId,0);
+      mPrepareSnapshot = true;
     }
-  }
     ALOGI("%s:AF start (mode %d)", __func__, afMode);
     if(MM_CAMERA_OK != mCameraHandle->ops->start_focus(mCameraHandle->camera_handle,
                mChannelId, mCameraId,(uint32_t)&afMode)){
@@ -3785,12 +3783,10 @@ void QCameraHardwareInterface::takePicturePrepareHardware()
 {
     ALOGV("%s: E", __func__);
 
-    if(mPrepareSnapshot==false){
-    /* Prepare snapshot*/
-        mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
-            mChannelId,0);
-        mPrepareSnapshot = true;
-    }
+    mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
+        mChannelId,0);
+    mPrepareSnapshot = true;
+
     ALOGV("%s: X", __func__);
 }
 
