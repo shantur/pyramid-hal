@@ -1,8 +1,7 @@
 /*
 ** Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
 **
-** Not a Contribution, Apache license notifications and license are retained
-** for attribution purposes only.
+** Not a Contribution.
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -190,6 +189,12 @@ typedef struct {
      QCameraHalMemInfo_t     mem_info[NUM_HISTOGRAM_BUFFERS];
      int active;
 } QCameraStatHeap_t;
+
+typedef struct {
+     camera_memory_t *       camera_memory;
+     QCameraHalMemInfo_t     mem_info;
+     int active;
+} QCameraMobicatHeap_t;
 
 typedef struct {
   int32_t msg_type;
@@ -773,6 +778,8 @@ private:
     bool getHdrInfoAndSetExp(int max_num_frm, int *num_frame, int *exp);
     status_t initHistogramBuffers();
     status_t deInitHistogramBuffers();
+    status_t initMobicatBuffers();
+    status_t deInitMobicatBuffers();
     mm_jpeg_color_format getColorfmtFromImgFmt(uint32_t img_fmt);
 
     void notifyHdrEvent(cam_ctrl_status_t status, void * cookie);
@@ -869,6 +876,7 @@ private:
     int mZslInterval;
     bool mRestartPreview;
     bool mMobiCatEnabled;
+    bool mMobiCatParamEnabled;
     bool mRDIEnabled;
     bool mVideoHDRMode;
     /*for histogram*/
@@ -878,6 +886,7 @@ private:
     sp<AshmemPool> mStatHeap;
     camera_memory_t *mStatsMapped[3];
     QCameraStatHeap_t mHistServer;
+    QCameraMobicatHeap_t mMobicatServer;
     int32_t        mStatSize;
 
     bool mZslLookBackMode;
