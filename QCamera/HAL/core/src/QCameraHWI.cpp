@@ -2000,15 +2000,19 @@ void QCameraHardwareInterface::processChannelEvent(
             //notify stream error to back end
             stream_error = 1;
             ret = native_set_parms(MM_CAMERA_PARM_STREAM_ERROR, sizeof(stream_error),(void *)&stream_error);
-            if(ret != true) {
-                ALOGE("%s X: Failed to notify back end. Camera might crash",__func__);
-            }
             // notify stream error to framework
             ALOGV("%s: Notifying error to framework", __func__);
             app_cb->notifyCb = mNotifyCb;
             app_cb->argm_notify.msg_type = CAMERA_MSG_ERROR;
-            app_cb->argm_notify.ext1 = CAMERA_ERROR_PREVIEWFRAME_TIMEOUT;
             app_cb->argm_notify.cookie = mCallbackCookie;
+
+            if(ret != true) {
+                ALOGE("%s X: Failed to notify back end. Camera might crash",__func__);
+                app_cb->argm_notify.ext1 = CAMERA_ERROR_SERVER_DIED;
+                return;
+            }
+            app_cb->argm_notify.ext1 = CAMERA_ERROR_PREVIEWFRAME_TIMEOUT;
+
             break;
         default:
             break;
