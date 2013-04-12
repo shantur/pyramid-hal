@@ -441,7 +441,7 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                         pme->notifyShutter(false);
                         pme->mShutterSoundPlayed = false;
 
-                       if (pme->isRawSnapshot()) {
+                       if ( (pme->isRawSnapshot()) || (pme->mHdrMode == EXP_BRACKETING_MODE )) {
                             ALOGD("%s: Process RAW Snapshot Frame",__func__);
                             receiveRawPicture(super_buf, pme);
 
@@ -1025,19 +1025,20 @@ void QCameraHardwareInterface::receiveRawPicture(mm_camera_super_buf_t* recvd_fr
 
          if(pme->mYUVThruVFE || !pme->mIsYUVSensor){
              if (sourceMemory->camera_memory[buf_index]->data != NULL) {
-                 memcpy(pme->mRawMemory.camera_memory[buf_index]->data, sourceMemory->camera_memory[buf_index]->data,
+                 memcpy(pme->mRawMemory.camera_memory[0]->data, sourceMemory->camera_memory[buf_index]->data,
                         recvd_frame->bufs[0]->frame_len);
              } else {
                  ALOGE("%s: The sourceMemory data is NULL", __func__);
                  return;
              }
+             if(pme->num_snapshot_rcvd == pme->num_of_snapshot)
              pme->releaseHeapMem(sourceMemory);
          }else{
              uint8_t* raw_data = (uint8_t*)recvd_frame->bufs[0]->buffer;
              if (raw_data != NULL) {
                  uint32_t *rawLength = (uint32_t *)(raw_data+0x13);
                  ALOGE("%s: *rawLength %d ", __func__, *rawLength);
-                 memcpy(pme->mRawMemory.camera_memory[buf_index]->data, raw_data + RAW_DATA_OFFSET, *rawLength);
+                 memcpy(pme->mRawMemory.camera_memory[0]->data, raw_data + RAW_DATA_OFFSET, *rawLength);
              }
          }
 
@@ -3561,9 +3562,9 @@ void QCameraHardwareInterface::dumpFrameToFile(mm_camera_buf_def_t* newFrame,
             ALOGE("%s: cannot open file:type=%d\n", __func__, frm_type);
           } else {
             ALOGE("%s: writing to file w=%d h =%d\n", __func__, w, h);
-            write(file_fd, (const void *)(newFrame->buffer), w * h);
-            write(file_fd, (const void *)
-              (newFrame->buffer) + w*h, w * h / 2 * main_422);
+            write(file_fd, (const void *)(newFrame->buffer)+ newFrame->frame_offset_info.mp[0].offset, w * h);
+            write(file_fd, (const void *)(newFrame->buffer) + newFrame->frame_offset_info.mp[0].len
+                   +newFrame->frame_offset_info.mp[1].offset,w * h / 2 * main_422);
             close(file_fd);
             ALOGE("dump %s", buf);
           }

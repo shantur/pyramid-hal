@@ -219,6 +219,7 @@ typedef struct {
     uint32_t frame_len; /* len of the whole frame, to be filled during mem allocation */
     void *mem_info; /* reserved for pointing to mem info */
     cam_exif_tags_t *p_mobicat_info; /*for mobicat info*/
+    cam_frame_len_offset_t frame_offset_info;
 } mm_camera_buf_def_t;
 
 typedef struct {

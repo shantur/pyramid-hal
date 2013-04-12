@@ -1326,6 +1326,12 @@ void QCameraHardwareInterface::initDefaultParameters()
                         mVideoHdrValues);
     }
 
+    //Initialize frame len, y offset, cbcr offset, camera format
+    mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_LEN,0);
+    mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_Y_OFFSET,0);
+    mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_CBCR_OFFSET,0);
+    mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_CAM_FORMAT,"YUV420");
+
     //Set Focal length, horizontal and vertical view angles
     float focalLength = 0.0f;
     float horizontalViewAngle = 0.0f;
