@@ -265,6 +265,7 @@ static void mm_stream_buf_notify(mm_camera_super_buf_t *super_buf,
     if (my_obj == NULL) {
         return;
     }
+
     CDBG("%s: E, inst_handle = 0x%x, my_handle = 0x%x, "
          "image_mode = %d, fd = %d, state = %d",
          __func__, my_obj->inst_hdl, my_obj->my_hdl,
@@ -311,6 +312,7 @@ static void mm_stream_dispatch_app_data(mm_camera_cmdcb_t *cmd_cb,
                                         void* user_data)
 {
     int i;
+    int ref_cnt = 0;
     mm_stream_t * my_obj = (mm_stream_t *)user_data;
     mm_camera_buf_info_t* buf_info = NULL;
     mm_camera_super_buf_t super_buf;
@@ -342,7 +344,11 @@ static void mm_stream_dispatch_app_data(mm_camera_cmdcb_t *cmd_cb,
     pthread_mutex_lock(&my_obj->cb_lock);
     for(i = 0; i < MM_CAMERA_STREAM_BUF_CB_MAX; i++) {
         if(NULL != my_obj->buf_cb[i].cb) {
-            if (my_obj->buf_cb[i].cb_count != 0) {
+            ref_cnt = my_obj->is_bundled ? my_obj->buf_status[buf_info->buf->buf_idx].buf_refcnt - 2
+                          : my_obj->buf_status[buf_info->buf->buf_idx].buf_refcnt - 1;
+            if (my_obj->buf_cb[i].cb_count < 0 ||
+                 (my_obj->buf_cb[i].cb_count > 0 &&
+                  my_obj->buf_cb[i].cb_count == ref_cnt)) {
                 /* if <0, means infinite CB
                  * if >0, means CB for certain times
                  * both case we need to call CB */
@@ -351,7 +357,8 @@ static void mm_stream_dispatch_app_data(mm_camera_cmdcb_t *cmd_cb,
             }
             /* if >0, reduce count by 1 every time we called CB until reaches 0
              * when count reach 0, reset the buf_cb to have no CB */
-            if (my_obj->buf_cb[i].cb_count > 0) {
+            if (my_obj->buf_cb[i].cb_count > 0 &&
+                  my_obj->buf_cb[i].cb_count == ref_cnt) {
                 my_obj->buf_cb[i].cb_count--;
                 if (0 == my_obj->buf_cb[i].cb_count) {
                     my_obj->buf_cb[i].cb = NULL;
