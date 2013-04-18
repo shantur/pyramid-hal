@@ -1118,6 +1118,7 @@ void QCameraHardwareInterface::receiveCompleteJpegPicture(jpeg_job_status_t stat
            pme->cancelAutoFocus();
        }
    }
+   pme->mSnapshotDone = FALSE;
    ALOGE("%s: X", __func__);
 }
 
@@ -1441,7 +1442,8 @@ QCameraHardwareInterface(int cameraId, int mode)
     mRDIEnabled(0),
     mVideoHDRMode(0),
     mSnapshotFlip(FLIP_NONE),
-    mCookie(NULL)
+    mCookie(NULL),
+    mSnapshotDone(FALSE)
 {
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
@@ -3043,6 +3045,7 @@ status_t QCameraHardwareInterface::cancelPictureInternal()
         }
     }
     deInitHdrInfoForSnapshot();
+    mSnapshotDone = FALSE;
     ALOGI("cancelPictureInternal: X");
     return ret;
 }
@@ -3279,12 +3282,16 @@ status_t  QCameraHardwareInterface::takePicture()
         ret = UNKNOWN_ERROR;
         break;
     case QCAMERA_HAL_RECORDING_STARTED:
+        if(mSnapshotDone){
+            ALOGE("%s: Previous snapshot is not done",__func__);
+            return MM_CAMERA_OK;
+        }
         /* if livesnapshot stream is previous on, need to stream off first */
         if(mIsYUVSensor && !mYUVThruVFE) {
-                    ALOGE("Trigger live shot capture cmd: E");
-                    /* Place Holder for Native Call */
-                    ALOGI("takePicture: X");
-                    return MM_CAMERA_OK;
+            ALOGE("Trigger live shot capture cmd: E");
+            /* Place Holder for Native Call */
+            ALOGI("takePicture: X");
+            return MM_CAMERA_OK;
         }
         mStreams[MM_CAMERA_SNAPSHOT_MAIN]->streamOff(0);
 
@@ -3316,6 +3323,7 @@ status_t  QCameraHardwareInterface::takePicture()
             }
             return BAD_VALUE;
         }
+        mSnapshotDone = TRUE;
         break;
     default:
         ret = UNKNOWN_ERROR;

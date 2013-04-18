@@ -880,6 +880,8 @@ private:
     bool mMobiCatParamEnabled;
     bool mRDIEnabled;
     bool mVideoHDRMode;
+    bool mSnapshotDone;
+
     /*for histogram*/
     int            mStatsOn;
     int            mCurrentHisto;
