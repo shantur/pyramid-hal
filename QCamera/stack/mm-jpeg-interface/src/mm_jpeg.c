@@ -963,6 +963,8 @@ int32_t mm_jpeg_init(mm_jpeg_obj *my_obj)
     pthread_mutex_init(&my_obj->omx_evt_lock, NULL);
     pthread_cond_init(&my_obj->omx_evt_cond, NULL);
 
+    my_obj->abort_started = 0;
+
     /* init ongoing job queue */
     rc = mm_jpeg_queue_init(&my_obj->ongoing_job_q);
     rc = mm_jpeg_queue_init(&my_obj->cb_q);
@@ -1050,7 +1052,8 @@ int32_t mm_jpeg_start_job(mm_jpeg_obj *my_obj,
     mm_jpeg_job_q_node_t* node = NULL;
 
     *jobId = 0;
-
+    my_obj->abort_started = 0;
+    CDBG("%s: E my_obj->abort_started=%d", __func__, my_obj->abort_started);
     /* check if valid client */
     clnt_idx = mm_jpeg_util_get_index_by_handler(client_hdl);
     if (clnt_idx >= MAX_JPEG_CLIENT_NUM ) {
@@ -1093,6 +1096,8 @@ int32_t mm_jpeg_abort_job(mm_jpeg_obj *my_obj,
     void * node = NULL;
     mm_jpeg_job_entry* job_entry = NULL;
 
+    my_obj->abort_started = 1;
+    CDBG("%s: E my_obj->abort_started=%d", __func__, my_obj->abort_started);
     /* check if valid client */
     clnt_idx = mm_jpeg_util_get_index_by_handler(client_hdl);
     if (clnt_idx >= MAX_JPEG_CLIENT_NUM ) {
@@ -1260,10 +1265,17 @@ OMX_ERRORTYPE mm_jpeg_ftbdone(OMX_HANDLETYPE hComponent,
     pthread_cond_signal(&my_obj->omx_evt_cond);
     pthread_mutex_unlock(&my_obj->omx_evt_lock);
 
+    CDBG("%s: DeQueue the OnGoing Queue", __func__);
+
     /* find job that is OMX ongoing */
     /* If OMX can support multi encoding, it should provide a way to pass jobID.
      * then we can find job by jobID from ongoing queue.
      * For now, since OMX only support one job per time, we simply dequeue it. */
+    if(my_obj->abort_started) {
+       CDBG_ERROR("%s: Abort initiated and so no need to send JPEG CB to HAL", __func__);
+       goto ftb_done;
+    }
+
     pthread_mutex_lock(&my_obj->job_lock);
     node = mm_jpeg_queue_deq(&my_obj->ongoing_job_q);
     if (NULL != node) {
@@ -1298,6 +1310,7 @@ OMX_ERRORTYPE mm_jpeg_ftbdone(OMX_HANDLETYPE hComponent,
     }
     pthread_mutex_unlock(&my_obj->job_lock);
 
+ftb_done:
     /* Wake up jobMgr thread to work on next job if there is any */
     sem_post(&my_obj->job_mgr.job_sem);
 

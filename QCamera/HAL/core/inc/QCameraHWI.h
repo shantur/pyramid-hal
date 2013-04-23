@@ -845,6 +845,7 @@ private:
     int  rdiMode;
     int  num_of_snapshot;
     int  num_snapshot_rcvd;
+    int  num_jpeg_rcvd;
 
     unsigned int mPictureSizeCount;
     unsigned int mPreviewSizeCount;
@@ -951,6 +952,7 @@ private:
      preview_stream_ops_t *mPreviewWindow;
      Mutex                mStateLock;
      int                  mPreviewState;
+     bool                 mSnapActive;
      /*preview memory with display case: memory is allocated and freed via
      gralloc */
      QCameraHalMemory_t   mPreviewMemory;

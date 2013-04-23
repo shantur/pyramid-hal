@@ -117,6 +117,7 @@ typedef struct {
 typedef struct mm_jpeg_obj_t {
     /* ClientMgr */
     int num_clients;                                /* num of clients */
+    int abort_started;                              /* jpeg Abort started or not */
     mm_jpeg_client_t clnt_mgr[MAX_JPEG_CLIENT_NUM]; /* client manager */
 
     /* JobMkr */
