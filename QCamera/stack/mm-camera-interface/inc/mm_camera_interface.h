@@ -293,7 +293,7 @@ typedef struct {
     mm_camera_2nd_sensor_t * (*query_2nd_sensor_info) (uint32_t camera_handle);
 
     /* if the operation is supported: TRUE - support, FALSE - not support */
-    uint8_t (*is_op_supported)(uint32_t camera_handle, mm_camera_ops_type_t opcode);
+    int32_t (*is_op_supported)(uint32_t camera_handle, mm_camera_ops_type_t opcode);
 
     /* if the parm is supported: TRUE - support, FALSE - not support */
     int32_t (*is_parm_supported) (uint32_t camera_handle,

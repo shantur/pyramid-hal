@@ -83,7 +83,7 @@ void QCameraStream::setResolution(mm_camera_dimension_t *res)
 }
 bool QCameraStream::isResolutionSame(mm_camera_dimension_t *res)
 {
-    if (mWidth != res->width || mHeight != res->height)
+    if (mWidth != ((uint32_t)res->width) || mHeight != ((uint32_t)res->height))
         return false;
     else
         return true;

@@ -2843,7 +2843,7 @@ int QCameraHardwareInterface::getISOSpeedValue()
       if (rc != NO_ERROR) {
          ALOGE("%s %d: Error getting AEC ISO AUTO Value", __func__, __LINE__);
       }
-      for (int i = 0;i < (sizeof(iso_speed_values)/ sizeof(int)); i++) {
+      for (unsigned int i = 0;i < (sizeof(iso_speed_values)/ sizeof(int)); i++) {
           if (iso_value <= iso_speed_values[i]) {
               iso_value = iso_speed_values[i];
               break;

@@ -130,7 +130,7 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
            mJpegSuperBuf->bufs[0]->buffer = (void *)malloc(COMBINED_BUF_SIZE);
            mJpegSuperBuf->bufs[0]->frame_len = COMBINED_BUF_SIZE;
            memcpy(mJpegSuperBuf->bufs[0]->buffer, jpeg_buf->bufs[0]->buffer, JPEG_DATA_OFFSET);
-           memcpy(mJpegSuperBuf->bufs[0]->buffer + JPEG_DATA_OFFSET, jpegData, jpegLength);
+           memcpy((uint8_t*)(mJpegSuperBuf->bufs[0]->buffer) + JPEG_DATA_OFFSET, jpegData, jpegLength);
 
            //need to qbuf the old 8MB buffer
            //Since status is JPEG_PENDING, qbuf will be called 
@@ -138,7 +138,7 @@ status_t QCameraStream_Rdi::processJpegData(const void *jpegInfo, const void *jp
            ret = JPEG_PENDING;
         } else if (jpegCount == 1) {
            // if this is second segemnt, copy after first, return JPEG_RECEIVED
-           memcpy(mJpegSuperBuf->bufs[0]->buffer + FIRST_JPEG_SIZE + JPEG_DATA_OFFSET, jpegData, jpegLength);
+           memcpy(((uint8_t*)mJpegSuperBuf->bufs[0]->buffer) + FIRST_JPEG_SIZE + JPEG_DATA_OFFSET, jpegData, jpegLength);
            *(uint32_t *)((uint8_t*)mJpegSuperBuf->bufs[0]->buffer+0x13) = jpegLength + FIRST_JPEG_SIZE;
            //need to qbuf the old 8MB buffer
            qbuf_helper(jpeg_buf);
@@ -231,11 +231,11 @@ void QCameraStream_Rdi::dumpFrameToFile(mm_camera_buf_def_t* newFrame)
     char buf[32];
     int file_fd;
     int i;
-    char *ext = "raw";
+    const char *ext = "raw";
     int w, h;
     static int count = 0;
-    char *name = "rdi";
-    unsigned int size;
+    const char *name = "rdi";
+    unsigned long int size;
     w = mHalCamCtrl->mRdiWidth;
     h = mHalCamCtrl->mRdiHeight;
 
@@ -251,7 +251,7 @@ void QCameraStream_Rdi::dumpFrameToFile(mm_camera_buf_def_t* newFrame)
             ALOGE("%s: cannot open file\n", __func__);
         } else {
             ALOGE("dumping RDI frame to file %s: size = %ld", buf, size);
-            void* y_off = newFrame->buffer + newFrame->planes[0].data_offset;
+            void* y_off =((uint8_t*)(newFrame->buffer)) + newFrame->planes[0].data_offset;
             write(file_fd, (const void *)(y_off), size);
             close(file_fd);
         }
@@ -335,7 +335,7 @@ status_t QCameraStream_Rdi::processRdiFrame(
        //process JPEG info and data.
         jpeg_info_t jpegInfo;
         status = processJpegData(frame->bufs[0]->buffer,
-                frame->bufs[0]->buffer + JPEG_DATA_OFFSET,&jpegInfo, frame);
+               ((uint8_t*)(frame->bufs[0]->buffer)) + JPEG_DATA_OFFSET,&jpegInfo, frame);
         if(status == JPEG_PENDING){
             ALOGD("%s: split jpeg, finished with the first jpeg", __func__);
         }
