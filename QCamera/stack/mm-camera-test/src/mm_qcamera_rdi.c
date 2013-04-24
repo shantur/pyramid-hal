@@ -69,9 +69,9 @@ static void dumpRdi(mm_camera_buf_def_t* newFrame, int w, int h, char* name, int
         if (file_fd < 0) {
             CDBG_ERROR("%s: cannot open file\n", __func__);
         } else {
-            void *y_off = newFrame->buffer + newFrame->planes[0].data_offset;
+            void *y_off = (unsigned long *)newFrame->buffer + newFrame->planes[0].data_offset;
             //int cbcr_off = newFrame->buffer + newFrame->planes[1].data_offset;//newFrame->buffer + newFrame->planes[0].length;
-            void *cbcr_off = newFrame->buffer + newFrame->planes[0].length;
+            void *cbcr_off = (unsigned long *)newFrame->buffer + newFrame->planes[0].length;
             CDBG("%s: Y_off = %p cbcr_off = %p", __func__, y_off,cbcr_off);
             CDBG("%s: Y_off length = %d cbcr_off length = %d", __func__, newFrame->planes[0].length,newFrame->planes[1].length);
 

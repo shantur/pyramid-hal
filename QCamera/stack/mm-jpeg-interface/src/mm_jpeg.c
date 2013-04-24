@@ -262,9 +262,9 @@ int32_t mm_jpeg_omx_config_port(mm_jpeg_obj* my_obj, src_image_buffer_info *src_
 
         CDBG("%s: port_idx=%d, width =%d, height =%d, stride = %d, slice = %d, bufsize = %d\n",
              __func__, port_idx,
-             input_port.format.image.nFrameWidth, input_port.format.image.nFrameHeight,
-             input_port.format.image.nStride, input_port.format.image.nSliceHeight,
-             input_port.nBufferSize);
+             (int)input_port.format.image.nFrameWidth, (int)input_port.format.image.nFrameHeight,
+             (int)input_port.format.image.nStride, (int)input_port.format.image.nSliceHeight,
+             (int)input_port.nBufferSize);
         OMX_SetParameter(my_obj->omx_handle, OMX_IndexParamPortDefinition, &input_port);
     }
 
@@ -322,7 +322,7 @@ int32_t mm_jpeg_omx_config_user_preference(mm_jpeg_obj* my_obj, mm_jpeg_encode_j
         user_preferences.color_format =
             map_jpeg_format(main_buf_info->color_format);
     }
-    CDBG("%s: color_format",__func__, user_preferences.color_format);
+    CDBG("%s: color_format = %d",__func__, user_preferences.color_format);
     if (job->encode_parm.buf_info.src_imgs.src_img_num > 1) {
         user_preferences.thumbnail_color_format =
             map_jpeg_format(job->encode_parm.buf_info.src_imgs.src_img[JPEG_SRC_IMAGE_TYPE_THUMB].color_format);
@@ -460,7 +460,7 @@ int32_t mm_jpeg_omx_config_thumbnail(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* jo
     OMX_GetParameter(my_obj->omx_handle, q_idx, &quality);
     quality.nQFactor = src_buf->quality;
     OMX_SetParameter(my_obj->omx_handle, q_idx, &quality);
-    CDBG("%s: thumbnail_quality=%d", __func__, quality.nQFactor);
+    CDBG("%s: thumbnail_quality=%d", __func__, (int)quality.nQFactor);
 
     rc = 0;
     return rc;
@@ -506,14 +506,14 @@ int32_t mm_jpeg_omx_config_main_crop(mm_jpeg_obj* my_obj, src_image_buffer_info 
 
     OMX_SetConfig(my_obj->omx_handle, OMX_IndexConfigCommonInputCrop, &rect_type_in);
     CDBG("%s: OMX_IndexConfigCommonInputCrop w=%d, h=%d, l=%d, t=%d, port_idx=%d", __func__,
-         rect_type_in.nWidth, rect_type_in.nHeight,
-         rect_type_in.nLeft, rect_type_in.nTop,
-         rect_type_in.nPortIndex);
+         (int)rect_type_in.nWidth, (int)rect_type_in.nHeight,
+         (int)rect_type_in.nLeft, (int)rect_type_in.nTop,
+         (int)rect_type_in.nPortIndex);
 
     OMX_SetConfig(my_obj->omx_handle, OMX_IndexConfigCommonOutputCrop, &rect_type_out);
     CDBG("%s: OMX_IndexConfigCommonOutputCrop w=%d, h=%d, port_idx=%d", __func__,
-         rect_type_out.nWidth, rect_type_out.nHeight,
-         rect_type_out.nPortIndex);
+         (int)rect_type_out.nWidth, (int)rect_type_out.nHeight,
+         (int)rect_type_out.nPortIndex);
 
     return rc;
 }
@@ -557,7 +557,7 @@ int32_t mm_jpeg_omx_config_main(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job)
     OMX_GetParameter(my_obj->omx_handle, OMX_IndexParamQFactor, &q_factor);
     q_factor.nQFactor = src_buf->quality;
     OMX_SetParameter(my_obj->omx_handle, OMX_IndexParamQFactor, &q_factor);
-    CDBG("%s: config QFactor: %d", __func__, q_factor.nQFactor);
+    CDBG("%s: config QFactor: %d", __func__, (int)q_factor.nQFactor);
 
     return rc;
 }
@@ -595,7 +595,7 @@ int32_t mm_jpeg_omx_config_common(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job)
     rotate.nRotation = job->encode_parm.rotation;
     OMX_SetConfig(my_obj->omx_handle, OMX_IndexConfigCommonRotate, &rotate);
     CDBG("%s: Set rotation to %d at port_idx=%d", __func__,
-         job->encode_parm.rotation, rotate.nPortIndex);
+         job->encode_parm.rotation, (int)rotate.nPortIndex);
 
     /* set exif tags */
     CDBG("%s: Set rexif tags", __func__);
@@ -608,7 +608,7 @@ int32_t mm_jpeg_omx_config_common(mm_jpeg_obj* my_obj, mm_jpeg_encode_job* job)
      /* set mobicat info */
     CDBG("%s: set Mobicat info", __func__);
     if(job->encode_parm.hasmobicat) {
-        mobicat_d.mobicatData = job->encode_parm.mobicat_data;
+        mobicat_d.mobicatData = (uint8_t *)job->encode_parm.mobicat_data;
         mobicat_d.mobicatDataLength =  job->encode_parm.mobicat_data_length;
         OMX_GetExtensionIndex(my_obj->omx_handle, "omx.qcom.jpeg.exttype.mobicat", &mobicat_data);
         OMX_SetParameter(my_obj->omx_handle, mobicat_data, &mobicat_d);
@@ -1336,7 +1336,7 @@ OMX_ERRORTYPE mm_jpeg_handle_omx_event(OMX_HANDLETYPE hComponent,
     }
 
     /* signal event */
-    switch (eEvent) {
+    switch ((int)eEvent) {
     case  OMX_EVENT_JPEG_ABORT:
         {
             CDBG("%s: eEvent=OMX_EVENT_JPEG_ABORT", __func__);
@@ -1413,7 +1413,7 @@ OMX_ERRORTYPE mm_jpeg_handle_omx_event(OMX_HANDLETYPE hComponent,
     case OMX_EventCmdComplete:
         {
             CDBG("%s: eEvent=OMX_EventCmdComplete, value1=%d, value2=%d",
-                 __func__, nData1, nData2);
+                 __func__, (int)nData1, (int)nData2);
             /* signal cmd complete evt */
             pthread_mutex_lock(&my_obj->omx_evt_lock);
             my_obj->omx_evt_rcvd.evt = MM_JPEG_EVENT_MASK_CMD_COMPLETE;

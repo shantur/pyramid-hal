@@ -41,6 +41,9 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern int system_dimension_set(int cam_id);
 extern void dumpFrameToFile(mm_camera_buf_def_t* newFrame, int w, int h, char* name, int main_422);
 
+extern int mm_stream_invalid_cache(mm_camera_app_obj_t *pme,
+                                   mm_camera_buf_def_t *frame);
+
 int32_t mm_qcamera_queue_init(mm_qcamera_queue_t* queue);
 int32_t mm_qcamera_queue_enq(mm_qcamera_queue_t* queue, void* data);
 void* mm_qcamera_queue_deq(mm_qcamera_queue_t* queue);
