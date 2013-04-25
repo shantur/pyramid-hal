@@ -213,8 +213,8 @@ static void mm_stream_data_notify(void* user_data)
          "image_mode = %d, fd = %d, state = %d",
          __func__, my_obj->inst_hdl, my_obj->my_hdl,
          my_obj->ext_image_mode, my_obj->fd, my_obj->state);
-    if (MM_STREAM_STATE_ACTIVE_STREAM_ON != my_obj->state) {
-        /* this Cb will only received in active_stream_on state
+    if (my_obj->state < MM_STREAM_STATE_REG) {
+        /* this Cb will only received in active_stream_on or Register state
          * if not so, return here */
         CDBG_ERROR("%s: ERROR!! Wrong state (%d) to receive data notify!",
                    __func__, my_obj->state);
