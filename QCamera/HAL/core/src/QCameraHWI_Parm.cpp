@@ -2645,7 +2645,7 @@ status_t QCameraHardwareInterface::setPowerMode(const QCameraParameters& params)
     if (powermode != NULL) {
         value = attr_lookup(power_modes,
                 sizeof(power_modes) / sizeof(str_map), powermode);
-        if((value == LOW_POWER) || mHFRLevel > 1) {
+        if((value == LOW_POWER) || mHFRLevel > 1 || (mVideoHDRMode == true)) {
             ALOGI("Enable Low Power Mode");
             value = LOW_POWER;
             mPowerMode = value;
