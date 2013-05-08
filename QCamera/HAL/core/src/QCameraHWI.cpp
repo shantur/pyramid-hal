@@ -3366,11 +3366,9 @@ status_t QCameraHardwareInterface::autoFocus()
    /* Prepare snapshot*/
     ALOGI("%s:Prepare Snapshot", __func__);
 
-    if(isZSLMode()){
-      mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
-          mChannelId,0);
-      mPrepareSnapshot = true;
-    }
+    mCameraHandle->ops->prepare_snapshot(mCameraHandle->camera_handle,
+        mChannelId,0);
+    mPrepareSnapshot = true;
     ALOGI("%s:AF start (mode %d)", __func__, afMode);
     if(MM_CAMERA_OK != mCameraHandle->ops->start_focus(mCameraHandle->camera_handle,
                mChannelId, mCameraId,(uint32_t)&afMode)){
