@@ -69,10 +69,12 @@ void QCameraHardwareInterface::release_superbuf(mm_camera_super_buf_t* src_frame
                                              src_frame->ch_id,
                                              src_frame->bufs[i])){
                ALOGE("%s:Buf done failed for buffer[%d] streamid %d", __func__, i, src_frame->bufs[i]->stream_id);
+           } else {
+               ALOGV("%s: qbuf success..calling cache_ops",__func__);
+               cache_ops((QCameraHalMemInfo_t *)(src_frame->bufs[i]->mem_info),
+                               src_frame->bufs[i]->buffer,
+                               ION_IOC_CLEAN_INV_CACHES);
            }
-           cache_ops((QCameraHalMemInfo_t *)(src_frame->bufs[i]->mem_info),
-                           src_frame->bufs[i]->buffer,
-                           ION_IOC_CLEAN_INV_CACHES);
         }
     }
 }
@@ -84,6 +86,10 @@ void QCameraHardwareInterface::superbuf_cb_routine(mm_camera_super_buf_t *recvd_
     QCameraHardwareInterface *pme = (QCameraHardwareInterface *)userdata;
     if(pme == NULL){
        ALOGE("%s: pme is null", __func__);
+       return;
+    }
+    if(pme->mSnapActive == false){
+       ALOGE("%s: mSnapActive is false i.e, already Stop Triggerred", __func__);
        return;
     }
 
@@ -126,14 +132,24 @@ void QCameraHardwareInterface::superbuf_cb_routine(mm_camera_super_buf_t *recvd_
             pme->doHdrProcessing();
         }
     } else {
-        /* enqueu to superbuf queue */
-        pme->mSuperBufQueue.enqueue(frame);
+        if (pme->mSnapActive == true)
+        {
+           /* enqueu to superbuf queue */
+           pme->mSuperBufQueue.enqueue(frame);
 
-        /* notify dataNotify thread that new super buf is avail
-         * check if it's done with current JPEG notification and
-         * a new encoding job could be conducted*/
-        pme->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE,FALSE);
-        pme->num_snapshot_rcvd++;
+           /* notify dataNotify thread that new super buf is avail
+                   * check if it's done with current JPEG notification and
+                   * a new encoding job could be conducted*/
+           pme->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_DO_NEXT_JOB, FALSE,FALSE);
+           pme->num_snapshot_rcvd++;
+           ALOGE("%s: Number of YUV images received = %d ", __func__, pme->num_snapshot_rcvd);
+        } else {
+           // Relase the Super buffer and free the frame structure
+           ALOGE("%s: As mSnapActive is False, release the superbuf and free the frame", __func__);
+           pme->release_superbuf(frame);
+           free(frame);
+           frame = NULL;
+        }
     }
    ALOGE("%s: X", __func__);
 
@@ -160,8 +176,9 @@ void QCameraHardwareInterface::snapshot_jpeg_cb(jpeg_job_status_t status,
        ALOGE("%s: pme is null", __func__);
        return;
     }
-    if(pme->mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED){
-        ALOGE("Stop issued. Return from snapshot_jpeg_cb");
+    if(pme->mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED || pme->mSnapActive == false){
+       ALOGE("%s: Stop issued. Return from snapshot_jpeg_cb,mPreviewState is %d, mSnapActive is %d",
+                                                      __func__,pme->mPreviewState,pme->mSnapActive);
         return;
     }
 
@@ -255,18 +272,24 @@ void *QCameraHardwareInterface::dataNotifyRoutine(void *data)
         case CAMERA_CMD_TYPE_START_DATA_PROC:
             /* init flag to FALSE */
             isActive = TRUE;
+            pme->mSnapActive = true;
             isEncoding = FALSE;
             numOfSnapshotExpected = pme->num_of_snapshot;
             numOfSnapshotRcvd = 0;
             break;
         case CAMERA_CMD_TYPE_STOP_DATA_PROC:
+            if(isActive == FALSE) {
+                ALOGE("%s: isActive is already false..return", __func__);
+            } else {
             /* flush jpeg data queue */
             pme->mNotifyDataQueue.flush();
             isActive = FALSE;
+            pme->mSnapActive = false;
             /* set flag to FALSE */
             isEncoding = FALSE;
             numOfSnapshotExpected = 0;
             numOfSnapshotRcvd = 0;
+            }
             break;
         case CAMERA_CMD_TYPE_DO_NEXT_JOB:
             {
@@ -372,11 +395,18 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
         switch (cmd) {
         case CAMERA_CMD_TYPE_START_DATA_PROC:
             is_active = TRUE;
+            pme->mSnapActive = true;
             pme->num_snapshot_rcvd = 0;
+            pme->num_jpeg_rcvd = 0;
             break;
         case CAMERA_CMD_TYPE_STOP_DATA_PROC:
             {
+                if(is_active == FALSE){
+                   ALOGE("%s: is_active is already false..return", __func__);
+                   sem_post(&cmdThread->sync_sem);
+                } else {
                 is_active = FALSE;
+                pme->mSnapActive = false;
                 /* abort current job if it's running */
                 if (current_jobId > 0) {
                     ALOGE("%s: Abort Jpeg Job",__func__);
@@ -415,8 +445,10 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                 /* flush superBufQueue */
                 pme->mSuperBufQueue.flush();
                 pme->num_snapshot_rcvd = 0;
+                pme->num_jpeg_rcvd = 0;
                 /* signal cmd is completed */
                 sem_post(&cmdThread->sync_sem);
+                }
             }
             break;
         case CAMERA_CMD_TYPE_DO_NEXT_JOB:
@@ -489,6 +521,7 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
                 current_jobId = 0;
             }
             pme->num_snapshot_rcvd = 0;
+            pme->num_jpeg_rcvd = 0;
             /* flush super buf queue */
             pme->mSuperBufQueue.flush();
             running = 0;
@@ -1114,6 +1147,8 @@ void QCameraHardwareInterface::receiveCompleteJpegPicture(jpeg_job_status_t stat
        if (rc != NO_ERROR) {
            pme->releaseHeapMem(&pme->mJpegMemory);
        }
+       pme->num_jpeg_rcvd++;
+       ALOGE("%s: Number of JPEG received = %d ", __func__, pme->num_jpeg_rcvd);
        if(pme->mZsl_evt && (pme->num_snapshot_rcvd == pme->num_of_snapshot)){
            pme->mZsl_evt = 0;
            pme->cancelAutoFocus();
@@ -1440,11 +1475,13 @@ QCameraHardwareInterface(int cameraId, int mode)
     mNotifyDataQueue(releaseNofityData, this),
     num_of_snapshot(1),
     num_snapshot_rcvd(0),
+    num_jpeg_rcvd(0),
     mRDIEnabled(0),
     mVideoHDRMode(0),
     mSnapshotFlip(FLIP_NONE),
-    mCookie(NULL),
-    mSnapshotDone(FALSE)
+    mSnapshotDone(FALSE),
+    mSnapActive(false),
+    mCookie(NULL)
 {
     ALOGI("QCameraHardwareInterface: E");
     int32_t result = MM_CAMERA_E_GENERAL;
