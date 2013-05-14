@@ -966,6 +966,7 @@ int QCameraStream_preview::getBuf(mm_camera_frame_len_offset *frame_offset_info,
     for(int i = 0; i < num_bufs; i++) {
         bufs[i] = mDisplayBuf[i];
         initial_reg_flag[i] = true;
+        bufs[i].frame_offset_info = *frame_offset_info;
     }
 
     ALOGV("%s: X - ret = %d ", __func__, ret);

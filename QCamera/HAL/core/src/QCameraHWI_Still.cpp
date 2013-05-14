@@ -113,11 +113,20 @@ int QCameraStream_SnapshotMain::getBuf(mm_camera_frame_len_offset *frame_offset_
                                    MSM_PMEM_MAINIMG,
                                    &mFrameOffsetInfo,
                                    mSnapshotStreamBuf);
+    // set the frame len,y offset, cbcr offset, camera format
+    mHalCamCtrl->mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_LEN,
+                    frame_offset_info->frame_len);
+    mHalCamCtrl->mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_Y_OFFSET,
+                    frame_offset_info->mp[0].offset);
+    mHalCamCtrl->mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_CBCR_OFFSET,
+                    frame_offset_info->mp[1].offset);
+    mHalCamCtrl->mParameters.set(QCameraParameters::KEY_QC_SNAPSHOT_FRAME_CAM_FORMAT,"YUV420");
 
     if(MM_CAMERA_OK == ret) {
         for(int i = 0; i < num_bufs; i++) {
             bufs[i] = mSnapshotStreamBuf[i];
             initial_reg_flag[i] = (TRUE == m_flag_stream_on)? TRUE : FALSE;
+            bufs[i].frame_offset_info = *frame_offset_info;
         }
     }
 
@@ -221,6 +230,7 @@ status_t QCameraStream_SnapshotThumbnail::getBuf(mm_camera_frame_len_offset *fra
         for(int i = 0; i < num_bufs; i++) {
             bufs[i] = mPostviewStreamBuf[i];
             initial_reg_flag[i] = true;
+            bufs[i].frame_offset_info = *frame_offset_info;
         }
     }
 

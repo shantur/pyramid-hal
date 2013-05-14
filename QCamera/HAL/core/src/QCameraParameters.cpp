@@ -218,6 +218,12 @@ const char QCameraParameters::AE_BRACKET[] = "AE-Bracket";
 const char QCameraParameters::LOW_POWER[] = "Low_Power";
 const char QCameraParameters::NORMAL_POWER[] = "Normal_Power";
 
+ // frame len, y offset, cbcr offset, camera format
+const char QCameraParameters::KEY_QC_SNAPSHOT_FRAME_LEN[] = "snapshot-framelen";
+const char QCameraParameters::KEY_QC_SNAPSHOT_FRAME_Y_OFFSET[] = "snapshot-yoff";
+const char QCameraParameters::KEY_QC_SNAPSHOT_FRAME_CBCR_OFFSET[] = "snapshot-cbcroff";
+const char QCameraParameters::KEY_QC_SNAPSHOT_FRAME_CAM_FORMAT[] = "snapshot-format";
+
 static const char* portrait = "portrait";
 static const char* landscape = "landscape";
 

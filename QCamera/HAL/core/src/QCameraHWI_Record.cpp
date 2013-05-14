@@ -228,6 +228,7 @@ status_t QCameraStream_record::getBuf(mm_camera_frame_len_offset *frame_offset_i
     for(int i = 0; i < num_bufs; i++) {
         bufs[i] = mRecordBuf[i];
         initial_reg_flag[i] = true;
+        bufs[i].frame_offset_info = *frame_offset_info;
     }
 
     ALOGE("%s : END",__func__);

@@ -209,6 +209,7 @@ int QCameraStream_Rdi::getBuf(mm_camera_frame_len_offset *frame_offset_info,
         for(int i = 0; i < num_bufs; i++) {
             bufs[i] = mRdiBuf[i];
             initial_reg_flag[i] = true;
+            bufs[i].frame_offset_info = *frame_offset_info;
         }
     }
 

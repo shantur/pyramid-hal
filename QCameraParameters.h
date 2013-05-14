@@ -269,6 +269,10 @@ public:
    static const char KEY_QC_VIDEO_FRAME_FLIP[];
    static const char KEY_QC_PREVIEW_FRAME_FLIP[];
    static const char KEY_QC_SNAPSHOT_FRAME_FLIP[];
+   static const char KEY_QC_SNAPSHOT_FRAME_LEN[];
+   static const char KEY_QC_SNAPSHOT_FRAME_Y_OFFSET[];
+   static const char KEY_QC_SNAPSHOT_FRAME_CBCR_OFFSET[];
+   static const char KEY_QC_SNAPSHOT_FRAME_CAM_FORMAT[];
    static const int  MAX_STR_LENGTH;
     enum {
         CAMERA_ORIENTATION_UNKNOWN = 0,
