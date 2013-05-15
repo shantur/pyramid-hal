@@ -583,6 +583,24 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
 
   camera_memory_t *previewMem = NULL;
 
+#ifdef USE_ION
+   struct ion_flush_data cache_inv_data;
+   int ion_fd;
+   ion_fd = mHalCamCtrl->mPreviewMemory.mem_info[0].main_ion_fd;
+   cache_inv_data.vaddr = (void *)frame->bufs[0]->buffer;
+   cache_inv_data.fd = frame->bufs[0]->fd;
+   cache_inv_data.handle = mHalCamCtrl->mPreviewMemory.mem_info[0].handle;
+   cache_inv_data.length = frame->bufs[0]->frame_len;
+
+   if (mHalCamCtrl->cache_ops(&mHalCamCtrl->mPreviewMemory.mem_info[0], (void *)frame->bufs[0]->buffer, ION_IOC_CLEAN_CACHES) < 0)
+     ALOGE("%s: Cache clean for Preview buffer %p fd = %d failed", __func__,
+       frame->bufs[0]->buffer, frame->bufs[0]->fd);
+   if (mHalCamCtrl->cache_ops(&mHalCamCtrl->mPreviewMemory.mem_info[0], (void *)frame->bufs[0]->buffer,  ION_IOC_CLEAN_INV_CACHES) < 0)
+     ALOGE("%s: Cache clean for Preview buffer %p fd = %d failed", __func__,
+       frame->bufs[0]->buffer, frame->bufs[0]->fd);
+#endif
+
+
   if (mHalCamCtrl->mDataCb != NULL) {
        ALOGV("%s: mMsgEnabled =0x%x, preview format =%d", __func__,
             mHalCamCtrl->mMsgEnabled, mHalCamCtrl->mPreviewFormat);
@@ -655,24 +673,6 @@ status_t QCameraStream_preview::processPreviewFrameWithDisplay(
 
   ALOGV("Enqueue buf handle %p\n",
   mHalCamCtrl->mPreviewMemory.buffer_handle[preview_buf_idx]);
-
-#ifdef USE_ION
-  struct ion_flush_data cache_inv_data;
-  int ion_fd;
-  ion_fd = mHalCamCtrl->mPreviewMemory.mem_info[0].main_ion_fd;
-  cache_inv_data.vaddr = (void *)frame->bufs[0]->buffer;
-  cache_inv_data.fd = frame->bufs[0]->fd;
-  cache_inv_data.handle = mHalCamCtrl->mPreviewMemory.mem_info[0].handle;
-  cache_inv_data.length = frame->bufs[0]->frame_len;
-
-  if (mHalCamCtrl->cache_ops(&mHalCamCtrl->mPreviewMemory.mem_info[0], (void *)frame->bufs[0]->buffer, ION_IOC_CLEAN_CACHES) < 0)
-    ALOGE("%s: Cache clean for Preview buffer %p fd = %d failed", __func__,
-      frame->bufs[0]->buffer, frame->bufs[0]->fd);
-  if (mHalCamCtrl->cache_ops(&mHalCamCtrl->mPreviewMemory.mem_info[0], (void *)frame->bufs[0]->buffer,  ION_IOC_CLEAN_INV_CACHES) < 0)
-    ALOGE("%s: Cache clean for Preview buffer %p fd = %d failed", __func__,
-      frame->bufs[0]->buffer, frame->bufs[0]->fd);
-#endif
-
 
   if(mHFRFrameSkip == 1)
   {
