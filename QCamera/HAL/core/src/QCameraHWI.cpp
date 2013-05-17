@@ -398,6 +398,8 @@ void *QCameraHardwareInterface::dataProcessRoutine(void *data)
             pme->mSnapActive = true;
             pme->num_snapshot_rcvd = 0;
             pme->num_jpeg_rcvd = 0;
+            /* signal cmd is completed */
+            sem_post(&cmdThread->sync_sem);
             break;
         case CAMERA_CMD_TYPE_STOP_DATA_PROC:
             {
@@ -3165,7 +3167,7 @@ status_t  QCameraHardwareInterface::takePicture()
     if(mYUVThruVFE || !mIsYUVSensor) {
         /* set rawdata proc thread and jpeg notify thread to active state */
         mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE,FALSE);
-        mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE,FALSE);
+        mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, TRUE,FALSE);
     }
     switch(mPreviewState) {
     case QCAMERA_HAL_PREVIEW_STARTED:

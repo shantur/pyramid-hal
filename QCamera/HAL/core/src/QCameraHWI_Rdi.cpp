@@ -342,7 +342,7 @@ status_t QCameraStream_Rdi::processRdiFrame(
         else if (status == JPEG_RECEIVED || status == RAW_RECEIVED) {
             /* set rawdata proc thread and jpeg notify thread to active state */
             mHalCamCtrl->mNotifyTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE,TRUE);
-            mHalCamCtrl->mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, FALSE,FALSE);
+            mHalCamCtrl->mDataProcTh->sendCmd(CAMERA_CMD_TYPE_START_DATA_PROC, TRUE,FALSE);
             mm_camera_super_buf_t* dup_frame =
                    (mm_camera_super_buf_t *)malloc(sizeof(mm_camera_super_buf_t));
             if (dup_frame == NULL) {
