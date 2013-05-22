@@ -105,8 +105,10 @@ int QCameraStream_SnapshotMain::getBuf(mm_camera_frame_len_offset *frame_offset_
 
     memset(mSnapshotStreamBuf, 0, sizeof(mSnapshotStreamBuf));
     memcpy(&mFrameOffsetInfo, frame_offset_info, sizeof(mFrameOffsetInfo));
-	ALOGD("%s: Allocating Snapshot num = %d, size = %d ",__func__,mNumBuffers,
-		  mFrameOffsetInfo.frame_len);
+    /*allocate extra to avoid IOMMU page fault happening for 3MP */
+    mFrameOffsetInfo.frame_len += 4096;
+    ALOGD("%s: Allocating Snapshot num = %d, size = %d ",__func__,mNumBuffers,
+        mFrameOffsetInfo.frame_len);
     ret = mHalCamCtrl->initHeapMem(&mHalCamCtrl->mSnapshotMemory,
                                    mNumBuffers,
                                    mFrameOffsetInfo.frame_len,
