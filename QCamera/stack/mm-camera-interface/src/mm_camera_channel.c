@@ -1106,19 +1106,19 @@ int32_t mm_channel_start_streams(mm_channel_t *my_obj,
     if (0 != rc) {
         for (j=0; j<=i; j++) {
             /* stop streams*/
-            mm_stream_fsm_fn(s_objs[i],
+            mm_stream_fsm_fn(s_objs[j],
                              MM_STREAM_EVT_STOP,
                              NULL,
                              NULL);
 
             /* unreg buf */
-            mm_stream_fsm_fn(s_objs[i],
+            mm_stream_fsm_fn(s_objs[j],
                              MM_STREAM_EVT_UNREG_BUF,
                              NULL,
                              NULL);
 
             /* put buf back */
-            mm_stream_fsm_fn(s_objs[i],
+            mm_stream_fsm_fn(s_objs[j],
                              MM_STREAM_EVT_PUT_BUF,
                              NULL,
                              NULL);
