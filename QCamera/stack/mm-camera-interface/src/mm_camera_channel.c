@@ -84,6 +84,10 @@ int32_t mm_channel_stop_streams(mm_channel_t *my_obj,
 int32_t mm_channel_request_super_buf(mm_channel_t *my_obj, uint32_t num_buf_requested);
 int32_t mm_channel_request_super_buf_by_frameId(mm_channel_t *my_obj,
                                                 mm_camera_req_buf_t *req_buf);
+int32_t mm_channel_superbuf_match_frameId(mm_channel_t* my_obj,
+                              mm_channel_queue_t * queue, uint32_t yuv_frame_id);
+int32_t mm_channel_superbuf_match_frameId_skip_unmatched(mm_channel_t* my_obj,
+                              mm_channel_queue_t * queue, uint32_t yuv_frame_id);
 int32_t mm_channel_cancel_super_buf_request(mm_channel_t *my_obj);
 int32_t mm_channel_start_focus(mm_channel_t *my_obj,
                                uint32_t sensor_idx,
@@ -92,6 +96,7 @@ int32_t mm_channel_abort_focus(mm_channel_t *my_obj,
                                uint32_t sensor_idx);
 int32_t mm_channel_prepare_snapshot(mm_channel_t *my_obj,
                                     uint32_t sensor_idx);
+int32_t mm_channel_unprepare_snapshot(mm_channel_t *my_obj, uint32_t sensor_idx);
 int32_t mm_channel_set_stream_parm(mm_channel_t *my_obj,
                                    uint32_t s_id,
                                    void *value);

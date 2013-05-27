@@ -835,7 +835,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
         uint32_t *jpegLength = (uint32_t *)((uint8_t*)main_frame->buffer+0x13);
 
         uint16_t sos_offset =
-            getSOSOffset((uint8_t*)(main_frame->buffer+JPEG_DATA_OFFSET),
+            getSOSOffset(((uint8_t*)main_frame->buffer+JPEG_DATA_OFFSET),
                 *jpegLength, main_buf_info);
         ALOGD("fill up JPEG bit stream info buffer %x sos_offset %d "
               "jpegLength %d main_frame->frame_len %d",
@@ -1438,6 +1438,10 @@ QCameraHardwareInterface(int cameraId, int mode)
     mFaceDetectOn(0),
     mDumpFrmCnt(0), mDumpSkipCnt(0),
     mFocusMode(AF_MODE_MAX),
+    rdiMode(STREAM_IMAGE),
+    num_of_snapshot(1),
+    num_snapshot_rcvd(0),
+    num_jpeg_rcvd(0),
     mPictureSizeCount(15),
     mPreviewSizeCount(13),
     mVideoSizeCount(0),
@@ -1454,35 +1458,31 @@ QCameraHardwareInterface(int cameraId, int mode)
     mRecordingHint(0),
     mStartRecording(0),
     mReleasedRecordingFrame(false),
+    mIsYUVSensor(0),
     mHdrMode(HDR_BRACKETING_OFF),
     mSnapshotFormat(0),
     mZslInterval(1),
     mRestartPreview(false),
+    mRDIEnabled(0),
+    mVideoHDRMode(0),
+    mSnapshotDone(FALSE),
     mStatsOn(0), mCurrentHisto(-1), mSendData(false), mStatHeap(NULL),
     mZslLookBackMode(0),
     mZslLookBackValue(0),
     mZslEmptyQueueFlag(FALSE),
+    mSupportedFpsRanges(NULL),
+    mSupportedFpsRangesCount(0),
     mPictureSizes(NULL),
     mVideoSizes(NULL),
     mCameraState(CAMERA_STATE_UNINITED),
+    mSnapActive(false),
     mExifTableNumEntries(0),
     mNoDisplayMode(0),
     mVisionModeFlag(0),
-    mIsYUVSensor(0),
-    mPowerModule(0),
-    mSupportedFpsRanges(NULL),
-    mSupportedFpsRangesCount(0),
-    rdiMode(STREAM_IMAGE),
     mSuperBufQueue(releaseProcData, this),
     mNotifyDataQueue(releaseNofityData, this),
-    num_of_snapshot(1),
-    num_snapshot_rcvd(0),
-    num_jpeg_rcvd(0),
-    mRDIEnabled(0),
-    mVideoHDRMode(0),
+    mPowerModule(0),
     mSnapshotFlip(FLIP_NONE),
-    mSnapshotDone(FALSE),
-    mSnapActive(false),
     mCookie(NULL)
 {
     ALOGI("QCameraHardwareInterface: E");
@@ -2523,15 +2523,16 @@ status_t QCameraHardwareInterface::startPreview2()
                  mStreams[MM_CAMERA_PREVIEW]->deinitStream();
                  return BAD_VALUE;
             }
-            if(mYUVThruVFE || !mIsYUVSensor)
-            if (!canTakeFullSizeLiveshot()) {
-                // video-size live snapshot, config same as video
-                mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mFormat = mStreams[MM_CAMERA_VIDEO]->mFormat;
-                mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = mStreams[MM_CAMERA_VIDEO]->mWidth;
-                mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mHeight = mStreams[MM_CAMERA_VIDEO]->mHeight;
-                ret = mStreams[MM_CAMERA_SNAPSHOT_MAIN]->initStream(FALSE, FALSE);
-            } else {
-                ret = mStreams[MM_CAMERA_SNAPSHOT_MAIN]->initStream(FALSE, TRUE);
+            if(mYUVThruVFE || !mIsYUVSensor) {
+                if (!canTakeFullSizeLiveshot()) {
+                     // video-size live snapshot, config same as video
+                     mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mFormat = mStreams[MM_CAMERA_VIDEO]->mFormat;
+                     mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mWidth = mStreams[MM_CAMERA_VIDEO]->mWidth;
+                     mStreams[MM_CAMERA_SNAPSHOT_MAIN]->mHeight = mStreams[MM_CAMERA_VIDEO]->mHeight;
+                     ret = mStreams[MM_CAMERA_SNAPSHOT_MAIN]->initStream(FALSE, FALSE);
+                } else {
+                     ret = mStreams[MM_CAMERA_SNAPSHOT_MAIN]->initStream(FALSE, TRUE);
+                }
             }
             if (MM_CAMERA_OK != ret){
                  ALOGE("%s: error - can't init Snapshot Main!", __func__);
@@ -3610,10 +3611,11 @@ void QCameraHardwareInterface::dumpFrameToFile(mm_camera_buf_def_t* newFrame,
           if (file_fd < 0) {
             ALOGE("%s: cannot open file:type=%d\n", __func__, frm_type);
           } else {
+            void* y_off = (unsigned long *)newFrame->buffer + newFrame->frame_offset_info.mp[0].offset;
+            void* cbcr_off = (unsigned long *)newFrame->buffer + newFrame->frame_offset_info.mp[0].len + newFrame->frame_offset_info.mp[1].offset;
             ALOGE("%s: writing to file w=%d h =%d\n", __func__, w, h);
-            write(file_fd, (const void *)(newFrame->buffer)+ newFrame->frame_offset_info.mp[0].offset, w * h);
-            write(file_fd, (const void *)(newFrame->buffer) + newFrame->frame_offset_info.mp[0].len
-                   +newFrame->frame_offset_info.mp[1].offset,w * h / 2 * main_422);
+            write(file_fd, (const void *)(y_off), w * h);
+            write(file_fd, (const void *)(cbcr_off),w * h / 2 * main_422);
             close(file_fd);
             ALOGE("dump %s", buf);
           }
