@@ -60,6 +60,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define THUMBNAIL_BUFFER_SIZE   (THUMBNAIL_WIDTH * THUMBNAIL_HEIGHT * 3/2)
 #define SNAPSHOT_BUFFER_SIZE    (PICTURE_WIDTH * PICTURE_HEIGHT * 3/2)
 
+extern int mm_app_take_raw_picture(int cam_id);
 extern int mm_app_take_zsl(int cam_id);
 extern int mm_app_take_live_snapshot(int cam_id);
 extern int stopPreview(int cam_id);
@@ -430,7 +431,7 @@ int next_menu(menu_id_change_t current_menu_id, char keypress, camera_action_t *
       printf("MENU_ID_WHITEBALANCECHANGE\n");
       * action_id_ptr = ACTION_SET_WHITE_BALANCE;
       if (output_to_event > 0 &&
-        output_to_event <= sizeof(white_balance_tbl)/sizeof(white_balance_tbl[0])) {
+        output_to_event <= (int)(sizeof(white_balance_tbl)/sizeof(white_balance_tbl[0]))) {
           next_menu_id = MENU_ID_MAIN;
           * action_param = output_to_event;
       }
@@ -443,7 +444,7 @@ int next_menu(menu_id_change_t current_menu_id, char keypress, camera_action_t *
       printf("MENU_ID_EXPMETERINGCHANGE\n");
       * action_id_ptr = ACTION_SET_EXP_METERING;
       if (output_to_event > 0 &&
-        output_to_event <= sizeof(exp_metering_tbl)/sizeof(exp_metering_tbl[0])) {
+        output_to_event <= (int)(sizeof(exp_metering_tbl)/sizeof(exp_metering_tbl[0]))) {
           next_menu_id = MENU_ID_MAIN;
           * action_param = output_to_event;
       }
@@ -456,7 +457,7 @@ int next_menu(menu_id_change_t current_menu_id, char keypress, camera_action_t *
       printf("MENU_ID_GET_CTRL_VALUE\n");
       * action_id_ptr = ACTION_GET_CTRL_VALUE;
       if (output_to_event > 0 &&
-        output_to_event <= sizeof(get_ctrl_tbl)/sizeof(get_ctrl_tbl[0])) {
+        output_to_event <= (int)(sizeof(get_ctrl_tbl)/sizeof(get_ctrl_tbl[0]))) {
           next_menu_id = MENU_ID_MAIN;
           * action_param = output_to_event;
       }
@@ -541,7 +542,7 @@ int next_menu(menu_id_change_t current_menu_id, char keypress, camera_action_t *
       printf("MENU_ID_ISOCHANGE\n");
       * action_id_ptr = ACTION_SET_ISO;
       if (output_to_event > 0 &&
-        output_to_event <= sizeof(iso_tbl)/sizeof(iso_tbl[0])) {
+        output_to_event <= (int)(sizeof(iso_tbl)/sizeof(iso_tbl[0]))) {
           next_menu_id = MENU_ID_MAIN;
           * action_param = output_to_event;
       } else {
@@ -552,7 +553,7 @@ int next_menu(menu_id_change_t current_menu_id, char keypress, camera_action_t *
     case MENU_ID_ZOOMCHANGE:
       * action_id_ptr = ACTION_SET_ZOOM;
       if (output_to_event > 0 &&
-        output_to_event <= sizeof(zoom_tbl)/sizeof(zoom_tbl[0])) {
+        output_to_event <= (int)(sizeof(zoom_tbl)/sizeof(zoom_tbl[0]))) {
           next_menu_id = MENU_ID_MAIN;
           * action_param = output_to_event;
       } else {
@@ -578,7 +579,7 @@ int next_menu(menu_id_change_t current_menu_id, char keypress, camera_action_t *
     case MENU_ID_SWITCHCAMERA:
       * action_id_ptr = ACTION_SWITCH_CAMERA;
       if (output_to_event >= 0 &&
-        output_to_event <= sizeof(cam_tbl)/sizeof(cam_tbl[0])) {
+        output_to_event <= (int)(sizeof(cam_tbl)/sizeof(cam_tbl[0]))) {
           next_menu_id = MENU_ID_MAIN;
           * action_param = output_to_event;
       } else {

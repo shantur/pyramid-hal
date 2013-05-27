@@ -205,6 +205,7 @@ extern int startRecording(int cam_id);
 extern int stopRecording(int cam_id);
 extern int mm_app_take_picture(int cam_id);
 extern int mm_app_take_raw_picture(int cam_id);
+extern int mm_app_take_raw(int cam_id);
 extern int mm_app_get_dim(int8_t cam_id, cam_ctrl_dimension_t *dim);
 extern int mm_app_streamon_preview(int cam_id);
 extern int mm_app_set_snapshot_fmt(int cam_id,mm_camera_image_fmt_t *fmt);

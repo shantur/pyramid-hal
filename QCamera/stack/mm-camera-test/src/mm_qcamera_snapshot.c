@@ -63,6 +63,8 @@ extern int mm_stream_release_bufs(mm_camera_app_obj_t *pme,
                                   mm_camear_app_buf_t* app_bufs);
 extern int mm_stream_invalid_cache(mm_camera_app_obj_t *pme,
                                    mm_camera_buf_def_t *frame);
+extern int mm_stream_clear_invalid_cache(mm_camera_app_obj_t *pme,
+                                         mm_camera_buf_def_t *frame);
 
 static void mm_app_snapshot_done()
 {
