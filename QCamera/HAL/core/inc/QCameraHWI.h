@@ -807,6 +807,8 @@ private:
     Mutex         mAutofocusLock;
     Mutex         mRecordFrameLock;
     Condition     mRecordWait;
+    Mutex         mSnapLock;
+    Condition     mSnapWait;
     pthread_mutex_t     mAsyncCmdMutex;
     pthread_cond_t      mAsyncCmdWait;
 
