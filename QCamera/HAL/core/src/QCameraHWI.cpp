@@ -1816,6 +1816,7 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
     Mutex::Autolock l(&mLock);
 
     switch (command) {
+#ifdef QCOM_BSP
         case CAMERA_CMD_HISTOGRAM_ON:
             ALOGE("histogram set to on");
             rc = setHistogram(1);
@@ -1829,6 +1830,7 @@ status_t QCameraHardwareInterface::sendCommand(int32_t command, int32_t arg1,
             mSendData = true;
             rc = NO_ERROR;
             break;
+#endif
         case CAMERA_CMD_ENABLE_FOCUS_MOVE_MSG :
             {
                 bool enable = bool(arg1);
@@ -2170,7 +2172,7 @@ void  QCameraHardwareInterface::processStatsEvent(
     }
 
     switch (event->event_id) {
-
+#ifdef QCOM_BSP
         case MM_CAMERA_STATS_EVT_HISTO:
         {
             ALOGE("HAL process Histo: mMsgEnabled=0x%x, mStatsOn=%d, mSendData=%d, mDataCb=%p ",
@@ -2200,6 +2202,7 @@ void  QCameraHardwareInterface::processStatsEvent(
             break;
 
         }
+#endif
         default:
         break;
     }
@@ -2815,14 +2818,14 @@ status_t QCameraHardwareInterface::startRecording()
             break;
         }
         mPreviewState = QCAMERA_HAL_RECORDING_STARTED;
-
+#ifdef QCOM_BSP
         if (mPowerModule) {
             if (mPowerModule->powerHint) {
                 mPowerModule->powerHint(mPowerModule,
                         POWER_HINT_VIDEO_ENCODE, (void *)"state=1");
             }
         }
-
+#endif
         break;
     case QCAMERA_HAL_RECORDING_STARTED:
         ALOGE("%s: ", __func__);
@@ -2873,14 +2876,14 @@ void QCameraHardwareInterface::stopRecordingInternal()
     */
     mStreams[MM_CAMERA_VIDEO]->streamOff(0);
     mPreviewState = QCAMERA_HAL_PREVIEW_STARTED;
-
+#ifdef QCOM_BSP
     if (mPowerModule) {
         if (mPowerModule->powerHint) {
             mPowerModule->powerHint(mPowerModule,
                     POWER_HINT_VIDEO_ENCODE, (void *)"state=0");
         }
     }
-
+#endif
     ALOGI("stopRecordingInternal: X");
     return;
 }

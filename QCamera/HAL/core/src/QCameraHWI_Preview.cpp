@@ -372,7 +372,7 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
               roi.d.data.face.mouth_center[0]*2000/mHalCamCtrl->mDimension.display_width - 1000;
             mHalCamCtrl->mFace[idx].mouth[1] =
               roi.d.data.face.mouth_center[1]*2000/mHalCamCtrl->mDimension.display_height - 1000;
-
+#ifdef QCOM_BSP
             mHalCamCtrl->mFace[idx].smile_degree = roi.d.data.face.smile_degree;
             mHalCamCtrl->mFace[idx].smile_score = roi.d.data.face.smile_confidence;
             mHalCamCtrl->mFace[idx].blink_detected = roi.d.data.face.blink_detected;
@@ -400,7 +400,7 @@ void QCameraStream_preview::notifyROIEvent(fd_roi_t roi)
                mHalCamCtrl->mFace[idx].leftright_dir, mHalCamCtrl->mFace[idx].roll_dir,
                mHalCamCtrl->mFace[idx].blink_detected,
                mHalCamCtrl->mFace[idx].leye_blink, mHalCamCtrl->mFace[idx].reye_blink);
-
+#endif
              mNumFDRcvd++;
              mDisplayLock.unlock();
 
