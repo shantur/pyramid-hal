@@ -205,7 +205,7 @@ typedef struct {
   int8_t camera_id;
   cam_position_t position;
   uint32_t sensor_mount_angle;
-}camera_info_t;
+} cam_dev_info_t;
 
 typedef struct {
   camera_mode_t mode;

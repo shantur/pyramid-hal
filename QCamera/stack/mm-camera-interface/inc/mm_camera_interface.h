@@ -187,7 +187,7 @@ typedef struct {
 
 typedef struct {
     uint8_t camera_id;                   /* camera id */
-    camera_info_t camera_info;           /* postion, mount_angle, etc. */
+    cam_dev_info_t camera_info;           /* postion, mount_angle, etc. */
     enum sensor_type_t main_sensor_type; /* BAYER, YUV, JPEG_SOC, etc. */
     char *video_dev_name;                /* device node name, e.g. /dev/video1 */
 } mm_camera_info_t;
