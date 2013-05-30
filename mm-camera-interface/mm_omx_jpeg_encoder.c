@@ -194,7 +194,7 @@ OMX_ERRORTYPE eventHandler( OMX_IN OMX_HANDLETYPE hComponent,
                             OMX_IN OMX_PTR pEventData)
 {
     ALOGI("%s", __func__);
-    ALOGI("%s:got event %d ndata1 %u ndata2 %u", __func__,
+    ALOGI("%s:got event %d ndata1 %lu ndata2 %lu", __func__,
       eEvent, nData1, nData2);
     pthread_mutex_lock(&lock);
     expectedEvent = eEvent;
@@ -225,7 +225,7 @@ void waitForEvent(int event, int value1, int value2 ){
 }
 
 int8_t mm_jpeg_encoder_get_buffer_offset(uint32_t width, uint32_t height,
-    uint32_t* p_y_offset, uint32_t* p_cbcr_offset, uint32_t* p_buf_size,
+    int32_t* p_y_offset, int32_t* p_cbcr_offset, int32_t* p_buf_size,
     uint8_t *num_planes, uint32_t planes[])
 {
     ALOGI("%s:", __func__);
@@ -318,7 +318,7 @@ int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params)
     OMX_GetParameter(pHandle, OMX_IndexParamPortDefinition, inputPort);
     OMX_GetParameter(pHandle, OMX_IndexParamPortDefinition, outputPort);
 
-    ALOGI("%s:nFrameWidth=%d nFrameHeight=%d nBufferSize=%d w=%d h=%d",
+    ALOGI("%s:nFrameWidth=%lu nFrameHeight=%lu nBufferSize=%lu w=%d h=%d",
       __func__, inputPort->format.image.nFrameWidth,
       inputPort->format.image.nFrameHeight, inputPort->nBufferSize,
       bufferoffset.width, bufferoffset.height);
@@ -336,7 +336,7 @@ int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params)
     if(encode_params->hasmobicat) {
         OMX_DBG_INFO("%s %d ", __func__,
                 __LINE__);
-        mobicat_d.mobicatData = encode_params->mobicat_data;
+        mobicat_d.mobicatData =(uint8_t *)encode_params->mobicat_data;
         mobicat_d.mobicatDataLength =  encode_params->mobicat_data_length;
         OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.mobicat", &mobicat_data);
         OMX_SetParameter(pHandle, mobicat_data, &mobicat_d);
@@ -371,7 +371,7 @@ int8_t omxJpegEncodeNext(omx_jpeg_encode_params *encode_params)
     pmem_info1.fd = encode_params->thumbnail_fd;
     pmem_info1.offset = 0;
 
-    ALOGI("%s: input1 buff size %d", __func__, inputPort1->nBufferSize);
+    ALOGI("%s: input1 buff size %lu", __func__, inputPort1->nBufferSize);
     OMX_UseBuffer(pHandle, &pInBuffers1, 2, &pmem_info1,
       inputPort1->nBufferSize, (void *) encode_params->thumbnail_buf);
     OMX_UseBuffer(pHandle, &pOutBuffers, 1, NULL, inputPort->nBufferSize,
@@ -584,7 +584,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     if(encode_params->hasmobicat) {
         OMX_DBG_INFO("%s %d ", __func__,
                 __LINE__);
-        mobicat_d.mobicatData = encode_params->mobicat_data;
+        mobicat_d.mobicatData = (uint8_t *)encode_params->mobicat_data;
         mobicat_d.mobicatDataLength =  encode_params->mobicat_data_length;
         OMX_GetExtensionIndex(pHandle, "omx.qcom.jpeg.exttype.mobicat", &mobicat_data);
         OMX_SetParameter(pHandle, mobicat_data, &mobicat_d);
@@ -636,7 +636,7 @@ int8_t omxJpegEncode(omx_jpeg_encode_params *encode_params)
     pmem_info1.fd = encode_params->thumbnail_fd;
     pmem_info1.offset = 0;
 
-    ALOGI("%s: input1 buff size %d", __func__, inputPort1->nBufferSize);
+    ALOGI("%s: input1 buff size %lu", __func__, inputPort1->nBufferSize);
     OMX_UseBuffer(pHandle, &pInBuffers1, 2, &pmem_info1,
       inputPort1->nBufferSize, (void *) encode_params->thumbnail_buf);
 
@@ -688,7 +688,7 @@ void omxJpegAbort()
     ALOGI("%s: encoding=%d", __func__, encoding);
     if (encoding) {
       encoding = 0;
-      OMX_SendCommand(pHandle, OMX_CommandFlush, NULL, NULL);
+      OMX_SendCommand(pHandle, OMX_CommandFlush,0 , NULL);
       ALOGI("%s:waitForEvent: OMX_CommandFlush", __func__);
       waitForEvent(OMX_EVENT_JPEG_ABORT, 0, 0);
       ALOGI("%s:waitForEvent: OMX_CommandFlush: DONE", __func__);
