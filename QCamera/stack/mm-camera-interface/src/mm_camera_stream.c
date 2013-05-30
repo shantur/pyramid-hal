@@ -768,6 +768,7 @@ int32_t mm_stream_config(mm_stream_t *my_obj,
     my_obj->hal_requested_num_bufs = config->num_of_bufs;
     my_obj->need_stream_on = config->need_stream_on;
     my_obj->num_stream_cb_times = config->num_stream_cb_times;
+    my_obj->useAVTimer_si = config->useAVTimer_s;
 
     rc = mm_stream_get_offset(my_obj);
     if(rc != 0) {
@@ -781,6 +782,7 @@ int32_t mm_stream_config(mm_stream_t *my_obj,
         /* only send fmt to backend if we need streamon */
         rc = mm_stream_set_fmt(my_obj);
     }
+
     return rc;
 }
 
@@ -952,7 +954,12 @@ int32_t mm_stream_read_msm_frame(mm_stream_t * my_obj,
         buf_info->buf->buf_idx = idx;
         buf_info->buf->frame_idx = vb.sequence;
         buf_info->buf->ts.tv_sec  = vb.timestamp.tv_sec;
-        buf_info->buf->ts.tv_nsec = vb.timestamp.tv_usec * 1000;
+
+        if(my_obj->useAVTimer_si){
+           buf_info->buf->ts.tv_nsec = vb.timestamp.tv_usec;
+        } else{
+           buf_info->buf->ts.tv_nsec = vb.timestamp.tv_usec * 1000;
+        }
 
         for(i = 0; i < vb.length; i++) {
             CDBG("%s plane %d addr offset: %d data offset:%d\n",

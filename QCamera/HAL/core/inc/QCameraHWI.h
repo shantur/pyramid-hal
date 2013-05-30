@@ -558,6 +558,8 @@ public:
                                      int *picture_width,
                                      int *picture_height);
     bool isRawSnapshot();
+    bool isAVTimerEnabled();
+    bool isVTCropEnabled();
     bool mShutterSoundPlayed;
     void dumpFrameToFile(mm_camera_buf_def_t*, HAL_cam_dump_frm_type_t);
 
@@ -691,6 +693,10 @@ private:
     status_t setJpegQuality(const QCameraParameters& params);
     status_t setNumOfSnapshot(const QCameraParameters& params);
     status_t setJpegRotation(int isZSL);
+    status_t setVideoRotation(const QCameraParameters& params);
+    status_t setAVTimer(const QCameraParameters& params);
+    status_t setVTCrop(const QCameraParameters& params);
+    uint32_t getVideoRotation(void);
     int getJpegRotation(void);
     int getISOSpeedValue();
     float getExposureTime();
@@ -837,6 +843,7 @@ private:
     int  mDenoiseValue;
     int  mHJR;
     int  mRotation;
+    uint32_t mVideoRotation;
     int  mJpegQuality;
     int  mThumbnailQuality;
     int  mTargetSmoothZoom;
@@ -878,6 +885,8 @@ private:
     bool mStartRecording;
     bool mReleasedRecordingFrame;
     bool mIsYUVSensor;
+    bool mUseAVTimer;
+    bool mEnableVTCrop;
     int mHdrMode;
     int mVideoHdrMode;
     int mSnapshotFormat;

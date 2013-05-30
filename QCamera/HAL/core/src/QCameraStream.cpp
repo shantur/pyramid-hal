@@ -229,6 +229,8 @@ status_t QCameraStream::setFormat()
             mFormat = mHalCamCtrl->mPreviewFormat;
             break;
         case MM_CAMERA_VIDEO:
+             /*Use AVTimer only for video stream*/
+            mUseAVTimer_s = mHalCamCtrl->isAVTimerEnabled();
             break;
         case MM_CAMERA_SNAPSHOT_MAIN:
             if (mHalCamCtrl->isRawSnapshot()) {
@@ -263,6 +265,7 @@ status_t QCameraStream::setFormat()
     stream_config.fmt.height = mHeight;
     stream_config.num_of_bufs = mNumBuffers;
     stream_config.need_stream_on = m_flag_stream_on;
+    stream_config.useAVTimer_s = mUseAVTimer_s;
     rc = p_mm_ops->ops->config_stream(mCameraHandle,
                               mChannelId,
                               mStreamId,
@@ -300,6 +303,7 @@ QCameraStream::QCameraStream(uint32_t CameraHandle,
                 mHeight(Height),
                 mFormat(Format),
                 mNumBuffers(NumBuffers),
+                mUseAVTimer_s(0),
                 p_mm_ops(mm_ops),
                 mExtImgMode(imgmode),
                 mHalCamCtrl(camCtrl)

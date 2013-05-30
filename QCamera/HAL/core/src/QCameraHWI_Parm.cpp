@@ -348,6 +348,16 @@ static const str_map denoise[] = {
     { QCameraParameters::DENOISE_ON, TRUE }
 };
 
+static const str_map avtimer[] = {
+    { QCameraParameters::AVTIMER_ENABLE, TRUE },
+    { QCameraParameters::AVTIMER_DISABLE, FALSE }
+};
+
+static const str_map vt_crop[] = {
+    { QCameraParameters::VT_CROP_ENABLE, TRUE },
+    { QCameraParameters::VT_CROP_DISABLE, FALSE }
+};
+
 static const str_map facedetection[] = {
     { QCameraParameters::FACE_DETECTION_OFF, FALSE },
     { QCameraParameters::FACE_DETECTION_ON, TRUE }
@@ -779,6 +789,9 @@ void QCameraHardwareInterface::initDefaultParameters()
     ALOGV("%s: main_img_format =%d, thumb_format=%d", __func__,
          mDimension.main_img_format, mDimension.thumb_format);
     mDimension.prev_padding_format = CAMERA_PAD_TO_WORD;
+    mDimension.video_Rotation = ROT_NONE;
+    mDimension.vt_crop = 0;
+    mDimension.useAVTimer_d = 0;
 
     ret = native_set_parms(MM_CAMERA_PARM_DIMENSION,
                               sizeof(cam_ctrl_dimension_t), (void *) &mDimension);
@@ -1262,6 +1275,11 @@ void QCameraHardwareInterface::initDefaultParameters()
     mParameters.set(QCameraParameters::KEY_QC_SUPPORTED_SKIN_TONE_ENHANCEMENT_MODES,
                     mSkinToneEnhancementValues);
 
+    //Set default AVTimer mode
+    mParameters.set(QCameraParameters::KEY_QC_AVTIMER, "disable");
+    mParameters.set(QCameraParameters::KEY_QC_VIDEO_ROTATION, "0");
+    mParameters.set(QCameraParameters::KEY_QC_VT_CROP, "disable");
+
     //Set Scene Mode
     mParameters.set(QCameraParameters::KEY_SCENE_MODE,
                     QCameraParameters::SCENE_MODE_AUTO);
@@ -1492,6 +1510,9 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     if ((rc = setRedeyeReduction(params)))              final_rc = rc;
     if ((rc = setCaptureBurstExp()))                    final_rc = rc;
     if ((rc = setRDIMode(params)))                      final_rc = rc;
+    if((rc = setVideoRotation(params)))                 final_rc = rc;
+    if((rc = setAVTimer(params)))                       final_rc = rc;
+    if((rc = setVTCrop(params)))                        final_rc = rc;
 
     const char *str_val = params.get("capture-burst-exposures");
     if ( str_val == NULL || strlen(str_val)==0 ) {
@@ -2808,6 +2829,77 @@ status_t QCameraHardwareInterface::setJpegRotation(int isZsl) {
 int QCameraHardwareInterface::getJpegRotation(void) {
     ALOGE("%s : rotation is %d", __func__, mRotation);
     return mRotation;
+}
+
+status_t QCameraHardwareInterface::setAVTimer(const QCameraParameters& params) {
+    bool value = 0;
+    const char* str = params.get(QCameraParameters::KEY_QC_AVTIMER);
+    if(str == NULL){
+        ALOGE("%s: Invalid AVTimer Value = %s", __func__, str);
+        return BAD_VALUE;
+    }
+    value = (strcmp(str, "enable") == 0)? 1 : 0;
+    mParameters.set(QCameraParameters::KEY_QC_AVTIMER, str);
+    mUseAVTimer = value;
+
+    ALOGV("%s: AVTimer Value = %s = %u", __func__, str, value);
+    return NO_ERROR;
+}
+
+bool QCameraHardwareInterface::isAVTimerEnabled()
+{
+    ALOGI("%s : AVTimer is %u", __func__, mUseAVTimer);
+    return mUseAVTimer;
+}
+
+status_t QCameraHardwareInterface::setVideoRotation(const QCameraParameters& params) {
+      uint32_t rotation = params.getInt(QCameraParameters::KEY_QC_VIDEO_ROTATION);
+      ALOGV("%s: Video rotation angle set to %u", __func__, rotation);
+      switch(rotation%360){
+        case 0:
+            mVideoRotation = ROT_NONE;
+            break;
+        case 90:
+            mVideoRotation = ROT_CLOCKWISE_90;
+            break;
+        case 180:
+            mVideoRotation = ROT_CLOCKWISE_180;
+            break;
+        case 270:
+            mVideoRotation = ROT_CLOCKWISE_270;
+            break;
+        default:
+            ALOGE("%s: Invalid video rotation angle: %u", __func__, rotation);
+            return BAD_VALUE;
+      }
+      mParameters.set(QCameraParameters::KEY_QC_VIDEO_ROTATION, rotation);
+      return NO_ERROR;
+}
+
+uint32_t QCameraHardwareInterface::getVideoRotation(void) {
+    ALOGI("%s : Video rotation is %u", __func__, mVideoRotation);
+    return mVideoRotation;
+}
+
+status_t QCameraHardwareInterface::setVTCrop(const QCameraParameters& params) {
+    bool value = 0;
+    const char* str = params.get(QCameraParameters::KEY_QC_VT_CROP);
+    if(str == NULL){
+        ALOGE("%s: Invalid VT Crop Value = %s", __func__, str);
+        return BAD_VALUE;
+    }
+    value = (strcmp(str, "enable") == 0)? 1 : 0;
+    mParameters.set(QCameraParameters::KEY_QC_VT_CROP, str);
+    mEnableVTCrop = value;
+
+    ALOGV("%s: VT Crop Value = %s = %u", __func__, str, value);
+    return NO_ERROR;
+}
+
+bool QCameraHardwareInterface::isVTCropEnabled()
+{
+    ALOGI("%s : VT Crop is %u", __func__, mEnableVTCrop);
+    return mEnableVTCrop;
 }
 
 int QCameraHardwareInterface::getISOSpeedValue()
@@ -4445,6 +4537,15 @@ status_t QCameraHardwareInterface::setDimension()
         //Changes to handle VFE limitation when primary o/p is main image
         dim.picture_width = postviewWidth;
         dim.picture_height = postviewHeight;
+    }
+
+    /*Enable avtimer, video-rotation and vt-rop for camcorder only*/
+    if(mRecordingHint){
+        dim.video_Rotation= getVideoRotation();
+        dim.useAVTimer_d= isAVTimerEnabled();
+        dim.vt_crop = isVTCropEnabled();
+        ALOGV("%s: VT Params - Avtimer=%d, Rotation=%d Crop=%d", __func__,
+              dim.useAVTimer_d,  dim.video_Rotation, dim.vt_crop);
     }
 
     //VFE output1 shouldn't be greater than VFE output2.
