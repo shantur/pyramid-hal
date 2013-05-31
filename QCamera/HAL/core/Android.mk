@@ -19,6 +19,12 @@ LOCAL_CFLAGS += -DCAMERA_ZSL_ION_HEAP_ID=ION_CP_MM_HEAP_ID
 LOCAL_CFLAGS+= -DHW_ENCODE
 LOCAL_CFLAGS+= -DUSE_NEON_CONVERSION
 
+# Executed only on QCOM BSPs
+ifeq ($(TARGET_USES_QCOM_BSP),true)
+  # This flag is used to compile out any features that depend on framework changes
+  LOCAL_CFLAGS += -DQCOM_BSP
+endif
+
 ifeq ($(call is-board-platform,msm8960),true)
         LOCAL_CFLAGS += -DCAMERA_GRALLOC_HEAP_ID=GRALLOC_USAGE_PRIVATE_MM_HEAP
         LOCAL_CFLAGS += -DCAMERA_GRALLOC_FALLBACK_HEAP_ID=GRALLOC_USAGE_PRIVATE_IOMMU_HEAP

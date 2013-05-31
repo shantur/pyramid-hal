@@ -69,7 +69,8 @@ ifneq ($(USE_CAMERA_STUB),true)
 
       ifeq ($(V4L2_BASED_LIBCAM),true)
 
-        LOCAL_CFLAGS+= -Werror
+      #  Enable this after fixing all warnings
+      #  LOCAL_CFLAGS+= -Werror
         ifeq ($(call is-board-platform,msm7627a),true)
           LOCAL_HAL_FILES := QCameraHAL.cpp QCameraHWI_Parm.cpp\
             QCameraHWI.cpp QCameraHWI_Preview.cpp \
@@ -109,6 +110,12 @@ ifneq ($(USE_CAMERA_STUB),true)
       LOCAL_CFLAGS+= -DUSE_NEON_CONVERSION
       # Uncomment below line to enable smooth zoom
       #LOCAL_CFLAGS+= -DCAMERA_SMOOTH_ZOOM
+
+      # Executed only on QCOM BSPs
+      ifeq ($(TARGET_USES_QCOM_BSP),true)
+      # This flag is used to compile out any features that depend on framework changes
+        LOCAL_CFLAGS += -DQCOM_BSP
+      endif
 
        LOCAL_C_INCLUDES+= \
         $(TARGET_OUT_HEADERS)/mm-camera \
