@@ -148,6 +148,8 @@ status_t QCameraStream::initStream(uint8_t no_cb_needed, uint8_t stream_on)
     /* save local copy */
     m_flag_no_cb = no_cb_needed;
     m_flag_stream_on = stream_on;
+    /* memset*/
+    memset(&mCrop, 0, sizeof(mm_camera_rect_t));
 
     ALOGD("%s: E, mActive = %d, mInit = %d, streamid = %d, image_mode = %d",
           __func__, mActive, mInit, mStreamId, mExtImgMode);
