@@ -179,7 +179,7 @@ static int iso_speed_values[] = {
 };
 
 extern int HAL_numOfCameras;
-extern camera_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
+extern cam_dev_info_t HAL_cameraInfo[MSM_MAX_CAMERA_SENSORS];
 extern mm_camera_t * HAL_camerahandle[MSM_MAX_CAMERA_SENSORS];
 
 namespace android {
