@@ -1156,7 +1156,11 @@ void QCameraHardwareInterface::receiveCompleteJpegPicture(jpeg_job_status_t stat
            pme->cancelAutoFocus();
        }
    }
-   pme->mSnapshotDone = FALSE;
+   {
+       Mutex::Autolock rLock(pme->mSnapLock);
+       pme->mSnapshotDone = FALSE;
+       pme->mSnapWait.signal();
+   }
    ALOGE("%s: X", __func__);
 }
 
@@ -2864,6 +2868,12 @@ void QCameraHardwareInterface::stopRecordingInternal()
 {
     ALOGI("stopRecordingInternal: E");
     status_t ret = NO_ERROR;
+    {
+        Mutex::Autolock rLock(mSnapLock);
+        if(mSnapshotDone) {
+            mSnapWait.signal();
+        }
+    }
 
     if(!mStreams[MM_CAMERA_VIDEO]) {
         ALOGE("mStreamRecord is null");
@@ -3060,6 +3070,12 @@ status_t QCameraHardwareInterface::cancelPictureInternal()
 {
     ALOGI("%s: E mPreviewState=%d", __func__ , mPreviewState);
     status_t ret = MM_CAMERA_OK;
+    {
+        Mutex::Autolock rLock(mSnapLock);
+        if(mSnapshotDone) {
+            mSnapWait.signal();
+        }
+    }
 
     /* set rawdata proc thread and jpeg notify thread to inactive state */
     /* dataProc Thread need to process "stop" as sync call because abort jpeg job should be a sync call*/
@@ -3326,9 +3342,16 @@ status_t  QCameraHardwareInterface::takePicture()
         ret = UNKNOWN_ERROR;
         break;
     case QCAMERA_HAL_RECORDING_STARTED:
-        if(mSnapshotDone){
-            ALOGE("%s: Previous snapshot is not done",__func__);
-            return MM_CAMERA_OK;
+        /* check and wait if previous snapshot is not completed */
+        {
+            Mutex::Autolock rLock(mSnapLock);
+            if(mSnapshotDone) {
+                ALOGI("%s: Previous snapshot is not done, wait till it gets completed",__func__);
+                if(mSnapWait.waitRelative(mSnapLock, seconds_to_nanoseconds(1)) == (-ETIMEDOUT)) {
+                    ALOGE("%s: Previous snapshot wait timeout ",__func__);
+                    return MM_CAMERA_OK;
+                }
+            }
         }
         /* if livesnapshot stream is previous on, need to stream off first */
         if(mIsYUVSensor && !mYUVThruVFE) {
