@@ -427,7 +427,8 @@ static int mm_camera_util_set_op_mode(int fd, int opmode)
 int mm_camera_stream_qbuf(mm_camera_obj_t * my_obj, mm_camera_stream_t *stream,
   int idx)
 {
-  int32_t i, rc = MM_CAMERA_OK;
+  uint32_t i;
+  int32_t  rc = MM_CAMERA_OK;
   int *ret;
   struct v4l2_buffer buffer;
 
