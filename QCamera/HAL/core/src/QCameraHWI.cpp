@@ -3709,7 +3709,7 @@ int QCameraHardwareInterface::storeMetaDataInBuffers(int enable)
     return 0;
 }
 
-int QCameraHardwareInterface::allocate_ion_memory(QCameraHalMemInfo_t *mem_info, int ion_type)
+int QCameraHardwareInterface::allocate_ion_memory(QCameraHalMemInfo_t *mem_info, int ion_type, bool cached)
 {
     int rc = 0;
     struct ion_handle_data handle_data;
@@ -3728,7 +3728,9 @@ int QCameraHardwareInterface::allocate_ion_memory(QCameraHalMemInfo_t *mem_info,
     /* to make it page size aligned */
     alloc.len = (alloc.len + 4095) & (~4095);
     alloc.align = 4096;
-    alloc.flags = ION_FLAG_CACHED;
+    if(cached) {
+        alloc.flags = ION_FLAG_CACHED;
+    }
     alloc.heap_mask = ion_type;
     rc = ioctl(main_ion_fd, ION_IOC_ALLOC, &alloc);
     if (rc < 0) {
@@ -3786,7 +3788,8 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
                                            uint32_t buf_len,
                                            int pmem_type,
                                            mm_camera_frame_len_offset* offset,
-                                           mm_camera_buf_def_t *buf_def)
+                                           mm_camera_buf_def_t *buf_def,
+                                           bool cached)
 {
     int rc = 0;
     int i;
@@ -3807,11 +3810,11 @@ int QCameraHardwareInterface::initHeapMem( QCameraHalHeap_t *heap,
 #ifdef USE_ION
         if (isZSLMode()) {
             rc = allocate_ion_memory(&heap->mem_info[i],
-                                     ((0x1 << CAMERA_ZSL_ION_HEAP_ID) | (0x1 << CAMERA_ZSL_ION_FALLBACK_HEAP_ID)));
+                                     ((0x1 << CAMERA_ZSL_ION_HEAP_ID) | (0x1 << CAMERA_ZSL_ION_FALLBACK_HEAP_ID)), cached);
         }
         else {
             rc = allocate_ion_memory(&heap->mem_info[i],
-                                     ((0x1 << CAMERA_ION_HEAP_ID) | (0x1 << CAMERA_ION_FALLBACK_HEAP_ID)));
+                                     ((0x1 << CAMERA_ION_HEAP_ID) | (0x1 << CAMERA_ION_FALLBACK_HEAP_ID)), cached);
         }
 
         if (rc < 0) {

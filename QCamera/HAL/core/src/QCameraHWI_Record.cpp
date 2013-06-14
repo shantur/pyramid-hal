@@ -197,12 +197,21 @@ status_t QCameraStream_record::getBuf(mm_camera_frame_len_offset *frame_offset_i
 
     memset(mRecordBuf, 0, sizeof(mRecordBuf));
     memcpy(&mFrameOffsetInfo, frame_offset_info, sizeof(mFrameOffsetInfo));
+
+    char value[32];
+    bool cached = QCAMERA_ION_USE_CACHED;
+    property_get("persist.camera.mem.usecache", value, "1");
+    if (atoi(value) == 0) {
+      cached = QCAMERA_ION_USE_UNCACHED;
+    }
+    ALOGD("%s: Record buffers are using cached(1)/uncached(0) memory %d",__func__,cached);
     if (mHalCamCtrl->initHeapMem(&mHalCamCtrl->mRecordingMemory,
                                  mNumBuffers,
                                  mFrameOffsetInfo.frame_len,
                                  MSM_PMEM_VIDEO,
                                  &mFrameOffsetInfo,
-                                 mRecordBuf) < 0) {
+                                 mRecordBuf,
+                                 cached) < 0) {
         ALOGE("%s: Error getting heap mem for recording", __func__);
         return NO_MEMORY;
     }
