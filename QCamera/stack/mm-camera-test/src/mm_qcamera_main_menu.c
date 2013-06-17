@@ -1295,7 +1295,7 @@ int system_dimension_set(int cam_id)
   int rc = 0;
 
   if (preview_video_resolution_flag == 0) {
-    mm_app_set_dim_def(&dim);
+    mm_app_set_dim_def(&dim,cam_id);
   } else {
     dim.video_width = input_display.user_input_display_width;
     dim.video_width = CEILING32(dim.video_width);

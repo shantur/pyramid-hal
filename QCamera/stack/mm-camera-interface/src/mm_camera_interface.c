@@ -1183,7 +1183,7 @@ mm_camera_info_t * camera_query(uint8_t *num_cameras)
         }
 
         char * mdev_cfg;
-        int cam_type = 0, mount_angle = 0, info_index = 0;
+        int cam_type = 0, mount_angle = 0, info_index = 0, sensor_type = 0;
         mdev_cfg = strtok(mdev_info.serial, "-");
         while(mdev_cfg != NULL) {
             if(info_index == 0) {
@@ -1193,6 +1193,8 @@ mm_camera_info_t * camera_query(uint8_t *num_cameras)
                 mount_angle = atoi(mdev_cfg);
             } else if(info_index == 2) {
                 cam_type = atoi(mdev_cfg);
+            } else if(info_index == 3) {
+                sensor_type = atoi(mdev_cfg);
             }
             mdev_cfg = strtok(NULL, "-");
             info_index++;
@@ -1239,8 +1241,7 @@ mm_camera_info_t * camera_query(uint8_t *num_cameras)
 
         g_cam_ctrl.camera[*num_cameras].camera_info.sensor_mount_angle =
             mount_angle;
-
-        g_cam_ctrl.camera[*num_cameras].main_sensor_type = 0;
+        g_cam_ctrl.camera[*num_cameras].main_sensor_type = sensor_type;
 
         CDBG("%s: dev_info[id=%d,name='%s',pos=%d,modes=0x%x,sensor=%d mount_angle = %d]\n",
             __func__, *num_cameras,
