@@ -2171,25 +2171,7 @@ status_t QCameraHardwareInterface::setSceneMode(const QCameraParameters& params)
                   ALOGI("Camera Effect is not set as the EFFECT_NONE and result is not OK");
                }
             }
-            /* Check to see if there was a change of scene mode */
-            if(strncmp(str, oldstr, QCameraParameters::MAX_STR_LENGTH)) {
-                ALOGI("%s: valued changed from %s to %s",__func__, oldstr, str);
-                /* Check if we are either transitioning to/from HDR state
-                 * if yes, restart preview. */
-                len = strnlen(QCameraParameters::SCENE_MODE_HDR,
-                              QCameraParameters::MAX_STR_LENGTH);
-                if(!strncmp(str, QCameraParameters::SCENE_MODE_HDR, len)
-                || !strncmp(oldstr, QCameraParameters::SCENE_MODE_HDR, len)) {
-                    ALOGI("Changed between HDR/non-HDR states");
-                    /* Restart only if preview already running*/
-                    if (mPreviewState == QCAMERA_HAL_PREVIEW_STARTED) {
-                        ALOGI("Preview in progress,restarting for HDR transition");
-                        mParameters.set(QCameraParameters::KEY_SCENE_MODE, str);
-                        mRestartPreview = 1;
-                        pausePreviewForZSL();
-                    }
-                }
-            }
+
             mParameters.set(QCameraParameters::KEY_SCENE_MODE, str);
             bool ret = native_set_parms(MM_CAMERA_PARM_BESTSHOT_MODE, sizeof(value),
                                        (void *)&value);
