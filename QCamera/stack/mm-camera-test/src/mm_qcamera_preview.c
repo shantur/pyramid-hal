@@ -200,11 +200,22 @@ void dumpFrameToFile(mm_camera_buf_def_t* newFrame, int w, int h, char* name, in
             void* cbcr_off = (unsigned long *)newFrame->buffer + newFrame->planes[0].length;
 
             CDBG("%s: %s Y_off = %p cbcr_off = %p", __func__, name, y_off,cbcr_off);
-            CDBG("%s: Y_off length = %d cbcr_off length = %d", __func__, newFrame->planes[0].length,newFrame->planes[1].length);
+            CDBG("%s: Plane 0 length = %d Plane 1 length = %d", __func__, newFrame->planes[0].length,newFrame->planes[1].length);
 
-            write(file_fd, (const void *)(y_off), (w * h));
-            if (newFrame->num_planes > 1)
+            if (newFrame->num_planes > 1) {
+                CDBG("%s: Multiplane case",__func__);
+                write(file_fd, (const void *)(y_off), (w * h));
                 write(file_fd, (const void *)(cbcr_off), (w * h/2 * main_422));
+            }
+            else if(main_422 == 2){
+                CDBG("%s: YUYV case",__func__);
+                write(file_fd, (const void *)(y_off), (w * h)*2);
+            }
+            else {
+                //Need to know the exact size
+                CDBG("%s: Unknown case",__func__);
+                write(file_fd, (const void *)(y_off), (w * h));
+            }
 
             close(file_fd);
             CDBG("dump %s", buf);

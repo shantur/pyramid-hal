@@ -195,7 +195,7 @@ extern int mm_app_set_dim(int8_t cam_id, cam_ctrl_dimension_t *dim);
 extern int mm_app_run_unit_test();
 extern int mm_app_unit_test_entry(mm_camera_app_t *cam_app);
 extern int mm_app_unit_test();
-extern void mm_app_set_dim_def(cam_ctrl_dimension_t *dim);
+extern void mm_app_set_dim_def(cam_ctrl_dimension_t *dim, uint8_t cam_id);
 extern int mm_app_open(uint8_t camera_idx);
 extern int mm_app_close(int8_t cam_id);
 extern int startPreview(int cam_id);

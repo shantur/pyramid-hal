@@ -262,7 +262,7 @@ int mm_app_tc_3(mm_camera_app_t *cam_apps)
         goto end;
     }
     CDBG_ERROR("SINGLE open RDI ");
-    for (i = 1; i < cam_apps->num_cameras; i++) {
+    for (i = 0; i < cam_apps->num_cameras; i++) {
         if ( mm_app_open(i) != MM_CAMERA_OK) {
             CDBG_ERROR("%s:mm_app_open() err=%d\n",__func__, rc);
             rc = -1;

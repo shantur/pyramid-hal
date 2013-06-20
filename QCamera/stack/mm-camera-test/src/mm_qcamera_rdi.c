@@ -146,6 +146,7 @@ static void mm_app_rdi_notify_cb(mm_camera_super_buf_t *bufs,
     int rc;
     mm_camera_buf_def_t *frame = NULL;
     mm_camera_app_obj_t *pme = NULL;
+    int main_422 = 1;
     CDBG("%s: BEGIN\n", __func__); 
     frame = bufs->bufs[0] ;
     pme = (mm_camera_app_obj_t *)user_data;
@@ -154,7 +155,8 @@ static void mm_app_rdi_notify_cb(mm_camera_super_buf_t *bufs,
 
     if (rdi_op_mode == MM_CAMERA_OP_MODE_VIDEO) {
       // for 8bpp
-      dumpFrameToFile(frame,pme->dim.rdi0_width,pme->dim.rdi0_height,"rdi_p", 1,"raw");
+      main_422 = ((pme->dim.rdi0_format == CAMERA_YUV_422_YUYV) ? 2 : 1);
+      dumpFrameToFile(frame,pme->dim.rdi0_width,pme->dim.rdi0_height,"rdi_p", main_422,"raw");
       // for 10bpp
       //  dumpFrameToFile(frame,pme->dim.rdi0_width*1.25,pme->dim.rdi0_height,"rdi_p", 1, "raw");
     } else {
