@@ -3640,8 +3640,10 @@ void QCameraHardwareInterface::dumpFrameToFile(mm_camera_buf_def_t* newFrame,
           if (file_fd < 0) {
             ALOGE("%s: cannot open file:type=%d\n", __func__, frm_type);
           } else {
-            void* y_off = (unsigned long *)newFrame->buffer + newFrame->frame_offset_info.mp[0].offset;
-            void* cbcr_off = (unsigned long *)newFrame->buffer + newFrame->frame_offset_info.mp[0].len + newFrame->frame_offset_info.mp[1].offset;
+            uint8_t *y_off = (uint8_t *)newFrame->buffer + newFrame->frame_offset_info.mp[0].offset;
+            uint8_t *cbcr_off =
+                            (uint8_t *)newFrame->buffer + newFrame->frame_offset_info.mp[0].len +
+                                        newFrame->frame_offset_info.mp[1].offset;
             ALOGE("%s: writing to file w=%d h =%d\n", __func__, w, h);
             write(file_fd, (const void *)(y_off), w * h);
             write(file_fd, (const void *)(cbcr_off),w * h / 2 * main_422);
