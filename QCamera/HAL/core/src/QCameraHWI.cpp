@@ -2077,6 +2077,10 @@ void QCameraHardwareInterface::processChannelEvent(
             break;
         case MM_CAMERA_CH_EVT_STREAMING_ERR:
             ALOGE("%s : MM_CAMERA_CH_EVT_STREAMING_ERR (isRecordingRunning = %d)\n", __func__,isRecordingRunning());
+            if((num_snapshot_rcvd == num_of_snapshot) && (mPreviewState == QCAMERA_HAL_TAKE_PICTURE)) {
+               ALOGW("%s: Ignore MM_CAMERA_CH_EVT_STREAMING_ERR for successful snapshot",__func__);
+               break;
+            }
             if(isRecordingRunning()) {
                 camera_memory_t *TempHeap =
                     mGetMemory(-1, strlen(TempBuffer), 1, (void *)this);
