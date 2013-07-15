@@ -120,6 +120,7 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
 {
     ALOGV("%s : BEGIN",__func__);
     int video_buf_idx = frame->bufs[0]->buf_idx;
+    nsecs_t timeStamp;
 
 	if(!mActive) {
 	  ALOGE("Recording Stopped. Returning callback");
@@ -133,10 +134,13 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
     mHalCamCtrl->dumpFrameToFile(frame->bufs[0], HAL_DUMP_FRM_VIDEO);
     camera_data_timestamp_callback rcb = mHalCamCtrl->mDataCbTimestamp;
     void *rdata = mHalCamCtrl->mCallbackCookie;
-	nsecs_t timeStamp = nsecs_t(frame->bufs[0]->ts.tv_sec)*1000000000LL + \
+    if(mHalCamCtrl->isAVTimerEnabled()){
+        timeStamp = ((nsecs_t)frame->bufs[0]->ts.tv_sec << 32) | frame->bufs[0]->ts.tv_nsec;
+    } else {
+        timeStamp = nsecs_t(frame->bufs[0]->ts.tv_sec)*1000000000LL + \
                       frame->bufs[0]->ts.tv_nsec;
-
-  ALOGV("Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
+    }
+  ALOGV("<DEBUG4>:Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
   mRecordedFrames[video_buf_idx] = *frame;
   mHalCamCtrl->cache_ops(&mHalCamCtrl->mRecordingMemory.mem_info[video_buf_idx],
                            (void *)mHalCamCtrl->mRecordingMemory.camera_memory[video_buf_idx]->data,

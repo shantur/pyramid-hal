@@ -124,6 +124,19 @@ const char QCameraParameters::FOCUS_MODE_NORMAL[] = "normal";
 const char QCameraParameters::KEY_QC_SKIN_TONE_ENHANCEMENT[] = "skinToneEnhancement";
 const char QCameraParameters::KEY_QC_SUPPORTED_SKIN_TONE_ENHANCEMENT_MODES[] = "skinToneEnhancement-values";
 
+// Values for AVTimer
+const char QCameraParameters::KEY_QC_AVTIMER[] = "avtimer";
+const char QCameraParameters::AVTIMER_ENABLE[] = "enable";
+const char QCameraParameters::AVTIMER_DISABLE[] = "disable";
+
+// Value for Video Rotation
+const char QCameraParameters::KEY_QC_VIDEO_ROTATION[] = "video-rotation";
+
+//Value for VT Crop
+const char QCameraParameters::KEY_QC_VT_CROP[] = "vt-crop";
+const char QCameraParameters::VT_CROP_ENABLE[] = "enable";
+const char QCameraParameters::VT_CROP_DISABLE[] = "disable";
+
 // Values for ISO Settings
 const char QCameraParameters::ISO_AUTO[] = "auto";
 const char QCameraParameters::ISO_HJR[] = "ISO_HJR";

@@ -249,6 +249,8 @@ typedef struct mm_stream {
     uint8_t local_buf_idx; /* idx to local buf that can be used for non-stream-on cb */
 
     mm_camera_frame_len_offset frame_offset; /*Stream buffer offset information*/
+
+    uint8_t useAVTimer_si; /*flag to indicate use of AVTimer for TimeStamps*/
 } mm_stream_t;
 
 /* mm_channel */

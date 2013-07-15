@@ -210,6 +210,19 @@ public:
     static const char SKIN_TONE_ENHANCEMENT_ENABLE[];
     static const char SKIN_TONE_ENHANCEMENT_DISABLE[];
 
+    // Values for AVTimer
+    static const char KEY_QC_AVTIMER[];
+    static const char AVTIMER_ENABLE[];
+    static const char AVTIMER_DISABLE[];
+
+    //Value for Video Rotation
+    static const char KEY_QC_VIDEO_ROTATION[];
+
+   //Value for Crop when using VT usecase
+    static const char KEY_QC_VT_CROP[];
+    static const char VT_CROP_ENABLE[];
+    static const char VT_CROP_DISABLE[];
+
     // Values for Denoise
     static const char DENOISE_OFF[];
     static const char DENOISE_ON[];

@@ -322,6 +322,9 @@ typedef struct {
   cam_frame_len_offset_t picture_frame_offset;
   cam_frame_len_offset_t thumb_frame_offset;
   uint32_t channel_interface_mask;
+  uint32_t video_Rotation;
+  uint8_t useAVTimer_d;
+  uint8_t vt_crop;
 } cam_ctrl_dimension_t;
 
 typedef struct {

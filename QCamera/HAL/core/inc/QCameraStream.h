@@ -76,6 +76,7 @@ public:
     uint32_t mHeight;
     uint32_t mFormat;
     uint8_t mNumBuffers;
+    bool mUseAVTimer_s;
     mm_camera_frame_len_offset mFrameOffsetInfo;
     mm_camera_vtbl_t *p_mm_ops;
     mm_camera_img_mode mExtImgMode;
