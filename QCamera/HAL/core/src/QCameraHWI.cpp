@@ -2274,10 +2274,11 @@ void QCameraHardwareInterface::zslExpBktEvent(struct zsl_exp_bracket_t evt,
 
 void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
 {
+    int stream_error = 0;
     app_notify_cb_t app_cb;
-    ALOGE("processEvent: type :%d E",event->event_type);
+    ALOGI("processEvent: type :%d E",event->event_type);
     if(mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED){
-    ALOGE("Stop recording issued. Return from process Event");
+    ALOGE("Stop issued. Return from process Event");
         return;
     }
     memset(&app_cb, 0, sizeof(app_notify_cb_t));
@@ -2287,6 +2288,8 @@ void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
             processChannelEvent(&event->e.ch, &app_cb);
             break;
         case MM_CAMERA_EVT_TYPE_CTRL:
+            if (event->e.ctrl.evt == MM_CAMERA_CTRL_EVT_ERROR)
+               stream_error = 1;
             processCtrlEvent(&event->e.ctrl, &app_cb);
             break;
         case MM_CAMERA_EVT_TYPE_STATS:
@@ -2298,7 +2301,10 @@ void  QCameraHardwareInterface::processEvent(mm_camera_event_t *event)
         default:
             break;
     }
-    ALOGE(" App_cb Notify %p, datacb=%p", app_cb.notifyCb, app_cb.dataCb);
+    if (stream_error)
+       native_set_parms(MM_CAMERA_PARM_STREAM_ERROR, sizeof(stream_error),
+                 (void *)&stream_error);
+    ALOGI(" App_cb Notify %p, datacb=%p", app_cb.notifyCb, app_cb.dataCb);
     if (app_cb.notifyCb) {
       app_cb.notifyCb(app_cb.argm_notify.msg_type,
         app_cb.argm_notify.ext1, app_cb.argm_notify.ext2,
