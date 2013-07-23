@@ -3736,8 +3736,14 @@ int QCameraHardwareInterface::getNumOfSnapshots(const QCameraParameters& params)
         ALOGI("%s: Reading maximum no of snapshots = %d"
              "from properties", __func__, atoi(prop));
         return atoi(prop);
+    } else if (mHdrMode == HDR_MODE) {
+        mParameters.set("num-snaps-per-shutter", 2);
+        QCameraParameters param = getParameters();
+        return param.getInt("num-snaps-per-shutter");
     } else {
-        return params.getInt("num-snaps-per-shutter");
+        mParameters.set("num-snaps-per-shutter", 1);
+        QCameraParameters param = getParameters();
+        return param.getInt("num-snaps-per-shutter");
     }
 
 }
