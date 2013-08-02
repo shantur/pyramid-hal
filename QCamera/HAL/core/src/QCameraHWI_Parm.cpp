@@ -2541,10 +2541,9 @@ status_t QCameraHardwareInterface::setWaveletDenoise(const QCameraParameters& pa
     uint8_t supported;
     mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
                                           MM_CAMERA_PARM_WAVELET_DENOISE,&supported,&supported);
-    if( !supported ) {
+    if(!supported) {
         ALOGE("Wavelet Denoise is not supported for this sensor");
-        /* TO DO */
-//        return NO_ERROR;
+        return NO_ERROR;
     }
     const char *str = params.get(QCameraParameters::KEY_QC_DENOISE);
     if (str != NULL) {
