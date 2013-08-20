@@ -2000,12 +2000,6 @@ status_t QCameraHardwareInterface::setFocusAreas(const QCameraParameters& params
         mParameters.set(QCameraParameters::KEY_FOCUS_AREAS, str);
         num_areas_found = 1; //temp; need to change after the multi-roi is enabled
 
-        //if the native_set_parms is called when preview is not started, it
-        //crashes in lower layer, so return of preview is not started
-        if(mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED) {
-            delete areas;
-            return NO_ERROR;
-        }
 
         //for special area string (0, 0, 0, 0, 0), set the num_areas_found to 0,
         //so no action is takenby the lower layer
@@ -2074,12 +2068,6 @@ status_t QCameraHardwareInterface::setMeteringAreas(const QCameraParameters& par
         }
         mParameters.set(QCameraParameters::KEY_METERING_AREAS, str);
 
-        //if the native_set_parms is called when preview is not started, it
-        //crashes in lower layer, so return of preview is not started
-        if(mPreviewState == QCAMERA_HAL_PREVIEW_STOPPED) {
-            delete areas;
-            return NO_ERROR;
-        }
 
         num_areas_found = 1; //temp; need to change after the multi-roi is enabled
 
