@@ -1066,8 +1066,6 @@ void QCameraHardwareInterface::receiveRawPicture(mm_camera_super_buf_t* recvd_fr
                  ALOGE("%s: The sourceMemory data is NULL", __func__);
                  return;
              }
-             if(pme->num_snapshot_rcvd == pme->num_of_snapshot)
-             pme->releaseHeapMem(sourceMemory);
          }else{
              uint8_t* raw_data = (uint8_t*)recvd_frame->bufs[0]->buffer;
              if (raw_data != NULL) {
