@@ -1500,7 +1500,6 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     if ((rc = setSaturation(params)))                   final_rc = rc;
     if ((rc = setSceneMode(params)))                    final_rc = rc;
     if ((rc = setContrast(params)))                     final_rc = rc;
-    if ((rc = setFaceDetect(params)))                   final_rc = rc;
     if ((rc = setStrTextures(params)))                  final_rc = rc;
     if ((rc = setPreviewFormat(params)))                final_rc = rc;
     if ((rc = setSkinToneEnhancement(params)))          final_rc = rc;
@@ -1530,7 +1529,8 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     if ((rc = setAEBracket(params)))                    final_rc = rc;
     //    if ((rc = setDenoise(params)))                final_rc = rc;
     if ((rc = setPreviewFpsRange(params)))              final_rc = rc;
-    if((rc = setRecordingHint(params)))                 final_rc = rc;
+    if ((rc = setRecordingHint(params)))                final_rc = rc;
+    if ((rc = setFaceDetect(params)))                   final_rc = rc;
     if ((rc = setAecAwbLock(params)))                   final_rc = rc;
 
     const char *str = params.get(QCameraParameters::KEY_SCENE_MODE);
@@ -3213,6 +3213,12 @@ status_t QCameraHardwareInterface::setFaceDetect(const QCameraParameters& params
         fd_set_parm_t fd_set_parm;
         int value = attr_lookup(facedetection,
                 sizeof(facedetection) / sizeof(str_map), str);
+
+        /* Face detection is not supported in camcorder mode.
+         * If for some reason application has not turned off FD, turn it
+         * off internally by overwriting the param's value. */
+        if (mRecordingHint)
+            value = 0;
         mFaceDetectOn = value;
         fd_set_parm.fd_mode = value;
         fd_set_parm.num_fd = requested_faces;
