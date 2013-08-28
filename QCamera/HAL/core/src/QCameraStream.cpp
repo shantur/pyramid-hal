@@ -106,6 +106,7 @@ int32_t QCameraStream::streamOn()
        /* this is the restart case, for now we need config again */
        rc = setFormat();
        ALOGD("%s: config_stream, rc = %d", __func__, rc);
+       mLastFrameTimestampUs = 0;
    }
    rc = p_mm_ops->ops->start_streams(mCameraHandle,
                               mChannelId,
@@ -129,6 +130,7 @@ int32_t QCameraStream::streamOff(bool isAsyncCmd)
         return rc;
     }
 	mActive = false;
+    mLastFrameTimestampUs = 0;
     rc = p_mm_ops->ops->stop_streams(mCameraHandle,
                               mChannelId,
                               1,
@@ -281,6 +283,7 @@ status_t QCameraStream::setFormat()
 QCameraStream::QCameraStream (){
     mInit = false;
     mActive = false;
+    mLastFrameTimestampUs = 0;
     /* memset*/
     memset(&mCrop, 0, sizeof(mm_camera_rect_t));
     m_flag_no_cb = FALSE;
@@ -304,6 +307,7 @@ QCameraStream::QCameraStream(uint32_t CameraHandle,
                 mFormat(Format),
                 mNumBuffers(NumBuffers),
                 mUseAVTimer_s(0),
+                mLastFrameTimestampUs(0),
                 p_mm_ops(mm_ops),
                 mExtImgMode(imgmode),
                 mHalCamCtrl(camCtrl)

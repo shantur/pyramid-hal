@@ -140,6 +140,17 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
         timeStamp = nsecs_t(frame->bufs[0]->ts.tv_sec)*1000000000LL + \
                       frame->bufs[0]->ts.tv_nsec;
     }
+
+    if (timeStamp <= mLastFrameTimestampUs) {
+        // Reject Frames with duplicate or inappropriate timestamp
+        ALOGV("<DEBUG4>:Duplicate/Inappropriate timestamp frames, cur_ts[%lld] last_ts[%lld]",
+               timeStamp, mLastFrameTimestampUs);
+        if(MM_CAMERA_OK != p_mm_ops->ops->qbuf(frame->camera_handle, frame->ch_id , frame->bufs[0]))
+            ALOGE("%s : Buf Done Failed",__func__);
+        return NO_ERROR;
+    }
+    mLastFrameTimestampUs = timeStamp;
+
   ALOGV("<DEBUG4>:Send Video frame to services/encoder TimeStamp : %lld",timeStamp);
   mRecordedFrames[video_buf_idx] = *frame;
   mHalCamCtrl->cache_ops(&mHalCamCtrl->mRecordingMemory.mem_info[video_buf_idx],
