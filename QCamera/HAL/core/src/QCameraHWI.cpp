@@ -664,7 +664,7 @@ status_t QCameraHardwareInterface::encodeData(mm_camera_super_buf_t* recvd_frame
             app_cb->argm_data_cb.msg_type = CAMERA_MSG_RAW_IMAGE;
             app_cb->argm_data_cb.cookie = mCallbackCookie;
             app_cb->argm_data_cb.data = mSnapshotMemory.camera_memory[main_frame->buf_idx];
-            app_cb->argm_data_cb.index = main_frame->buf_idx;
+            app_cb->argm_data_cb.index = 0;
             app_cb->argm_data_cb.metadata = NULL;
             app_cb->argm_data_cb.user_data = NULL;
         }
