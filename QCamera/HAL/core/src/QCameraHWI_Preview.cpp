@@ -41,6 +41,8 @@ status_t QCameraStream_preview::getBufferFromSurface() {
   struct ion_fd_data ion_info_fd;
 
   preview_stream_ops_t *mPreviewWindow = mHalCamCtrl->mPreviewWindow;
+  int isRotationEnabled = mHalCamCtrl->getVideoRotation();
+  int isCropEnabled = mHalCamCtrl->isVTCropEnabled();
 
     ALOGI(" %s : E ", __FUNCTION__);
 
@@ -58,8 +60,24 @@ status_t QCameraStream_preview::getBufferFromSurface() {
          ret = UNKNOWN_ERROR;
      goto end;
     }
-    err = mPreviewWindow->set_buffers_geometry(mPreviewWindow,
+
+    if(isCropEnabled &&
+        (isRotationEnabled == ROT_CLOCKWISE_90 ||
+         isRotationEnabled == ROT_CLOCKWISE_270 )){
+         ALOGV("VT Use Case: Rotation + Crop");
+         err = mPreviewWindow->set_buffers_geometry(mPreviewWindow,
                 mWidth, mHeight, mHalCamCtrl->getPreviewFormatInfo().Hal_format);
+    } else if (isRotationEnabled == ROT_CLOCKWISE_90 ||
+               isRotationEnabled == ROT_CLOCKWISE_270  ||
+               isCropEnabled){
+         ALOGV("VT Use Case: Only Rotation OR Only Crop");
+         err = mPreviewWindow->set_buffers_geometry(mPreviewWindow,
+                mHeight, mWidth, mHalCamCtrl->getPreviewFormatInfo().Hal_format);
+    } else {
+         err = mPreviewWindow->set_buffers_geometry(mPreviewWindow,
+               mWidth, mHeight, mHalCamCtrl->getPreviewFormatInfo().Hal_format);
+    }
+
     if (err != 0) {
          ALOGE("set_buffers_geometry failed: %s (%d)",
                     strerror(-err), -err);
