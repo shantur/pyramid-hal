@@ -956,6 +956,8 @@ int32_t mm_stream_read_msm_frame(mm_stream_t * my_obj,
         buf_info->buf->ts.tv_sec  = vb.timestamp.tv_sec;
 
         if(my_obj->useAVTimer_si){
+           /*Pass AVTimer TS as is to avoid overflow.
+             Convert to nano seconds in HAL*/
            buf_info->buf->ts.tv_nsec = vb.timestamp.tv_usec;
         } else{
            buf_info->buf->ts.tv_nsec = vb.timestamp.tv_usec * 1000;
