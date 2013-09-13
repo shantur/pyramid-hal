@@ -4417,11 +4417,12 @@ int32_t QCameraHardwareInterface::flipFrame(mm_camera_buf_def_t * frame,
     flipHorizontal((uint8_t*)frame->buffer, y_offset, cbcr_offset,
                    width, height);
   }
-
+#if 0 // Commented for bringup
   if (mSnapshotFlip & FLIP_V) {
     flipVertical((uint8_t *)frame->buffer, y_offset, cbcr_offset,
                  width, height);
   }
+#endif
   return 0;
 }
 
@@ -4457,6 +4458,7 @@ int32_t QCameraHardwareInterface::flipHorizontal(uint8_t * buffer,
   return 0;
 }
 
+#if 0 // Commented for bringup
 int32_t QCameraHardwareInterface::flipVertical(uint8_t * buffer,
                                                uint32_t y_off,
                                                uint32_t cbcr_off,
@@ -4511,6 +4513,7 @@ int32_t QCameraHardwareInterface::flipVertical(uint8_t * buffer,
 
   return 0;
 }
+#endif
 
 #if 0
 /* Temporary till the cache_ops changes get cherry-picked */
