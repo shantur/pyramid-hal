@@ -135,7 +135,8 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
     camera_data_timestamp_callback rcb = mHalCamCtrl->mDataCbTimestamp;
     void *rdata = mHalCamCtrl->mCallbackCookie;
     if(mHalCamCtrl->isAVTimerEnabled()){
-        timeStamp = ((nsecs_t)frame->bufs[0]->ts.tv_sec << 32) | frame->bufs[0]->ts.tv_nsec;
+        /*Provide AVTimer TimeStamp in nano seconds*/
+        timeStamp = (((nsecs_t)frame->bufs[0]->ts.tv_sec << 32) | frame->bufs[0]->ts.tv_nsec) * 1000;
     } else {
         timeStamp = nsecs_t(frame->bufs[0]->ts.tv_sec)*1000000000LL + \
                       frame->bufs[0]->ts.tv_nsec;
