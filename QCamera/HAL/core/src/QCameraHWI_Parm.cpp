@@ -1472,6 +1472,7 @@ int QCameraHardwareInterface::setParameters(const char *parms)
 status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params)
 {
     status_t ret = NO_ERROR;
+    uint8_t supported;
 
     ALOGI("%s: E", __func__);
 //    Mutex::Autolock l(&mLock);
@@ -1536,19 +1537,65 @@ status_t QCameraHardwareInterface::setParameters(const QCameraParameters& params
     const char *str = params.get(QCameraParameters::KEY_SCENE_MODE);
     int32_t value = attr_lookup(scenemode, sizeof(scenemode) / sizeof(str_map), str);
 
-    if((value != NOT_FOUND) && (value == CAMERA_BESTSHOT_OFF )) {
-        //if ((rc = setPreviewFrameRateMode(params)))     final_rc = rc;
-        if ((rc = setPreviewFrameRate(params)))         final_rc = rc;
-        if ((rc = setAutoExposure(params)))             final_rc = rc;
-        if ((rc = setExposureCompensation(params)))     final_rc = rc;
-        if ((rc = setWhiteBalance(params)))             final_rc = rc;
-        if ((rc = setFlash(params)))                    final_rc = rc;
-        if ((rc = setFocusMode(params)))                final_rc = rc;
-        if ((rc = setBrightness(params)))               final_rc = rc;
-        if ((rc = setISOValue(params)))                 final_rc = rc;
-        if ((rc = setFocusAreas(params)))               final_rc = rc;
-        if ((rc = setMeteringAreas(params)))            final_rc = rc;
+    if ((value != NOT_FOUND) && (value != CAMERA_BESTSHOT_OFF)){
+        //Initializing to default values because scene mode is not AUTO
+        if (mFps >= MINIMUM_FPS && mFps <= MAXIMUM_FPS) {
+            (const_cast<QCameraParameters&>(params)).setPreviewFrameRate(mFps);
+        } else{
+            (const_cast<QCameraParameters&>(params))
+                .setPreviewFrameRate(DEFAULT_FIXED_FPS);
+        }
+        (const_cast<QCameraParameters&>(params)).set(
+                QCameraParameters::KEY_QC_AUTO_EXPOSURE,
+                QCameraParameters::AUTO_EXPOSURE_FRAME_AVG);
+        (const_cast<QCameraParameters&>(params)).set(
+                QCameraParameters::KEY_EXPOSURE_COMPENSATION,
+                EXPOSURE_COMPENSATION_DEFAULT_NUMERATOR);
+        (const_cast<QCameraParameters&>(params)).set(
+                QCameraParameters::KEY_WHITE_BALANCE,
+                QCameraParameters::WHITE_BALANCE_AUTO);
+         mCameraHandle->ops->is_parm_supported(mCameraHandle->camera_handle,
+                                          MM_CAMERA_PARM_LED_MODE,&supported,&supported);
+        if (supported){
+            (const_cast<QCameraParameters&>(params)).set(
+                    CameraParameters::KEY_FLASH_MODE,
+                    CameraParameters::FLASH_MODE_AUTO);
+        }
+        if (mHasAutoFocusSupport){
+            (const_cast<QCameraParameters&>(params)).set(
+                      QCameraParameters::KEY_FOCUS_MODE,
+                      QCameraParameters::FOCUS_MODE_AUTO);
+            (const_cast<QCameraParameters&>(params)).set(
+                      QCameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "1");
+            (const_cast<QCameraParameters&>(params)).set(
+                      QCameraParameters::KEY_MAX_NUM_METERING_AREAS, "1");
+        } else {
+            (const_cast<QCameraParameters&>(params)).set(
+                      QCameraParameters::KEY_FOCUS_MODE,
+                      QCameraParameters::FOCUS_MODE_INFINITY);
+            (const_cast<QCameraParameters&>(params)).set(
+                      QCameraParameters::KEY_MAX_NUM_FOCUS_AREAS, "0");
+            (const_cast<QCameraParameters&>(params)).set(
+                      QCameraParameters::KEY_MAX_NUM_METERING_AREAS, "0");
+        }
+        (const_cast<QCameraParameters&>(params)).set("luma-adaptation", "3");
+        (const_cast<QCameraParameters&>(params)).set(
+                QCameraParameters::KEY_QC_ISO_MODE,
+                QCameraParameters::ISO_AUTO);
     }
+
+    //if ((rc = setPreviewFrameRateMode(params)))     final_rc = rc;
+    if ((rc = setPreviewFrameRate(params)))         final_rc = rc;
+    if ((rc = setAutoExposure(params)))             final_rc = rc;
+    if ((rc = setExposureCompensation(params)))     final_rc = rc;
+    if ((rc = setWhiteBalance(params)))             final_rc = rc;
+    if ((rc = setFlash(params)))                    final_rc = rc;
+    if ((rc = setFocusMode(params)))                final_rc = rc;
+    if ((rc = setBrightness(params)))               final_rc = rc;
+    if ((rc = setISOValue(params)))                 final_rc = rc;
+    if ((rc = setFocusAreas(params)))               final_rc = rc;
+    if ((rc = setMeteringAreas(params)))            final_rc = rc;
+
     //selectableZoneAF needs to be invoked after continuous AF
     if ((rc = setSelectableZoneAf(params)))             final_rc = rc;
     // setHighFrameRate needs to be done at end, as there can
