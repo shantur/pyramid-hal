@@ -1317,7 +1317,10 @@ int32_t mm_channel_qbuf(mm_channel_t *my_obj,
                         mm_camera_buf_def_t *buf)
 {
     int32_t rc = -1;
-    mm_stream_t* s_obj = mm_channel_util_get_stream_by_handler(my_obj, buf->stream_id);
+    mm_stream_t* s_obj = NULL;
+
+    if (NULL != buf)
+        s_obj = mm_channel_util_get_stream_by_handler(my_obj, buf->stream_id);
 
     if (NULL != s_obj) {
         rc = mm_stream_fsm_fn(s_obj,
