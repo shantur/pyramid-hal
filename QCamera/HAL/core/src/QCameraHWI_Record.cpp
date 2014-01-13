@@ -157,7 +157,7 @@ status_t QCameraStream_record::processRecordFrame(mm_camera_super_buf_t *frame)
   mRecordedFrames[video_buf_idx] = *frame;
   mHalCamCtrl->cache_ops(&mHalCamCtrl->mRecordingMemory.mem_info[video_buf_idx],
                            (void *)mHalCamCtrl->mRecordingMemory.camera_memory[video_buf_idx]->data,
-                           ION_IOC_CLEAN_CACHES);
+                           ION_IOC_CLEAN_INV_CACHES);
 
   if (mHalCamCtrl->mStoreMetaDataInFrame) {
     if((rcb != NULL) && (mHalCamCtrl->mMsgEnabled & CAMERA_MSG_VIDEO_FRAME)) {
