@@ -2828,6 +2828,11 @@ status_t QCameraHardwareInterface::setAVTimer(const QCameraParameters& params) {
     value = (strcmp(str, "enable") == 0)? 1 : 0;
     mParameters.set(QCameraParameters::KEY_QC_AVTIMER, str);
     mUseAVTimer = value;
+    if(mUseAVTimer) {
+        QCameraParameters powerParam;
+        powerParam.set(QCameraParameters::KEY_QC_POWER_MODE, QCameraParameters::NORMAL_POWER);
+        setPowerMode(powerParam); //Set Normal power mode
+    }
 
     ALOGV("%s: AVTimer Value = %s = %u", __func__, str, value);
     return NO_ERROR;
