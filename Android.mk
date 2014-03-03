@@ -135,10 +135,10 @@ ifneq ($(USE_CAMERA_STUB),true)
       LOCAL_C_INCLUDES+= hardware/qcom/media/libstagefrighthw
 
       ifeq ($(V4L2_BASED_LIBCAM),true)
-        LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg libmmstillomx libimage-jpeg-enc-omx-comp
+        LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils
         LOCAL_SHARED_LIBRARIES += libmmcamera_interface2
       else
-         LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libmmjpeg libgenlock
+         LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils libgenlock
       endif
 
       LOCAL_SHARED_LIBRARIES+= libbinder libhardware
