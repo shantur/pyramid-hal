@@ -31,7 +31,7 @@ LOCAL_C_INCLUDES+= \
     $(TARGET_OUT_HEADERS)/mm-still/jpeg \
     $(TARGET_OUT_HEADERS)/mm-still/mm-omx
 
-LOCAL_C_INCLUDES+= hardware/qcom/media/mm-core/inc
+LOCAL_C_INCLUDES+= hardware/qcom/media-caf/mm-core/inc
 LOCAL_CFLAGS += -include bionic/libc/kernel/arch-arm/asm/posix_types.h
 LOCAL_CFLAGS += -include bionic/libc/kernel/arch-arm/asm/byteorder.h
 LOCAL_CFLAGS += -include bionic/libc/kernel/common/linux/posix_types.h

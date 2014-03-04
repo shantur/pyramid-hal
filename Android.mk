@@ -124,15 +124,15 @@ ifneq ($(USE_CAMERA_STUB),true)
         $(TARGET_OUT_HEADERS)/mm-still/jpeg \
 
       ifeq ($(V4L2_BASED_LIBCAM),true)
-        LOCAL_C_INCLUDES+= hardware/qcom/media/mm-core/inc
+        LOCAL_C_INCLUDES+= hardware/qcom/media-caf/mm-core/inc
         LOCAL_C_INCLUDES+= $(TARGET_OUT_HEADERS)/mm-still/mm-omx
         LOCAL_C_INCLUDES+= $(LOCAL_PATH)/mm-camera-interface
       else
-        LOCAL_C_INCLUDES+= hardware/qcom/display/libgenlock
+        LOCAL_C_INCLUDES+= hardware/qcom/display-caf/libgenlock
       endif
 
-      LOCAL_C_INCLUDES+= hardware/qcom/display/libgralloc
-      LOCAL_C_INCLUDES+= hardware/qcom/media/libstagefrighthw
+      LOCAL_C_INCLUDES+= hardware/qcom/display-caf/libgralloc
+      LOCAL_C_INCLUDES+= hardware/qcom/media-caf/libstagefrighthw
 
       ifeq ($(V4L2_BASED_LIBCAM),true)
         LOCAL_SHARED_LIBRARIES:= libutils libui libcamera_client liblog libcutils
