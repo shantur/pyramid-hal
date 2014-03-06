@@ -162,3 +162,4 @@ ifeq ($(V4L2_BASED_LIBCAM),true)
 include $(LOCAL_PATH)/mm-camera-interface/Android.mk
 endif
 
+include $(LOCAL_PATH1)/mm-image-codec/Android.mk

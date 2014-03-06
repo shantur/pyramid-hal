@@ -69,7 +69,9 @@
 #define CAMERA_EFFECT_USER_DEFINED4     15
 #define CAMERA_EFFECT_USER_DEFINED5     16
 #define CAMERA_EFFECT_USER_DEFINED6     17
-#define CAMERA_EFFECT_MAX               18
+//#define CAMERA_EFFECT_MAX               18
+
+#define FLIP_NONE  0
 
 /* Exif Tag ID */
 typedef uint32_t exif_tag_id_t;
@@ -91,6 +93,13 @@ typedef enum {
   CAM_CTRL_ACCEPTED,      /* Parameter accepted */
   CAM_CTRL_MAX,
 } cam_ctrl_status_t;
+
+typedef enum {
+  MM_CAMERA_INFO_EVT_HISTO_MEM_INFO,
+  MM_CAMERA_INFO_EVT_ROI,
+  MM_CAMERA_INFO_FLASH_FRAME_IDX,
+  MM_CAMERA_INFO_EVT_MAX
+} mm_camera_info_event_type_t;
 
 typedef enum {
   CAMERA_YUV_420_NV12,
@@ -190,6 +199,13 @@ typedef enum {
   CAMERA_MODE_MAX = CAMERA_ZSL_MODE,
 } camera_mode_t;
 
+typedef enum {
+  CAMERA_RAW,
+  CAMERA_JPEG,
+  CAMERA_PNG,
+  CAMERA_YCBCR_ENCODE,
+  CAMERA_ENCODE_TYPE_MAX
+} camera_encode_type;
 
 typedef struct {
   int  modes_supported;
@@ -250,6 +266,11 @@ typedef struct {
   uint32_t pxlcode;
   uint8_t yuv_thru_vfe;
 }cam_prop_t;
+
+typedef struct {
+  float min_fps;
+  float max_fps;
+} cam_sensor_fps_range_t;
 
 typedef struct {
   uint16_t video_width;         /* Video width seen by VFE could be different than orig. Ex. DIS */
@@ -348,6 +369,18 @@ typedef struct {
   uint16_t height;                     /* input/output */
   cam_frame_len_offset_t frame_offset; /* output */
 } cam_frame_resolution_t;
+
+typedef struct {
+  uint32_t  in1_w;
+  uint32_t  out1_w;
+  uint32_t  in1_h;
+  uint32_t  out1_h;
+  uint32_t  in2_w;
+  uint32_t  out2_w;
+  uint32_t  in2_h;
+  uint32_t  out2_h;
+  uint8_t update_flag;
+} common_crop_t;
 
 typedef struct {
   uint32_t instance_hdl; /* instance handler of the stream */
@@ -904,6 +937,29 @@ typedef enum {
   CAMERA_HFR_MODE_150FPS,
 } camera_hfr_mode_t;
 
+typedef enum {
+  CAMERA_BESTSHOT_OFF = 0,
+  CAMERA_BESTSHOT_AUTO = 0,
+  CAMERA_BESTSHOT_LANDSCAPE = 1,
+  CAMERA_BESTSHOT_SNOW,
+  CAMERA_BESTSHOT_BEACH,
+  CAMERA_BESTSHOT_SUNSET,
+  CAMERA_BESTSHOT_NIGHT,
+  CAMERA_BESTSHOT_PORTRAIT,
+  CAMERA_BESTSHOT_BACKLIGHT,
+  CAMERA_BESTSHOT_SPORTS,
+  CAMERA_BESTSHOT_ANTISHAKE,
+  CAMERA_BESTSHOT_FLOWERS,
+  CAMERA_BESTSHOT_CANDLELIGHT,
+  CAMERA_BESTSHOT_FIREWORKS,
+  CAMERA_BESTSHOT_PARTY,
+  CAMERA_BESTSHOT_NIGHT_PORTRAIT,
+  CAMERA_BESTSHOT_THEATRE,
+  CAMERA_BESTSHOT_ACTION,
+  CAMERA_BESTSHOT_AR,
+  CAMERA_BESTSHOT_MAX
+} camera_bestshot_mode_type;
+
 /* frame Q*/
 struct fifo_node
 {
@@ -1205,6 +1261,92 @@ typedef struct {
   int data_len;  //client return real size including null "\0".
   char tags[MAX_MOBICAT_SIZE];
 } cam_exif_tags_t;
+
+typedef enum {
+  CAMERA_PARM_FADE_OFF,
+  CAMERA_PARM_FADE_IN,
+  CAMERA_PARM_FADE_OUT,
+  CAMERA_PARM_FADE_IN_OUT,
+  CAMERA_PARM_FADE_MAX
+} camera_fading_type;
+
+typedef enum {
+  CAMERA_DEVICE_MEM,
+  CAMERA_DEVICE_EFS,
+  CAMERA_DEVICE_MAX
+} camera_device_type;
+
+#define MAX_JPEG_ENCODE_BUF_NUM 4
+#define MAX_JPEG_ENCODE_BUF_LEN (1024*8)
+
+typedef struct {
+  uint32_t buf_len;/* Length of each buffer */
+  uint32_t used_len;
+  int8_t   valid;
+  uint8_t  *buffer;
+} camera_encode_mem_type;
+
+typedef struct {
+  camera_device_type     device;
+#ifndef FEATURE_CAMERA_ENCODE_PROPERTIES
+  int32_t                quality;
+  camera_encode_type     format;
+#endif /* nFEATURE_CAMERA_ENCODE_PROPERTIES */
+  int32_t                encBuf_num;
+  camera_encode_mem_type encBuf[MAX_JPEG_ENCODE_BUF_NUM];
+} camera_handle_mem_type;
+
+typedef union {
+  camera_device_type      device;
+  camera_handle_mem_type  mem;
+} camera_handle_type;
+
+typedef enum {
+  CAMERA_AUTO_FOCUS,
+  CAMERA_MANUAL_FOCUS
+} camera_focus_e_type;
+
+typedef enum {
+  LED_MODE_OFF,
+  LED_MODE_AUTO,
+  LED_MODE_ON,
+  LED_MODE_TORCH,
+
+  /*new mode above should be added above this line*/
+  LED_MODE_MAX
+} led_mode_t;
+
+typedef enum {
+  STROBE_FLASH_MODE_OFF,
+  STROBE_FLASH_MODE_AUTO,
+  STROBE_FLASH_MODE_ON,
+  STROBE_FLASH_MODE_MAX,
+} strobe_flash_mode_t;
+
+/* AEC: Frame average weights the whole preview window equally
+   AEC: Center Weighted weights the middle X percent of the window
+   X percent compared to the rest of the frame
+   AEC: Spot metering weights the very center regions 100% and
+   discounts other areas                                        */
+typedef enum {
+  CAMERA_AEC_FRAME_AVERAGE,
+  CAMERA_AEC_CENTER_WEIGHTED,
+  CAMERA_AEC_SPOT_METERING,
+  CAMERA_AEC_MAX_MODES
+} camera_auto_exposure_mode_type;
+
+/* Auto focus mode, used for CAMERA_PARM_AF_MODE */
+typedef enum {
+  AF_MODE_UNCHANGED = -1,
+  AF_MODE_NORMAL    = 1,
+  AF_MODE_MACRO,
+  AF_MODE_AUTO,
+  AF_MODE_CAF,
+  AF_MODE_INFINITY,
+  AF_MODE_CAF_VID,
+  AF_MODE_MAX
+} isp3a_af_mode_t;
+
 
 #define MAX_CAM_FRAME_TYPE 3 /* in match with enum in cam_frame_type_t */
 

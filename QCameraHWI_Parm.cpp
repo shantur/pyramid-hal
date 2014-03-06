@@ -61,8 +61,8 @@ extern "C" {
 #include <stdlib.h>
 #include <linux/msm_ion.h>
 #include <camera.h>
-#include <cam_fifo.h>
-#include <jpege.h>
+#include <QCamera_Intf.h>
+//#include <jpege.h>
 
 } // extern "C"
 

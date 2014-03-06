@@ -36,7 +36,7 @@
 #include "omx_jpeg_ext.h"
 #include "mm_omx_jpeg_encoder.h"
 
-static uint8_t hw_encode = true;
+static uint8_t hw_encode = TRUE;
 static int jpegRotation = 0;
 static int isZSLMode = 0;
 static int jpegThumbnailQuality = 75;
