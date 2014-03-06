@@ -71,15 +71,6 @@
 #define CAMERA_EFFECT_USER_DEFINED6     17
 #define CAMERA_EFFECT_MAX               18
 
-enum {
-  CAMERA_SUPPORT_MODE_2D = 0x01, /* Camera Sensor supports 2D mode. */
-  CAMERA_SUPPORT_MODE_3D = 0x02, /* Camera Sensor supports 3D mode. */
-  CAMERA_SUPPORT_MODE_NONZSL = 0x04, /* Camera Sensor in NON-ZSL mode. */
-  CAMERA_SUPPORT_MODE_ZSL = 0x08 /* Camera Sensor supports ZSL mode. */
-};
-/* Temporary defines for MR1 bringup - End */
-
-
 /* Exif Tag ID */
 typedef uint32_t exif_tag_id_t;
 
